@@ -1,0 +1,30 @@
+# The editor side of the same question as .gitattributes. Indentation, the final
+# newline and trailing whitespace are decided once here rather than argued in a
+# review, and the values agree with the formatters that judge these files, since
+# two tools with different opinions about one file produce a change on every
+# save.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Go source is formatted by gofmt, which indents with tabs and takes no option
+# to do otherwise.
+[*.go]
+indent_style = tab
+
+# Two spaces at the end of a line are a line break in Markdown. Trimming them
+# changes what the page renders, so the whitespace rule is off here and the
+# formatter is what keeps the rest of the shape.
+[*.md]
+trim_trailing_whitespace = false
+
+# A recipe line has to start with a tab or the file does not run.
+[Makefile]
+indent_style = tab
