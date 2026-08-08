@@ -1,0 +1,25 @@
+# How text reaches the object database.
+#
+# Three later checks compare bytes: a rendered page against a committed golden
+# file, one build against another, and a formatter against a file's shape. All
+# three are decided by what git wrote when somebody committed, so what it writes
+# is declared here rather than left to the machine that ran the commit.
+
+# Text is normalised to LF on the way in and checked out in whatever the local
+# system uses. Without this line a contributor on a system that ends lines with
+# a carriage return commits it, and a golden file then differs from the page the
+# build renders on every other machine, in a way that reads as a template change.
+* text=auto
+
+# Fixtures whose bytes are the point are never normalised, in either direction.
+# A golden file is compared byte for byte against what the build wrote, so a
+# carriage return added on checkout would fail the comparison on one operating
+# system and pass it on another, and a fixture git repaired on the way in proves
+# the opposite of what it was written for.
+*.golden        -text
+testdata/**     -text
+
+# Build output. It is excluded from language statistics and shown collapsed in a
+# diff, where the change of interest is in the source that produced it rather
+# than in the bytes it emitted.
+dist/**         linguist-generated=true
