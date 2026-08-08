@@ -1,0 +1,80 @@
+# The roster file
+
+One file, machine-readable, published in public, holding one row per plugin.
+Everything this site says about the twelve plugins comes out of it, and so does
+the table on the organisation profile.
+
+Where the file lives and why is `decisions/0001-where-the-plugin-list-comes-from.md`.
+This document is the shape of it. Writing the shape down does not put the file
+anywhere: nothing on this board may write in the repository that holds the
+machine-readable data, and who lands it there is a question on the tracker.
+
+## The format
+
+JSON, and a top-level array.
+
+JSON rather than YAML, because the file is read by a program and edited rarely,
+the parser is in the standard library, and YAML's implicit typing turns a version
+string into a number when nobody is looking.
+
+An array rather than an object, because the order of the rows is the order the
+site presents them. The ordering lives in the data, where somebody can change it
+by moving a row, rather than in a sort somebody has to justify.
+
+## The fields
+
+Every field is required and every one is a string. A row carrying a field not
+named here is malformed, and so is a row missing one.
+
+`id` is the plugin's identifier, and it matches the suffix of the repository name
+after `jellyfin-plugin-`. It is what the address of the plugin's page is built
+from and what the per-plugin prose in this repository is keyed by, so it is the
+one value in the row that other files depend on being stable.
+
+`repository` is the repository the plugin lives in, written as `owner/name`. It
+is what the build asks for the release list when it computes whether the plugin
+ships.
+
+`summary` is one sentence saying what the plugin does, in the voice the site
+uses. It is one sentence and not a paragraph: the paragraphs that make a plugin
+page worth opening live in this repository keyed by `id`, so this file stays
+small enough for the two consumers outside it to read.
+
+`state` is what the row declares about the plugin, and it may only be `build-up`
+or `shell`.
+
+## `ships` is not a value this file may carry
+
+Whether something ships is a fact about published releases rather than an
+opinion. The build asks the release list and computes it, and a schema that lets
+a person write `ships` is a schema that lets the table lie.
+
+So `state` declares the floor rather than the answer. A row says what is true when
+nothing is published, and the build raises it where the releases say otherwise. A
+row declaring `shell` for a repository that has published releases is a
+contradiction rather than a state, and it reds the build.
+
+Which releases count as shipping is
+`decisions/0009-what-counts-as-shipping.md`. This file carries no field about it
+at all, so a change to that rule changes no row here.
+
+## An example row
+
+    [
+      {
+        "id": "watchlist",
+        "repository": "Flowfin/jellyfin-plugin-watchlist",
+        "summary": "A private per-user watchlist kept on the server, shown by clients that were never changed",
+        "state": "build-up"
+      }
+    ]
+
+The sentence in that row is the one the organisation profile already publishes
+for the same plugin, which is where the twelve sentences come from on the day the
+file is first written:
+
+    gh api repos/Flowfin/.github/contents/profile/README.md --jq '.content' \
+      | base64 -d | grep -E '^\| \[watchlist\]' | cut -d'|' -f3
+     A private per-user watchlist kept on the server, shown by clients that were never changed
+
+Run 2026-08-08.
