@@ -1,0 +1,62 @@
+# Two things about a commit cannot be repaired after it lands, only rewritten
+# out of history: the message and the characters in it. So they are decided
+# before the merge.
+#
+# The deciding is in `go run . hygiene` rather than in a shell block here. A
+# rule written in YAML has no suite that can prove it bites and no way to run it
+# on the machine where the mistake was made, and this repository's own gate
+# exists to keep enforcement logic out of that position. This file supplies the
+# two commits and says whether the pull request came from here.
+#
+# The check-run name is the job name, and a ruleset can require a check only by
+# that literal string. Renaming this job leaves such a requirement waiting on a
+# context nobody reports.
+name: PR hygiene
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Read-only: nothing here writes anything anywhere.
+permissions:
+  contents: read
+
+# Cancel a superseded run on the same pull request; the verdict is cheap and
+# depends only on the head commit, so an obsolete one is worth nothing.
+concurrency:
+  group: pr-hygiene-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    name: Deterministic PR-hygiene checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history, or the base..head range is not walkable. No step
+          # pushes, so the token is not persisted.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # No go.sum and an empty module graph, so there is nothing to key a
+          # cache on.
+          cache: false
+
+      - name: Judge the commit messages in this pull request
+        # Every value reaches the verb through the environment and is quoted
+        # where it is used, so a crafted ref or branch name is data and never a
+        # fragment of the shell that runs. The origin resolves to one of two
+        # literals here rather than being decided inside the program, because
+        # whether a head repository is this one is a fact about the event.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ORIGIN: ${{ github.event.pull_request.head.repo.full_name == github.repository && 'internal' || 'external' }}
+        run: go run . hygiene -origin="$ORIGIN" "$BASE_SHA" "$HEAD_SHA"
