@@ -1,0 +1,56 @@
+# The gate, run where a reader of a pull request can see it. `go run . ci` is
+# the whole of it, so this file installs the toolchain and calls the verb and
+# does nothing else. A leg added to the verb reaches this route without this
+# file being edited, which is the point of having one verb: a contributor and
+# the server run the same procedure rather than two that drift.
+#
+# A ruleset can require a check only by its literal check-run name, and that
+# name is the job id when the job carries no `name:`. So this job has none.
+# Adding one, or renaming the job, changes the reported name and leaves
+# whatever required `build` waiting for a context nobody reports, which is not
+# a red check but a pull request with nothing to click.
+name: Build
+
+on:
+  # On the default branch as well as on pull requests, so the gate has a
+  # completed run there for the failure watchdog to read. A workflow that only
+  # ever runs on a pull request is invisible to it.
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+# The gate only reads, so cancelling a superseded run on the same ref is safe
+# and keeps a new push from queueing behind an obsolete verdict.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # From go.mod rather than a version written here, so the toolchain
+          # this runs on and the toolchain the module declares cannot disagree.
+          go-version-file: go.mod
+          # The module graph is empty and there is no go.sum, so there is
+          # nothing to key a cache on and asking for one fails the step for a
+          # reason that has nothing to do with the gate.
+          cache: false
+
+      - name: Run the gate
+        run: go run . ci
