@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/Flowfin/site/internal/gate"
+	"github.com/Flowfin/site/internal/hygiene"
 	"github.com/Flowfin/site/internal/site"
 )
 
@@ -24,17 +25,27 @@ func main() {
 // run is separate from main so that a test can drive a verb and read what it
 // wrote without the process exiting underneath it.
 func run(args []string, out, errOut io.Writer) error {
-	if len(args) != 1 {
+	if len(args) == 0 {
 		usage(errOut)
-		return errors.New("exactly one verb is required")
+		return errors.New("a verb is required")
 	}
 
 	switch args[0] {
 	case "build":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("build takes no argument")
+		}
 		_, err := site.Build(".", site.OutputDir, out)
 		return err
 	case "ci":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("ci takes no argument")
+		}
 		return gate.Run(".", out)
+	case "hygiene":
+		return hygiene.Run(args[1:], out)
 	default:
 		usage(errOut)
 		return fmt.Errorf("unknown verb %q", args[0])
@@ -45,5 +56,7 @@ func usage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   go run . build   render the site into `+site.OutputDir+`/ and print what was written
   go run . ci      run the gate: every leg in order, stopping at the first failure
+  go run . hygiene [-origin=internal|external] <base> <head>
+                   judge the commit messages in a range
 `)
 }
