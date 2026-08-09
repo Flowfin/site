@@ -1,0 +1,32 @@
+# The caller half of the packaging check.
+#
+# A required context written `A / B` is not a workflow called A holding a job
+# called B. It is a job named A that calls a reusable workflow, reported over a
+# job named B inside the file it called. So a plain workflow holding a packing
+# job would report one name and a rule requiring the prefixed one would wait for
+# a context nobody emits, which blocks every pull request instead of gating one.
+#
+# This file exists to supply the caller half of that name and nothing else. It is
+# separate from the gate workflow so that the gate's own job name, which is the
+# check a rule requires for the gate, is not moved by a change about packaging.
+name: Package (site)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Package (site)
+    # A caller grants every permission the callable file declares, and no more.
+    permissions:
+      contents: read
+    uses: ./.github/workflows/package.yml
