@@ -1,0 +1,50 @@
+# The claim this repository wants to be able to make is that the bytes published
+# at a tag can be produced again from the source at that tag. A claim like that
+# is worth nothing unless something re-derives it, so the verb below builds twice
+# and compares byte for byte.
+#
+# It reports under a name of its own rather than as a leg of the gate. A
+# reproducibility failure and a compile failure are different problems with
+# different repairs, and a reader of a red pull request should not have to open a
+# log to tell which one they have. The gate this repository is measured against
+# requires its floor build as a separate context for the same reason.
+#
+# The job name is the check-run name, and it is what a rule on the branch would
+# have to require. Renaming the job leaves such a requirement waiting for a
+# context nobody reports.
+name: Reproducibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reproducible:
+    name: Reproducible build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Build twice and compare
+        run: go run . reproduce
