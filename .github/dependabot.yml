@@ -1,0 +1,50 @@
+# This repository intends to carry no application dependencies, and it still has
+# a supply chain: the actions every workflow runs, and whatever the module graph
+# grows into. Both go stale silently, and a pin nobody watches is not a stable
+# version but an old one.
+#
+# Two ecosystems, because they are the two an updater understands here. The
+# versions fetched inside a workflow step, and the base image once there is a
+# container, are invisible to this file; #93 is where those are declared and
+# compared, so an unpinned version never becomes the quiet answer to the ones
+# this cannot see.
+#
+# Nothing here relaxes the pinning rule. An action is referenced by commit SHA
+# with the version in a comment, the workflow audit refuses a tag, and an update
+# rewrites both the SHA and the comment rather than replacing them with a moving
+# reference. That behaviour is the updater's and is not a setting, so it is
+# stated here as the reason the two are safe to automate rather than as
+# something this file configures.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    # One pull request rather than one per action. Reviewing seven bumps of the
+    # same shape separately costs seven reads and finds nothing the first read
+    # did not, and each one that lands moves the branch under the others.
+    groups:
+      actions:
+        patterns:
+          - "*"
+    # An update arrives carrying what every change here carries, rather than
+    # being sorted out by hand afterwards.
+    labels:
+      - ci
+    assignees:
+      - iderex
+
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      gomod:
+        patterns:
+          - "*"
+    labels:
+      - ci
+    assignees:
+      - iderex
