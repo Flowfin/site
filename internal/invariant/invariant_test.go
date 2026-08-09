@@ -60,7 +60,22 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		"output-carries-no-unfinished-marker": []byte(strings.Replace(cleanPage, `<h1>A title</h1>`,
 			`<h1>A title</h1><!-- TODO: the real heading -->`, 1)),
 		"tracked-text-names-no-tool": b64(t, "QSBub3RlIGFib3ZlLgpHZW5lcmF0ZWQgYnkgQ2hhdEdQVCBhbmQgbGVmdCBpbi4K"),
+		// The six shapes the headless rule refuses, each in the smallest
+		// test somebody would actually write. Base64 for the same reason
+		// the marker fixture is: a test source carrying these literally is
+		// the thing these rows refuse, so the suite would fail on itself.
+		"test-opens-no-window":                     b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkidGVzdGluZyIKCgkiZ2l0aHViLmNvbS9jaHJvbWVkcC9jaHJvbWVkcCIKKQoKZnVuYyBUZXN0UmVuZGVyKHQgKnRlc3RpbmcuVCkgeyBfID0gY2hyb21lZHAuTmV3Q29udGV4dCB9Cg=="),
+		"test-needs-no-display-server":             b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkib3MvZXhlYyIKCSJ0ZXN0aW5nIgopCgpmdW5jIFRlc3RSZW5kZXIodCAqdGVzdGluZy5UKSB7IF8gPSBleGVjLkNvbW1hbmQoInh2ZmItcnVuIiwgImdvIiwgInRlc3QiKSB9Cg=="),
+		"test-binds-only-loopback":                 b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkibmV0IgoJInRlc3RpbmciCikKCmZ1bmMgVGVzdFNlcnZlKHQgKnRlc3RpbmcuVCkgeyBfLCBfID0gbmV0Lkxpc3RlbigidGNwIiwgIjAuMC4wLjA6ODA4MCIpIH0K"),
+		"test-writes-no-certificate-store":         b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkib3MvZXhlYyIKCSJ0ZXN0aW5nIgopCgpmdW5jIFRlc3RUcnVzdCh0ICp0ZXN0aW5nLlQpIHsgXyA9IGV4ZWMuQ29tbWFuZCgiY2VydHV0aWwiLCAiLWFkZHN0b3JlIiwgInJvb3QiLCAiYS5jZXIiKSB9Cg=="),
+		"test-asks-for-no-elevation":               b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkib3MvZXhlYyIKCSJ0ZXN0aW5nIgopCgpmdW5jIFRlc3RCaW5kKHQgKnRlc3RpbmcuVCkgeyBfID0gZXhlYy5Db21tYW5kKCJzdWRvIiwgInRydWUiKSB9Cg=="),
+		"test-needs-nothing-outside-the-toolchain": b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkidGVzdGluZyIKCgkiZ2l0aHViLmNvbS9zdHJldGNoci90ZXN0aWZ5L3JlcXVpcmUiCikKCmZ1bmMgVGVzdEFzc2VydCh0ICp0ZXN0aW5nLlQpIHsgcmVxdWlyZS5UcnVlKHQsIHRydWUpIH0K"),
 	}
+
+	// The neighbour a row is given is of the population it reads. A page rule
+	// judged against a Go file, or the other way round, would pass for the
+	// wrong reason.
+	cleanTest := b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkib3MiCgkidGVzdGluZyIKKQoKZnVuYyBUZXN0U29tZXRoaW5nKHQgKnRlc3RpbmcuVCkgewoJaWYgb3MuR2V0ZW52KCJIT01FIikgPT0gIiIgewoJCXQuU2tpcCgibm8gaG9tZSIpCgl9Cn0K")
 
 	rules := Rules()
 	if len(rules) != len(violations) {
@@ -77,9 +92,36 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		if got := r.decide(body); len(got) == 0 {
 			t.Errorf("row %s passed its own violation", r.ID)
 		}
-		if got := r.decide([]byte(cleanPage)); len(got) != 0 {
-			t.Errorf("row %s refused a page that breaks nothing: %v", r.ID, got)
+		neighbour := []byte(cleanPage)
+		if r.Subject == TestSources {
+			neighbour = cleanTest
 		}
+		if got := r.decide(neighbour); len(got) != 0 {
+			t.Errorf("row %s refused a %s that breaks nothing: %v", r.ID, r.Subject, got)
+		}
+	}
+}
+
+// Loopback is what the bind row permits, in the three spellings a test actually
+// uses. A row that refused these would be a row somebody turns off.
+func TestTheBindRowPermitsLoopback(t *testing.T) {
+	// Base64 again, and this time the reason is the row directly above: a
+	// probe written out as a literal is a listen address in a tracked test
+	// source, and the row refuses its own suite.
+	for name, encoded := range map[string]string{
+		"127.0.0.1:0": "bmV0Lkxpc3RlbigidGNwIiwgIjEyNy4wLjAuMTowIik=",
+		"localhost:0": "bmV0Lkxpc3RlbigidGNwIiwgImxvY2FsaG9zdDowIik=",
+		"[::1]:0":     "bmV0Lkxpc3RlbigidGNwIiwgIls6OjFdOjAiKQ==",
+	} {
+		if got := decideBind(b64(t, encoded)); len(got) != 0 {
+			t.Errorf("the bind row refused %s: %v", name, got)
+		}
+	}
+	// An address with no host is every interface on the machine, which is
+	// the shape that raises the prompt, and it is the one somebody writes
+	// without meaning to.
+	if got := decideBind(b64(t, "bmV0Lkxpc3RlbigidGNwIiwgIjo4MDgwIik=")); len(got) == 0 {
+		t.Error("the bind row passed an address with no host, which is every interface on the machine")
 	}
 }
 

@@ -45,6 +45,9 @@ const (
 	// would be refused by its own rule, and the alternative is a vocabulary
 	// spelled in fragments, which nobody can read or maintain.
 	TrackedText = "every tracked text file, except the one declaring the vocabulary"
+	// TestSources is every tracked test source. The headless rule is a rule
+	// about what the suite does, so it reads the suite.
+	TestSources = "every tracked test source"
 )
 
 // vocabularyFile is the path excluded from TrackedText, and it is derived from
@@ -127,7 +130,165 @@ func Rules() []Rule {
 			Refuses: "a tracked text file carrying one of the produced-by markers in the vocabulary",
 			decide:  decideMarkers,
 		},
+		{
+			ID:      "test-opens-no-window",
+			Subject: TestSources,
+			Reason:  "a suite that needs a screen is a suite that is run rarely, and a suite that is run rarely is not a gate",
+			Refuses: "a test source naming a driver that opens a window or drives a real browser",
+			decide:  literal(windowDrivers, "names a driver that opens a window"),
+		},
+		{
+			ID:      "test-needs-no-display-server",
+			Subject: TestSources,
+			Reason:  "a test that reaches for a display passes on the machine it was written on and fails on every runner, and the failure reads as a broken test rather than as a broken assumption",
+			Refuses: "a test source naming a display server or the variable that points at one",
+			decide:  literal(displayServers, "names a display server"),
+		},
+		{
+			ID:      "test-binds-only-loopback",
+			Subject: TestSources,
+			Reason:  "binding a machine's own interface address rather than loopback is what makes a desktop firewall ask an administrator for permission, and that dialog is answered per executable path, so answering it settles nothing for the next build directory",
+			Refuses: "a listen address in a test source whose host is neither loopback nor absent by being loopback",
+			decide:  decideBind,
+		},
+		{
+			ID:      "test-writes-no-certificate-store",
+			Subject: TestSources,
+			Reason:  "a certificate store is machine-wide state, so a test that writes one changes the machine for everything else on it and asks for elevation on the way",
+			Refuses: "a test source naming a tool that installs or trusts a certificate",
+			decide:  literal(certificateStores, "names a tool that writes a certificate store"),
+		},
+		{
+			ID:      "test-asks-for-no-elevation",
+			Subject: TestSources,
+			Reason:  "elevation does not fail as a red test but as a consent prompt that takes the screen away from whoever was working, and a test that does that once is a test people learn to skip",
+			Refuses: "a test source naming a way to ask for administrator or root",
+			decide:  pattern(elevation, "asks for elevation"),
+		},
+		{
+			ID:      "test-needs-nothing-outside-the-toolchain",
+			Subject: TestSources,
+			Reason:  "a package that is neither in the toolchain nor part of this module is a thing somebody has to install before the suite runs, and a suite with a setup step is a suite that is run rarely",
+			Refuses: "an import in a test source that is neither standard library nor inside this module",
+			decide:  decideImports,
+		},
 	}
+}
+
+// The vocabularies the headless rows read. Each is a floor rather than a
+// guarantee: it holds the shapes that actually arrive, and it will not catch one
+// nobody has written yet. They are declared here, in the file already excluded
+// from the tracked-text population, so no row refuses the list it reads from.
+var (
+	windowDrivers = []string{
+		"github.com/chromedp/chromedp",
+		"github.com/go-rod/rod",
+		"github.com/playwright-community/playwright-go",
+		"github.com/tebeka/selenium",
+		"github.com/webview/webview",
+		"fyne.io/fyne",
+	}
+	displayServers = []string{
+		"xvfb",
+		"wayland_display",
+		`"display"`,
+		"display=:",
+	}
+	certificateStores = []string{
+		"dev-certs",
+		"certutil",
+		"add-trusted-cert",
+		"update-ca-certificates",
+		"cert:\\localmachine",
+	}
+	// modulePath is this module, and an import under it is this repository
+	// rather than something to install.
+	modulePath = "github.com/Flowfin/site"
+)
+
+var (
+	elevation  = regexp.MustCompile(`(?i)\b(sudo|gsudo|pkexec|runas|netsh|schtasks|sc\.exe)\b|-verb\s+runas`)
+	listenCall = regexp.MustCompile(`(?s)Listen[A-Za-z]*\(\s*(?:"[a-z0-9]+"\s*,\s*)?"([^"]*)"`)
+	importLine = regexp.MustCompile(`(?m)^\s*(?:_\s+|\.\s+|[a-zA-Z0-9_]+\s+)?"([^"]+)"\s*$`)
+)
+
+// literal returns a decide that refuses any of the vocabulary, compared
+// lower-cased so a capitalisation does not walk through.
+func literal(vocabulary []string, detail string) func([]byte) []string {
+	return func(body []byte) []string {
+		lower := bytes.ToLower(body)
+		var details []string
+		for _, v := range vocabulary {
+			at := 0
+			for {
+				i := bytes.Index(lower[at:], []byte(v))
+				if i < 0 {
+					break
+				}
+				at += i
+				details = append(details, fmt.Sprintf("line %d %s", lineOf(body, at), detail))
+				at += len(v)
+			}
+		}
+		return details
+	}
+}
+
+// pattern returns a decide that refuses every match of re.
+func pattern(re *regexp.Regexp, detail string) func([]byte) []string {
+	return func(body []byte) []string {
+		var details []string
+		for _, loc := range re.FindAllIndex(body, -1) {
+			details = append(details, fmt.Sprintf("line %d %s", lineOf(body, loc[0]), detail))
+		}
+		return details
+	}
+}
+
+// decideBind reads the address a listen call was given. An empty host means
+// every interface on the machine, which is the shape that raises the prompt, so
+// it is refused as loudly as a written-out address.
+func decideBind(body []byte) []string {
+	var details []string
+	for _, m := range listenCall.FindAllSubmatchIndex(body, -1) {
+		addr := string(body[m[2]:m[3]])
+		host := addr
+		if i := strings.LastIndex(addr, ":"); i >= 0 {
+			host = addr[:i]
+		}
+		host = strings.Trim(host, "[]")
+		switch strings.ToLower(host) {
+		case "127.0.0.1", "localhost", "::1":
+			continue
+		case "":
+			details = append(details, fmt.Sprintf("line %d binds %q, which is every interface on the machine rather than loopback", lineOf(body, m[0]), addr))
+		default:
+			details = append(details, fmt.Sprintf("line %d binds %q, which is not loopback", lineOf(body, m[0]), addr))
+		}
+	}
+	return details
+}
+
+// decideImports refuses an import that is neither standard library nor inside
+// this module. A standard library path has no dot in its first element, which is
+// the rule the toolchain itself uses to tell the two apart.
+func decideImports(body []byte) []string {
+	var details []string
+	for _, m := range importLine.FindAllSubmatchIndex(body, -1) {
+		p := string(body[m[2]:m[3]])
+		first := p
+		if i := strings.Index(p, "/"); i >= 0 {
+			first = p[:i]
+		}
+		if !strings.Contains(first, ".") {
+			continue
+		}
+		if p == modulePath || strings.HasPrefix(p, modulePath+"/") {
+			continue
+		}
+		details = append(details, fmt.Sprintf("line %d imports %s, which is neither standard library nor inside this module", lineOf(body, m[0]), p))
+	}
+	return details
 }
 
 // Owing is what this gate is meant to refuse and cannot decide yet. Each entry
@@ -250,7 +411,7 @@ func gather(root string) (map[string][]file, error) {
 		}
 	}
 
-	tracked, err := trackedText(root)
+	tracked, tests, err := trackedText(root)
 	if err != nil {
 		return nil, err
 	}
@@ -259,23 +420,25 @@ func gather(root string) (map[string][]file, error) {
 		ProducedPages: pages,
 		ProducedFiles: produced,
 		TrackedText:   tracked,
+		TestSources:   tests,
 	}, nil
 }
 
-// trackedText reads every tracked file that is not binary. It asks git rather
-// than walking, because the rule is about what this repository carries and a
-// walk also reads whatever happens to be sitting in the working directory.
-func trackedText(root string) ([]file, error) {
+// trackedText reads every tracked file that is not binary, and separates out the
+// test sources. It asks git rather than walking, because the rule is about what
+// this repository carries and a walk also reads whatever happens to be sitting in
+// the working directory.
+func trackedText(root string) ([]file, []file, error) {
 	cmd := exec.Command("git", "ls-files", "-z")
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("listing the tracked files: %w", err)
+		return nil, nil, fmt.Errorf("listing the tracked files: %w", err)
 	}
 
-	var found []file
+	var text, tests []file
 	for _, name := range strings.Split(strings.TrimRight(string(out), "\x00"), "\x00") {
-		if name == "" || name == vocabularyFile {
+		if name == "" {
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
@@ -285,14 +448,20 @@ func trackedText(root string) ([]file, error) {
 				// checkout somebody is in the middle of, not a violation.
 				continue
 			}
-			return nil, err
+			return nil, nil, err
 		}
 		if bytes.IndexByte(b, 0) >= 0 {
 			continue
 		}
-		found = append(found, file{name: name, body: b})
+		f := file{name: name, body: b}
+		if strings.HasSuffix(name, "_test.go") {
+			tests = append(tests, f)
+		}
+		if name != vocabularyFile {
+			text = append(text, f)
+		}
 	}
-	return found, nil
+	return text, tests, nil
 }
 
 func decideLang(body []byte) []string {
