@@ -16,7 +16,7 @@ said nothing would read as a check that had been proven.
 The names below drift against the checks that actually report. What reports is
 read from a commit rather than remembered:
 
-    gh api repos/Flowfin/site/commits/62be147041c7ba161a3be5f4d280412f6445abec/check-runs \
+    gh api repos/Flowfin/site/commits/726e521c289fb1d92f8368e8831eb77ae3cfa962/check-runs \
       --jq '[.check_runs[].name] | sort | .[]'
     Analyze (go)
     Audit workflows (zizmor)
@@ -24,8 +24,10 @@ read from a commit rather than remembered:
     DCO sign-off
     Deterministic PR-hygiene checks
     Enforce greppable invariants
+    Package (site) / Build bundle
     Reject Trojan Source Unicode
     Reject Trojan Source Unicode
+    Reproducible build
     build
     dependency-review
     prettier
@@ -124,6 +126,41 @@ and the test fails if the table grows a row that no violation is written for. A
 suite is a weaker record than a red check for the purpose this document serves,
 and it is a stronger one for keeping the pair true as the table changes, so both
 are named.
+
+## Reproducible build
+
+It refuses a source whose two builds do not produce the same bytes.
+
+Refused, on `5fb0701`, with one clock read in the generator appended to every
+page it renders:
+
+    gh run view 31320295732 --repo Flowfin/site --log-failed
+    reproduce: two builds of ., compared byte for byte
+      1 of 1 file(s) differ between the two builds
+        dist/index.html: 811 bytes against 811, and they are not the same bytes, first at line 16
+    The usual causes are a time read from the clock, a map walked in whatever order it came out in, and an absolute path from the build machine.
+    reproduce: 1 of 1 produced file(s) differ between two builds of one source
+
+The message names the file, the line where the two copies part, and the three
+causes this defect class is almost always one of.
+
+Did not refuse: run 31320444172, on `726e521`, the same branch with the clock
+read taken out.
+
+`build` went red on the same commit, because the suite's own neighbour case
+builds the real generator twice. That is the two names overlapping on one defect
+rather than the separation failing, and what the separate name buys is the case
+they do not overlap on: a difference that appears only in the real output.
+
+## Package (site) / Build bundle
+
+It refuses a change whose output cannot be packed into the bundle an operator
+downloads.
+
+Owed. Did not refuse: run 31318926094, on `fcff78a`, whose second attempt
+produced a byte-identical archive to its first. What would record a refusal is a
+change that makes the packing step fail, and the plausible version is an output
+directory the build did not write to.
 
 ## prettier
 
