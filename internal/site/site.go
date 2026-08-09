@@ -18,7 +18,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // The directories the build reads and the one it writes.
@@ -78,7 +77,6 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 	if err := tmpl.Execute(&rendered, p); err != nil {
 		return nil, fmt.Errorf("rendering the page: %w", err)
 	}
-	rendered.WriteString("<!-- built at " + time.Now().Format(time.RFC3339Nano) + " -->")
 	indexPath := filepath.Join(out, "index.html")
 	if err := os.WriteFile(indexPath, []byte(rendered.String()), 0o644); err != nil {
 		return nil, fmt.Errorf("writing the page: %w", err)
