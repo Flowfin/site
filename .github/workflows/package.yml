@@ -1,0 +1,81 @@
+# The bundle an operator can download and serve, packed on every pull request
+# rather than first on release day. A packaging step whose first real run is the
+# release is a step that breaks on the release, and the reproducibility check has
+# nothing to compare if the shape of the archive is decided later.
+#
+# This file is callable and nothing else. The check-run name a ruleset can require
+# for a reusable call is `<caller job name> / <called job name>`, so the two names
+# together are the string, and neither can be changed without changing what a rule
+# would have to name. The caller is `Package (site)`, in package-caller.yml, and
+# the job below is `Build bundle`.
+#
+# The bill of materials in #41 puts its job in this file rather than in one of its
+# own, for the same reason: a second callable file would be a second name to keep
+# in agreement with a rule.
+#
+# A caller has to grant every permission a callable file declares, or the call
+# does not start. This declares the smallest set its job needs, which is the one
+# scope a checkout wants, and the caller grants exactly that.
+name: Package
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  bundle:
+    name: Build bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing is published from here
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Render the site
+        run: go run . build
+
+      - name: List what the build wrote, with hashes
+        # The list is what makes a downloaded archive checkable against a
+        # published one without trusting the archive. It is taken from the
+        # output directory rather than from the build's own report, so a file
+        # the build wrote and did not mention is in the list too.
+        run: |
+          cd dist
+          find . -type f -print0 | sort -z | xargs -0 sha256sum > ../SHA256SUMS
+          cd ..
+          cat SHA256SUMS
+
+      - name: Pack the output directory
+        # Deterministic by construction: entries in name order, no owner, no
+        # group, no timestamp from the clock, and gzip told not to write the
+        # file name and time into its header. An archive that differs between
+        # two runs of one source reds the reproducibility check for a reason
+        # that has nothing to do with the site.
+        #
+        # Shell rather than the build verb, because tar and gzip are the forced
+        # means for an archive somebody unpacks with tar, and the step decides
+        # nothing: it refuses nothing and judges nothing, so there is no rule
+        # here that would need a suite behind it.
+        run: |
+          tar --sort=name --owner=0 --group=0 --numeric-owner \
+              --mtime='UTC 1970-01-01' --format=gnu \
+              -cf - dist SHA256SUMS | gzip -n > site-bundle.tar.gz
+          sha256sum site-bundle.tar.gz
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-bundle
+          path: site-bundle.tar.gz
+          if-no-files-found: error
