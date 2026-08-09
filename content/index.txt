@@ -8,5 +8,3 @@ be added to rather than invented later.
 The first line of this file is the title and the blocks below it are
 paragraphs. That is the placeholder's shape and not the site's; the pages
 replace it with something that knows about a roster.
-
-TODO: replace this note before the real pages land.
