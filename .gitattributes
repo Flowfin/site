@@ -1,15 +1,24 @@
-# How text reaches the object database.
+# How text reaches the object database, and how it comes back out.
 #
 # Three later checks compare bytes: a rendered page against a committed golden
 # file, one build against another, and a formatter against a file's shape. All
 # three are decided by what git wrote when somebody committed, so what it writes
 # is declared here rather than left to the machine that ran the commit.
 
-# Text is normalised to LF on the way in and checked out in whatever the local
-# system uses. Without this line a contributor on a system that ends lines with
-# a carriage return commits it, and a golden file then differs from the page the
-# build renders on every other machine, in a way that reads as a template change.
-* text=auto
+# Text is normalised to LF in both directions. The inward half stops a
+# contributor on a system that ends lines with a carriage return from committing
+# one, which would make a golden file differ from the page the build renders on
+# every other machine, in a way that reads as a template change.
+#
+# The outward half is `eol=lf` and it is the half this file was missing. Left to
+# the local system, a clone on a system that converts on checkout carries
+# carriage returns in the working tree; gofmt writes LF, so the format leg
+# refuses every Go file in a clone where nothing is wrong, and a template or a
+# content file read by the build produces different bytes on one operating
+# system than on another. `.editorconfig` already declares `end_of_line = lf`
+# for every file here, so this is the same decision enforced on the way out
+# rather than a second one.
+* text=auto eol=lf
 
 # Fixtures whose bytes are the point are never normalised, in either direction.
 # A golden file is compared byte for byte against what the build wrote, so a
