@@ -1,0 +1,79 @@
+# The generator reads a data file and writes markup, which is a parser and a
+# renderer. That is the shape where an injection or an escaping mistake lives,
+# so the source is scanned like any other code rather than trusted for being
+# small.
+#
+# One language, so one analysis job. The gate this repository is measured
+# against requires two contexts for this, one per matrix leg plus the workflow,
+# and there is one leg here. A second job reporting on an empty language would
+# be a check that verifies nothing, which is worse than an honest single name.
+# `docs/parity.md` is where that deviation is recorded with its reason.
+#
+# A ruleset can require a check only by its literal check-run name. The job
+# carries its name written out rather than left to be assembled from the matrix,
+# so the string a rule would have to name is readable in this file:
+# `Analyze (go)`. Renaming the job, or adding a language to the matrix, changes
+# what reports and leaves such a requirement waiting for a context nobody emits.
+name: Code scanning
+
+on:
+  # Pull requests against any branch, so a change is scanned before it lands,
+  # and pushes to the default branch, so the tab keeps a current picture of what
+  # is actually served from there. A scan that only ever ran on a pull request
+  # would leave the default branch's state as whatever the last merge happened
+  # to say.
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the top level; the job below grants the three scopes it
+# needs and nothing else.
+permissions: {}
+
+# A superseded run on the same ref is worth nothing: the verdict depends on the
+# head commit, and the newer run replaces the analysis for that ref anyway.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read # checkout only
+      security-events: write # upload the results to the code scanning tab
+      actions: read # read the workflow run the results belong to
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        # The extractor builds the module to see it. Left to whatever Go the
+        # runner image carries, that build is against a different toolchain from
+        # the one the gate uses, and a scan of a build nobody else performs is a
+        # scan of something other than this repository.
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # The module graph is empty and there is no go.sum, so there is
+          # nothing to key a cache on.
+          cache: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          languages: go
+          # The extractor needs a build. `autobuild` runs the module's own one,
+          # which is the same thing the gate's build leg does, so the analysis
+          # and the gate see the same packages.
+          build-mode: autobuild
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          category: "/language:go"
