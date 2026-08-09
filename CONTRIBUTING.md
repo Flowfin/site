@@ -26,8 +26,12 @@ The remaining verbs exist so that a rule the server decides can also be decided
 on the machine where the mistake was made. `go run . hygiene` takes a base and a
 head commit and judges the commit messages in that range. `go run . invariants`
 decides the rules that can be read off the tree and off the output a build
-produces, and it is also a leg of the gate, so running the gate covers it. What
-the verbs are is printed by running one with no argument.
+produces, and it is also a leg of the gate, so running the gate covers it.
+`go run . reproduce` builds twice and compares what came out, and it is
+deliberately not a leg: a build that does not reproduce and a build that does not
+compile are different problems with different repairs, and they report under
+different names so a red pull request says which one you have. What the verbs are
+is printed by running one with no argument.
 
 Nothing in this repository runs the gate verb for you. There is no hook here to
 install:
