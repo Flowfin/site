@@ -1,0 +1,59 @@
+# Some rules about this repository are decidable by reading bytes, and a rule a
+# machine can refuse should not be left as a sentence in a document.
+#
+# What decides them is `go run . invariants` rather than a shell block here. A
+# rule written in YAML has no suite that can prove it bites and no way to run it
+# on the machine where the mistake was made, which is the position this
+# repository already took for the commit message rules. The rows, their reasons
+# and what each one refuses are in `internal/invariant`, and the same verb is a
+# leg of the gate, so a contributor meets the rules by running one verb rather
+# than by remembering a second one.
+#
+# What this file supplies is the name. A ruleset can require a check only by its
+# literal check-run name, and the job name is that string. Renaming the job
+# leaves such a requirement waiting for a context nobody reports.
+name: Invariants
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+# The verb only reads, so cancelling a superseded run on the same ref is safe.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  invariants:
+    name: Enforce greppable invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # From go.mod rather than a version written here, so the toolchain
+          # this runs on and the toolchain the module declares cannot disagree.
+          go-version-file: go.mod
+          # The module graph is empty and there is no go.sum, so there is
+          # nothing to key a cache on and asking for one fails the step for a
+          # reason that has nothing to do with the rules.
+          cache: false
+
+      - name: Decide the invariants
+        # One row of the table asks git what this repository tracks, so the
+        # checkout above is what it reads. A shallow checkout is enough: the
+        # question is about the tree at this commit and never about its history.
+        run: go run . invariants
