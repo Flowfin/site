@@ -166,8 +166,13 @@ departure, what it costs and what would end it are in
 [decisions/0012-the-browser-in-the-gate.md](decisions/0012-the-browser-in-the-gate.md)
 rather than repeated here.
 
-Nothing refuses a test that breaks any of the six constraints today. #38 is where
-the rule is written down in full and given something that refuses a new one.
+Each of the six is a row in the invariant table, so a test that spells one of
+them out reds the gate and the failure names which constraint it broke. What the
+rows read is the bytes of the test sources, which is a floor rather than a
+guarantee: a test that arrives at the same behaviour through a value they cannot
+follow is refused by nothing. [docs/headless.md](docs/headless.md) states the
+rule in full, names the row that refuses each constraint, and says what the rows
+do not reach.
 
 ## What refuses what
 
