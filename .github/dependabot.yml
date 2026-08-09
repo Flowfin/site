@@ -22,6 +22,12 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    # A release is not taken the day it appears. The attack this pays for is a
+    # compromised or yanked publish reaching the tree before anybody upstream
+    # has noticed, and a week is long enough for that to surface while being
+    # short enough that a security fix is not sitting behind it for a month.
+    cooldown:
+      default-days: 7
     # One pull request rather than one per action. Reviewing seven bumps of the
     # same shape separately costs seven reads and finds nothing the first read
     # did not, and each one that lands moves the branch under the others.
@@ -40,6 +46,12 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    # A release is not taken the day it appears. The attack this pays for is a
+    # compromised or yanked publish reaching the tree before anybody upstream
+    # has noticed, and a week is long enough for that to surface while being
+    # short enough that a security fix is not sitting behind it for a month.
+    cooldown:
+      default-days: 7
     groups:
       gomod:
         patterns:
