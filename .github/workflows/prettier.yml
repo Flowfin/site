@@ -1,0 +1,62 @@
+# Formatting arguments are a waste of a review, so a formatter decides and this
+# refuses what disagrees with it. The name is the same one the gate this
+# repository is measured against uses for the same thing, and the check-run name
+# is the job id when the job carries no `name:`, so this job has none.
+#
+# The formatter is a Node tool and this repository has no Node dependency tree.
+# It runs through `npx` at a pinned version here and nowhere else, with no
+# package manifest and no lockfile in the tree. That is a deliberate cost:
+# bringing a dependency graph into a repository that has none, in order to run a
+# formatter, would cost more than it buys, and the parity ledger is where the
+# deviation is recorded. What it buys instead is a version fetched at run time,
+# which no updater watches, and #93 is where pins of that shape are declared and
+# compared.
+#
+# The runner's own Node is used rather than a fourth pinned action. What decides
+# the output is the formatter version, and that is exact.
+name: Formatting
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+# The check only reads, so cancelling a superseded run on the same ref is safe.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # checkout only
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check formatting
+        # `--end-of-line auto` on the check and on the write, or a checkout on a
+        # machine that converts line endings reports every tracked file as
+        # failing on a tree with nothing modified, and a real defect becomes
+        # indistinguishable from that noise. What is written into the tree is
+        # settled by the normalisation rules in `.gitattributes`, and the two
+        # answers agree: text is LF in both directions, so the formatter has
+        # nothing to convert.
+        #
+        # The file set is smaller than the formatter's reach on purpose. YAML in
+        # this directory is not in it: the workflows are audited by a tool with
+        # its own opinion about their shape, and two tools rewriting one file is
+        # a change on every save. Generated output is excluded in
+        # `.prettierignore` for the same reason, because a formatter fighting a
+        # template is noise.
+        env:
+          PRETTIER_VERSION: "3.9.6"
+        run: npx --yes "prettier@${PRETTIER_VERSION}" --check --end-of-line auto "**/*.{md,css,html,js}"
