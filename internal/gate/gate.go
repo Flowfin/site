@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Flowfin/site/internal/invariant"
 	"github.com/Flowfin/site/internal/site"
 )
 
@@ -35,6 +36,7 @@ func legs() []leg {
 		{"vet", vetLeg},
 		{"test", testLeg},
 		{"build", buildLeg},
+		{"invariants", invariantsLeg},
 	}
 }
 
@@ -154,6 +156,22 @@ func buildLeg(root string) (string, error) {
 		return "", fmt.Errorf("the build wrote no file, and a site of nothing is not a site")
 	}
 	return fmt.Sprintf("ok, %d file(s)", len(written)), nil
+}
+
+// invariantsLeg decides the rules that can be read off the tree and off the
+// output a build produces. The rows live in their own package rather than here,
+// so the same set is decided by this leg and by the workflow that reports it
+// under the name a rule on the branch can require. What the leg adds is that a
+// contributor meets the rows by running one verb rather than by remembering a
+// second one.
+func invariantsLeg(root string) (string, error) {
+	var log strings.Builder
+	if err := invariant.Run(root, &log); err != nil {
+		lines := strings.Split(strings.TrimRight(log.String(), "\n"), "\n")
+		return "", fmt.Errorf("%v:\n%s", err, indent(lines))
+	}
+	rules, owed := len(invariant.Rules()), len(invariant.Owing())
+	return fmt.Sprintf("ok, %d rule(s) decided, %d owed and not decided", rules, owed), nil
 }
 
 // goFiles lists the Go source in the tree. The output directory is skipped

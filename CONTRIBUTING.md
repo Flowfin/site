@@ -22,9 +22,12 @@ It renders into `dist/` and prints every file it wrote. `dist/` is not tracked,
 so what is served is always something a run just produced rather than a copy
 somebody committed.
 
-There is a third verb, `go run . hygiene`, and it exists so the commit message
-rules below can be decided on the machine where the mistake was made rather than
-only on the server. It takes a base and a head commit.
+The remaining verbs exist so that a rule the server decides can also be decided
+on the machine where the mistake was made. `go run . hygiene` takes a base and a
+head commit and judges the commit messages in that range. `go run . invariants`
+decides the rules that can be read off the tree and off the output a build
+produces, and it is also a leg of the gate, so running the gate covers it. What
+the verbs are is printed by running one with no argument.
 
 Nothing in this repository runs the gate verb for you. There is no hook here to
 install:

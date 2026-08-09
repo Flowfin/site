@@ -12,6 +12,7 @@ import (
 
 	"github.com/Flowfin/site/internal/gate"
 	"github.com/Flowfin/site/internal/hygiene"
+	"github.com/Flowfin/site/internal/invariant"
 	"github.com/Flowfin/site/internal/site"
 )
 
@@ -44,6 +45,12 @@ func run(args []string, out, errOut io.Writer) error {
 			return errors.New("ci takes no argument")
 		}
 		return gate.Run(".", out)
+	case "invariants":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("invariants takes no argument")
+		}
+		return invariant.Run(".", out)
 	case "hygiene":
 		return hygiene.Run(args[1:], out)
 	default:
@@ -56,6 +63,9 @@ func usage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   go run . build   render the site into `+site.OutputDir+`/ and print what was written
   go run . ci      run the gate: every leg in order, stopping at the first failure
+  go run . invariants
+                   decide the rules a machine can read off the tree and the
+                   output a build produces
   go run . hygiene [-origin=internal|external] <base> <head>
                    judge the commit messages in a range
 `)
