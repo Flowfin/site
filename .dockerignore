@@ -1,0 +1,8 @@
+# What the image does not need, so that two builds of one source agree.
+#
+# The git directory carries the branch somebody happened to be on and the objects
+# of every commit, none of which the build reads. The output directory is what the
+# container produces, so copying one in would let a stale page from the host reach
+# the image.
+.git
+dist

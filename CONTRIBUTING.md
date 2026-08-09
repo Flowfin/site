@@ -54,13 +54,21 @@ needed: there is no dependency in the module graph, no package manifest and no
 lockfile in the tree. The formatter that judges the prose files is fetched at run
 time by the workflow that runs it and is not something to install here.
 
-There is no container in this repository yet, so the toolchain is the only route:
+The container is the other route, for producing the site without installing
+anything. Two lines, and the second one is the whole of using it:
 
-    git ls-files | grep -ci dockerfile
-    0
+    docker build -t flowfin-site .
+    docker run --rm -v "$PWD/dist:/out" flowfin-site
 
-Run 2026-08-09. #52 is the issue that adds one, and it will run the same build
-verb rather than a second procedure.
+It builds and it does not serve, which is
+[decisions/0002-what-docker-is-for.md](decisions/0002-what-docker-is-for.md) and
+is restated in the `Dockerfile` itself. It runs the same build verb, from a base
+image pinned by digest, as a user that is not root, and it writes into the
+directory you mounted rather than into an image. The output is the same bytes the
+toolchain produces from the same source.
+
+The container is not the route for the gate. `go run . ci` runs on the toolchain,
+and nothing in this repository runs the gate inside the container.
 
 ## No work without an issue
 
