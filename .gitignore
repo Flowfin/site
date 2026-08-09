@@ -1,0 +1,5 @@
+# The built site. It is produced by `go run . build` from what is tracked here,
+# so a copy in git would be a second answer to what the site is, and the one
+# more likely to be stale. Every later check that compares bytes compares what
+# a run just produced against a golden file, never against this directory.
+/dist/
