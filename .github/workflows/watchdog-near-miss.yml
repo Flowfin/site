@@ -1,0 +1,51 @@
+# The watchdog beside this file reads real history, and the history it needs to
+# be proven against is a run on the default branch that did not succeed. Without
+# something like this, the only ways to produce one are to merge a change that
+# breaks the default branch, or to wait for the incident the watchdog was built
+# for. Neither is a proof anybody can repeat.
+#
+# So this fails on demand and does nothing else. There is no schedule, no push
+# trigger and no pull request trigger, so it costs nothing until somebody asks
+# for it, and asking for it puts one failure in the default branch run list for
+# the watchdog to find. Ask for the passing outcome afterwards and the newest
+# completed run of this workflow succeeds again, which is what lets the watchdog
+# close the entry it opened. The pair is the near miss and the neighbour: the
+# smallest thing that should be reported, and the smallest thing that should
+# not.
+#
+# It is watched by the watchdog like everything else. Exempting it would be a
+# name in a file, which is the drift the watchdog is written to avoid.
+name: Watchdog near miss
+
+on:
+  workflow_dispatch:
+    inputs:
+      outcome:
+        description: "fail puts one failure in the default branch run list. pass clears it again."
+        type: choice
+        default: pass
+        options:
+          - pass
+          - fail
+
+# Nothing is read and nothing is written. The job needs no token at all.
+permissions: {}
+
+jobs:
+  near-miss:
+    name: Conclude as asked
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Exit with the requested outcome
+        env:
+          # Through the environment rather than into the script body, so the
+          # value is data and never a fragment of the shell that runs.
+          OUTCOME: ${{ inputs.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$OUTCOME" = fail ]; then
+            echo "::error::Concluding as failure on request. This is the near miss the watchdog is proven against, not a defect in the tree."
+            exit 1
+          fi
+          echo "Concluding as success on request."

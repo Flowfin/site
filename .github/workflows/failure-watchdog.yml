@@ -1,0 +1,190 @@
+# A check that goes red on a pull request reaches the person who pushed it. A
+# run on the default branch and a run on a schedule reach nobody, and this
+# repository is going to carry several of each: a publish on every push to the
+# default branch, and three comparisons of a pinned copy against a published
+# one that only run on a timer. The supply-chain audit already here runs on a
+# schedule too.
+#
+# The worst case is the quiet one. A publish that leaves the previously served
+# bytes in place when it fails is the right behaviour, and from outside it is
+# indistinguishable from a publish that succeeded and had nothing to change. A
+# freshness comparison that has been red for a week looks the same as a week in
+# which nothing moved upstream.
+#
+# What is watched is a property and never a list. A file naming the runs it
+# covers is a list that goes stale the day a run is added, and the run that was
+# added is the one nobody is watching. So the set comes from the API: which
+# workflows exist, and what the newest completed run of each on the default
+# branch concluded. A workflow that lands tomorrow is covered tomorrow, with
+# nothing to register anywhere, and there is no name in the executable part of
+# this file for anything to drift against.
+#
+# Newest run per workflow rather than every run inside a window, because the
+# question worth an entry on the tracker is whether a workflow is broken on the
+# default branch now. The same reading is what retires an entry: once the newest
+# completed run of that workflow succeeds, the entry is no longer true, and a
+# watchdog whose own reports go stale is the failure it exists to prevent.
+# Closing an entry is not repairing the failure. Nothing here re-runs a job or
+# touches the run it found, because a re-run that happens to pass turns a real
+# defect into an intermittent one and hides exactly what this surfaces.
+#
+# A cancelled run is deliberately not in the set. Every audit workflow in this
+# tree cancels a superseded run on the same ref by design, so cancelled is the
+# ordinary outcome of pushing twice, and reporting it would train a reader to
+# ignore the entries.
+#
+# It can be asked what it would do without doing it. A watchdog that cannot be
+# exercised is only ever tested by the incident it was built for, and the
+# workflow beside this one that fails on demand is the other half of that.
+name: Unwatched failure watchdog
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "report opens, updates and closes entries. dry-run only prints what it would do."
+        type: choice
+        default: dry-run
+        options:
+          - dry-run
+          - report
+
+# Deny everything at the top level; the job below grants the two scopes it needs.
+permissions: {}
+
+# A superseded run is never cancelled here. This job writes to the tracker, and
+# a run stopped between reading the run list and updating an entry leaves a
+# report that is half true. The other workflows in this tree cancel because they
+# only read.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Report runs that reach nobody
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read # read the workflow list and the run list
+      issues: write # open, update and close the entries
+    steps:
+      # No checkout. Nothing here reads the tree, so the token is never handed
+      # to git and there is no working copy for a step to be tricked into
+      # executing.
+      - name: Report workflows whose newest default-branch run did not succeed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          # The schedule always reports. A dispatch says which it wants, and the
+          # value reaches the script through the environment rather than through
+          # an expression inside the script body.
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'report' }}
+          THIS_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          case "$MODE" in
+            report | dry-run) ;;
+            *)
+              echo "::error::Unknown mode '${MODE}'."
+              exit 1
+              ;;
+          esac
+          echo "mode: ${MODE}"
+
+          branch=$(gh api "repos/${REPO}" --jq '.default_branch')
+          echo "default branch: ${branch}"
+
+          # Ask which workflows exist. A disabled one is skipped: it has no
+          # newest run to judge, and re-enabling it produces one.
+          workflows=$(gh api "repos/${REPO}/actions/workflows" --paginate \
+            --jq '.workflows[] | select(.state == "active") | [.id, .name] | @tsv')
+          if [ -z "$workflows" ]; then
+            echo "::error::The workflow list came back empty, which cannot be true of a repository running this. Failing closed rather than reporting that nothing is broken."
+            exit 1
+          fi
+
+          # Every open entry, read once. Pull requests share the issue endpoint
+          # and are filtered out, or a pull request whose title happened to
+          # match would be edited as though it were a report.
+          entries=$(gh api "repos/${REPO}/issues?state=open&per_page=100" --paginate \
+            --jq '.[] | select(.pull_request == null) | [.number, .title] | @tsv')
+
+          opened=0
+          updated=0
+          closed=0
+          broken=0
+
+          while IFS=$'\t' read -r id name; do
+            [ -n "$id" ] || continue
+
+            run=$(gh api "repos/${REPO}/actions/workflows/${id}/runs?branch=${branch}&status=completed&per_page=1" \
+              --jq '.workflow_runs[0] // empty | [.conclusion, .id, .html_url, .updated_at] | @tsv' </dev/null)
+            if [ -z "$run" ]; then
+              echo "skip   ${name}: no completed run on ${branch}"
+              continue
+            fi
+            IFS=$'\t' read -r conclusion run_id run_url run_at <<<"$run"
+
+            title="Default branch: ${name} did not succeed"
+            number=$(printf '%s\n' "$entries" | awk -F'\t' -v t="$title" '$2 == t { print $1; exit }')
+
+            case "$conclusion" in
+              failure | timed_out | startup_failure)
+                broken=$((broken + 1))
+                body=$(printf '%s\n' \
+                  "The newest completed run of \`${name}\` on \`${branch}\` concluded \`${conclusion}\`." \
+                  "" \
+                  "    ${run_url}" \
+                  "" \
+                  "Read at ${run_at}, by ${THIS_RUN}." \
+                  "" \
+                  "This entry is rewritten while that stays true, and closed once the newest completed run of that workflow on ${branch} succeeds. Nothing re-runs the job: a re-run that happens to pass turns a defect into an intermittent one." \
+                  "" \
+                  "Renaming this entry produces a second one on the next pass, because the title is what identifies it.")
+                if [ -n "$number" ]; then
+                  echo "update ${name}: #${number} (${conclusion}, run ${run_id})"
+                  if [ "$MODE" = report ]; then
+                    gh issue edit "$number" --repo "$REPO" --body "$body" </dev/null >/dev/null
+                  fi
+                  updated=$((updated + 1))
+                else
+                  echo "open   ${name}: (${conclusion}, run ${run_id})"
+                  if [ "$MODE" = report ]; then
+                    # The label and the assignee are set on the way in, so an
+                    # entry arrives carrying what every issue on this tracker
+                    # carries rather than being sorted out by hand afterwards.
+                    gh issue create --repo "$REPO" --title "$title" --body "$body" \
+                      --label ci --assignee iderex </dev/null >/dev/null
+                  fi
+                  opened=$((opened + 1))
+                fi
+                ;;
+              *)
+                if [ -n "$number" ]; then
+                  echo "close  ${name}: #${number} (newest run ${run_id} concluded ${conclusion})"
+                  if [ "$MODE" = report ]; then
+                    resolved=$(printf '%s\n' \
+                      "The newest completed run of \`${name}\` on \`${branch}\` concluded \`${conclusion}\`." \
+                      "" \
+                      "    ${run_url}" \
+                      "" \
+                      "Read at ${run_at}, by ${THIS_RUN}. What this entry reported is no longer what the run list says, so it is closed rather than left standing.")
+                    gh issue edit "$number" --repo "$REPO" --body "$resolved" </dev/null >/dev/null
+                    gh issue close "$number" --repo "$REPO" --reason completed </dev/null >/dev/null
+                  fi
+                  closed=$((closed + 1))
+                else
+                  echo "ok     ${name}: ${conclusion}"
+                fi
+                ;;
+            esac
+          done <<<"$workflows"
+
+          echo "broken=${broken} opened=${opened} updated=${updated} closed=${closed}"
+          if [ "$MODE" = dry-run ]; then
+            echo "Nothing was written. Run this again with mode report to act on the lines above."
+          fi
