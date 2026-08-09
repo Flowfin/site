@@ -1,0 +1,60 @@
+# The comparison this runs is argued in the script it calls. What is decided
+# here is when it runs and what it is allowed to see.
+#
+# On a schedule rather than as a leg of the gate. The question is whether the
+# names a rule requires are among the names that report, and the reported set is
+# only complete once every other check on a pull request has finished. Nothing
+# here orders one workflow after all the others, so a leg would either read a
+# half-finished set or wait on an ordering that does not exist. A timer reads a
+# pull request that has already merged, where the set is settled.
+#
+# It is deliberately never itself a required context: a required check that
+# judges the required set fails in the one state where the failure removes the
+# ability to merge the fix.
+#
+# A run that compared nothing does not pass. The rules on this repository's
+# default branch require no status check today, so a scheduled run reds and says
+# so until one is required. That is the same shape the freshness comparisons in
+# this plan use, and it is why the failure watchdog beside this file may open an
+# entry for this workflow before anything is wrong with it.
+name: Required check names
+
+on:
+  schedule:
+    - cron: "43 6 * * *"
+  workflow_dispatch:
+
+# Deny everything at the top level; the job below grants the three reads it
+# needs.
+permissions: {}
+
+# This job only reads, so a superseded run is cancelled rather than queued.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    name: Compare the required names against the reported ones
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # check out the script, and read the rules on the branch
+      checks: read # read the check runs on the head commit
+      pull-requests: read # find the most recently merged pull request
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Only the script is needed, and no step pushes, so the token is not
+          # persisted into .git/config.
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Compare the two lists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The repository reaches the script through the environment rather
+          # than through an expression inside a script body.
+          REPO: ${{ github.repository }}
+        run: .github/scripts/required-check-names.sh
