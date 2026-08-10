@@ -16,7 +16,7 @@ said nothing would read as a check that had been proven.
 The names below drift against the checks that actually report. What reports is
 read from a commit rather than remembered:
 
-    gh api repos/Flowfin/site/commits/726e521c289fb1d92f8368e8831eb77ae3cfa962/check-runs \
+    gh api repos/Flowfin/site/commits/d357381ab0837b347a1dfc1402eb0244f10274ed/check-runs \
       --jq '[.check_runs[].name] | sort | .[]'
     Analyze (go)
     Audit workflows (zizmor)
@@ -25,6 +25,7 @@ read from a commit rather than remembered:
     Deterministic PR-hygiene checks
     Enforce greppable invariants
     Package (site) / Build bundle
+    Package (site) / Generate SBOM
     Reject Trojan Source Unicode
     Reject Trojan Source Unicode
     Reproducible build
@@ -33,7 +34,7 @@ read from a commit rather than remembered:
     prettier
     zizmor
 
-Run 2026-08-09. Three more run where no pull request can see them, on a timer or
+Run 2026-08-10. Three more run where no pull request can see them, on a timer or
 on request, and they are covered here too because a run nobody watches is exactly
 where an unproven guard survives longest:
 
@@ -182,6 +183,38 @@ Owed. Did not refuse: run 31318926094, on `fcff78a`, whose second attempt
 produced a byte-identical archive to its first. What would record a refusal is a
 change that makes the packing step fail, and the plausible version is an output
 directory the build did not write to.
+
+## Package (site) / Generate SBOM
+
+It refuses a tree whose bill of materials cannot be produced from the files that
+decide it, which is the half that keeps a document with a hole in it from
+reading like a document about a tree with nothing to list.
+
+Refused, on `cdff80e`, with the digest taken off the base image and the tag left
+in place, which is the shape a Dockerfile takes the moment somebody updates the
+image by editing the version they can read:
+
+    gh run view 31345081068 --repo Flowfin/site --log-failed
+    Run go run . sbom > sbom.cdx.json
+    Dockerfile carries no base image pinned by digest, and a tag on its own does not say which bytes were pulled
+    ##[error]Process completed with exit code 1.
+
+The message names the file and says what a tag on its own does not answer.
+`build` went red on the same commit, because the suite reads this repository's
+own sources rather than only a fixture, and that overlap is the suite doing what
+it is for rather than the two names failing to separate.
+
+Did not refuse: run 31345020916, on `d357381`, where the job ran rather than
+skipped and said what it had covered:
+
+    sbom: CycloneDX 1.6, 3 component(s) for github.com/Flowfin/site
+      read go.mod, Dockerfile and .github/workflows/prettier.yml
+      the module graph is empty, so the document lists the toolchain, the base image and the formatter and no library
+
+The other five sources it fails closed on have their pair in the suite rather
+than in a run on the server:
+
+    go test ./internal/bom -run TestASourceThatCannotBeReadStopsTheDocument -count=1
 
 ## prettier
 
