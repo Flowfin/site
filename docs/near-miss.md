@@ -55,7 +55,13 @@ shows, and nothing else about them is edited.
 
 ## build
 
-It refuses a tree that `go run . ci` refuses, which is five legs.
+It refuses a tree that `go run . ci` refuses. How many legs that is, and in which
+order, is printed by the verb rather than written here:
+
+    go run . ci | head -1
+    gate: 6 legs, in order: format, vet, test, build, links, invariants
+
+Run 2026-08-10.
 
 Refused, on `fcb9fb5`:
 
@@ -74,8 +80,8 @@ file, the line and the field.
 
 Did not refuse: run 31318125893.
 
-Four of the five legs have no recorded refusal of their own under this check, and
-this is where they are named rather than covered by the one above.
+The other legs have no recorded refusal of their own under this check, and this
+is where each of them is named rather than covered by the one above.
 
 The **format** leg and the **vet** leg are owed. What would record them is a
 pull request carrying one badly formatted Go file, and one carrying a construct
@@ -87,7 +93,15 @@ together, quoted with the gate output it produced. That is a run on a working
 tree, so it is weaker than the entries above, and what would retire it is a pull
 request carrying that edit.
 
+The **links** leg is the entry that follows this paragraph, because it has no
+check name of its own and its refusal is recorded under this one.
+
 The **invariants** leg has its own check name and is the entry below.
+
+### The links leg
+
+It refuses a reference in the produced output that resolves to nothing the build
+wrote, and one that points at a place inside a page that does not exist.
 
 ## Enforce greppable invariants
 
