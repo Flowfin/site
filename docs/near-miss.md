@@ -90,8 +90,15 @@ The **invariants** leg has its own check name and is the entry below.
 
 ## Enforce greppable invariants
 
-It refuses a tree that breaks one of the rows in `internal/invariant`. Eleven
-rows, and every one of them has a pair.
+It refuses a tree that breaks one of the rows in `internal/invariant`. Every one
+of them has a pair. How many rows there are is printed by the run rather than
+written here, because a number in this document drifts against the table it
+describes:
+
+    go run . invariants | tail -1
+    12 rule(s) decided, 2 owed and not decided.
+
+Run 2026-08-10 at `553810a`.
 
 Refused, on `ccb2d5e`, with the language attribute deleted from the page
 template:
@@ -111,6 +118,20 @@ marker. Each names the row, what it refuses, why, and the file and line.
 The loopback row refused on `40439b6`, in run 31317948347:
 
     internal/site/nonloopback_near_miss_test.go: line 16 binds "0.0.0.0:8080", which is not loopback
+
+The origin row refused on `a162b9f`, with one stylesheet pulled from somebody
+else's domain in the page template, which is the shape a page picks up the first
+time anybody reaches for a font:
+
+    gh run view 31343903523 --repo Flowfin/site --log-failed
+      output-references-no-domain-outside-the-allowlist: REFUSED, 1 violation(s)
+        it refuses a produced file fetching a stylesheet, a font, an image, a script or anything else from a host that is not on the allowlist, while leaving a link a reader clicks alone
+        because a subresource served from somebody else's domain is a round trip the reader pays for and a record of who read what, handed to a party the reader did not choose, and a promise that this does not happen cannot rest on nobody having added a font or a badge yet
+        dist/index.html: line 7 fetches https://fonts.example.invalid/inter.css, whose host fonts.example.invalid is not on the allowlist
+
+The message names the file, the line, the address and the host. Did not refuse:
+run 31343827710, on `d17f5cd`, the same branch one commit earlier, which carries
+the row and no reference for it to find.
 
 Did not refuse: run 31318125852, and in each of the runs above every row other
 than the one under test stayed green, which is a neighbour per row rather than

@@ -59,6 +59,12 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// A note to the author that reached the output.
 		"output-carries-no-unfinished-marker": []byte(strings.Replace(cleanPage, `<h1>A title</h1>`,
 			`<h1>A title</h1><!-- TODO: the real heading -->`, 1)),
+		// A stylesheet from somebody else's domain, which is the shape a
+		// page picks up the moment anybody reaches for a font or an icon
+		// set. It trips this row and no other, so a red run says which
+		// repair it wants.
+		"output-references-no-domain-outside-the-allowlist": []byte(strings.Replace(cleanPage, `</head>`,
+			`  <link rel="stylesheet" href="https://cdn.example.invalid/a.css" />`+"\n  </head>", 1)),
 		"tracked-text-names-no-tool": b64(t, "QSBub3RlIGFib3ZlLgpHZW5lcmF0ZWQgYnkgQ2hhdEdQVCBhbmQgbGVmdCBpbi4K"),
 		// The six shapes the headless rule refuses, each in the smallest
 		// test somebody would actually write. Base64 for the same reason
@@ -139,6 +145,67 @@ func TestAViolationRedsExactlyOneRow(t *testing.T) {
 	}
 	if len(refused) != 1 || refused[0] != "page-declares-its-language" {
 		t.Errorf("the missing language attribute refused %v, want only page-declares-its-language", refused)
+	}
+}
+
+// The four shapes a reference to somebody else's domain arrives in, each named
+// in #37 and each refused with the address written out. A message that said only
+// that the page reached another origin would leave the next person grepping the
+// output for which line to repair.
+func TestTheOriginRowNamesEveryForeignReferenceItRefuses(t *testing.T) {
+	for name, ref := range map[string]struct{ markup, want string }{
+		"a stylesheet": {`<link rel="stylesheet" href="https://cdn.example.invalid/a.css" />`,
+			"https://cdn.example.invalid/a.css"},
+		"a font": {`<link rel="preload" as="font" href="https://fonts.example.invalid/f.woff2" />`,
+			"https://fonts.example.invalid/f.woff2"},
+		"an image": {`<img src="https://images.example.invalid/a.png" alt="" width="1" height="1" />`,
+			"https://images.example.invalid/a.png"},
+		"a script": {`<script src="https://cdn.example.invalid/a.js"></script>`,
+			"https://cdn.example.invalid/a.js"},
+		"a candidate in a set": {`<img src="/a.png" srcset="/a.png 1x, https://images.example.invalid/a2.png 2x" alt="" />`,
+			"https://images.example.invalid/a2.png"},
+		"a form action": {`<form action="https://forms.example.invalid/post"></form>`,
+			"https://forms.example.invalid/post"},
+		"a stylesheet reached without a scheme": {`<link rel="stylesheet" href="//cdn.example.invalid/a.css" />`,
+			"//cdn.example.invalid/a.css"},
+		"a background in a style block": {`<style>body { background: url("https://images.example.invalid/b.png"); }</style>`,
+			"https://images.example.invalid/b.png"},
+		"an imported stylesheet": {`<style>@import "https://cdn.example.invalid/b.css";</style>`,
+			"https://cdn.example.invalid/b.css"},
+	} {
+		body := []byte(strings.Replace(cleanPage, `<main>`, ref.markup+`<main>`, 1))
+		got := decideForeignOrigin(body)
+		if len(got) == 0 {
+			t.Errorf("%s was not refused", name)
+			continue
+		}
+		if !strings.Contains(strings.Join(got, "\n"), ref.want) {
+			t.Errorf("%s was refused without naming %s: %v", name, ref.want, got)
+		}
+		if !strings.Contains(strings.Join(got, "\n"), "example.invalid") {
+			t.Errorf("%s was refused without naming the host: %v", name, got)
+		}
+	}
+}
+
+// The one exception, and the references that reach whatever served the page. A
+// row that refused these is a row somebody switches off, and switching it off is
+// how a font arrives.
+func TestTheOriginRowLeavesALinkAndTheSiteItselfAlone(t *testing.T) {
+	for name, markup := range map[string]string{
+		"a link in running text":     `<p>See <a href="https://jellyfin.org/">the server</a>.</p>`,
+		"a link to the project":      `<p><a href="https://flowfin.dev/install/">Install</a></p>`,
+		"an absolute path":           `<link rel="stylesheet" href="/style.css" />`,
+		"a relative path":            `<img src="a.png" alt="" width="1" height="1" />`,
+		"the site's own stylesheet":  `<link rel="stylesheet" href="https://flowfin.dev/style.css" />`,
+		"an address that is no host": `<p><a href="mailto:nobody@example.invalid">Write</a></p>`,
+		"an inline image":            `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="" width="1" height="1" />`,
+		"a fragment":                 `<p><a href="#content">Skip</a></p>`,
+	} {
+		body := []byte(strings.Replace(cleanPage, `<main>`, markup+`<main>`, 1))
+		if got := decideForeignOrigin(body); len(got) != 0 {
+			t.Errorf("the origin row refused %s: %v", name, got)
+		}
 	}
 }
 
