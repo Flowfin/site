@@ -400,6 +400,53 @@ than a property of a change. What would record a refusal is a change adding a
 dependency with an advisory against it, and there is nothing in the module graph
 to add one to today.
 
+## Pins
+
+It refuses a tree whose pinned versions have fallen behind the registries that
+publish them, and a run that could not read a registry at all, which it reports
+as unresolved rather than as current.
+
+Nothing in a pull request reports it. It reads three registries over the
+network, so its verdict moves when somebody else publishes rather than when the
+tree changes, and it runs weekly or on request instead of as a leg of the gate.
+That is the reason it is in this document rather than despite it: a run nobody
+watches is where an unproven guard survives longest.
+
+Refused: run 31358584874, on `985b8a3`, asked for by hand.
+
+    gh run view 31358584874 --repo Flowfin/site --log-failed
+    pins: 3 declared in pins.json
+      prettier: current at 3.9.6, npm says the same
+      zizmor: BEHIND, pinned 1.26.1, pypi says 1.29.0
+    pins: 1 pin(s) are behind their upstream
+      golang-image: current at sha256:6c5605ab3a9a9fb3c4eafe5b3d63cdbf3881caf113262b67862547b54a9db599, docker-hub says the same
+    3 pin(s) declared, 3 compared, 1 behind, 0 unresolved.
+    exit status 1
+
+Two of the three pins were current in that same run, so what it refused for is
+the one that had moved rather than a run that refuses whatever it is given.
+
+Did not refuse: owed. It is a run of this workflow over a tree where every pin
+is current, and that tree does not exist while one of them is behind. Taking the
+release the run named is #132, and the pair closes on the first run after it.
+
+The states this workflow keeps apart are not all reachable from a run id. A
+registry that cannot be read, and a run where none of them can, are proved by
+the suite instead, which drives the comparison with an answer of each kind
+rather than waiting for a registry to be down:
+
+    go test ./internal/pins -run 'Unread|ComparedNothing' -v
+    === RUN   TestRunReportsAnUnreadableUpstreamAsUnresolvedRatherThanCurrent
+    --- PASS: TestRunReportsAnUnreadableUpstreamAsUnresolvedRatherThanCurrent (0.02s)
+    === RUN   TestRunRefusesToPassARunThatComparedNothing
+    --- PASS: TestRunRefusesToPassARunThatComparedNothing (0.01s)
+    PASS
+    ok  	github.com/Flowfin/site/internal/pins	1.346s
+
+Run 2026-08-10. That is a different kind of evidence from a run id and it is
+named as such: it proves the code decides those states, not that the workflow
+has ever met one.
+
 ## Scorecard supply-chain security
 
 It reports and does not refuse. There is no pair to record, because there is no
