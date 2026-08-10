@@ -43,6 +43,22 @@ const cleanPage = `<!DOCTYPE html>
 </html>
 `
 
+// A workflow that pins nothing of its own: the action reference carries the
+// version in the comment an updater writes, and the fetched tool takes its
+// version out of the file that declares it.
+const cleanWorkflow = `name: Formatting
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: |
+          version="$(jq -er '.[] | select(.id == "prettier") | .version' pins.json)"
+          echo "PRETTIER_VERSION=${version}" >> "$GITHUB_ENV"
+      - run: npx --yes "prettier@${PRETTIER_VERSION}" --check .
+`
+
 // Each row against the one-line mistake it exists for, and against a body that
 // makes the same kind of mistake nowhere.
 func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
@@ -66,6 +82,12 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		"output-references-no-domain-outside-the-allowlist": []byte(strings.Replace(cleanPage, `</head>`,
 			`  <link rel="stylesheet" href="https://cdn.example.invalid/a.css" />`+"\n  </head>", 1)),
 		"tracked-text-names-no-tool": b64(t, "QSBub3RlIGFib3ZlLgpHZW5lcmF0ZWQgYnkgQ2hhdEdQVCBhbmQgbGVmdCBpbi4K"),
+		// The version put back where it is convenient, which is what
+		// somebody does who is adding a step and does not know the file
+		// exists. It is one line, and it is the line that takes the pin
+		// back out of the set anything watches.
+		"workflow-step-carries-no-version-literal": []byte(strings.Replace(cleanWorkflow,
+			`prettier@${PRETTIER_VERSION}`, `prettier@3.9.6`, 1)),
 		// The six shapes the headless rule refuses, each in the smallest
 		// test somebody would actually write. Base64 for the same reason
 		// the marker fixture is: a test source carrying these literally is
@@ -99,8 +121,11 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 			t.Errorf("row %s passed its own violation", r.ID)
 		}
 		neighbour := []byte(cleanPage)
-		if r.Subject == TestSources {
+		switch r.Subject {
+		case TestSources:
 			neighbour = cleanTest
+		case Workflows:
+			neighbour = []byte(cleanWorkflow)
 		}
 		if got := r.decide(neighbour); len(got) != 0 {
 			t.Errorf("row %s refused a %s that breaks nothing: %v", r.ID, r.Subject, got)
@@ -128,6 +153,46 @@ func TestTheBindRowPermitsLoopback(t *testing.T) {
 	// without meaning to.
 	if got := decideBind(b64(t, "bmV0Lkxpc3RlbigidGNwIiwgIjo4MDgwIik=")); len(got) == 0 {
 		t.Error("the bind row passed an address with no host, which is every interface on the machine")
+	}
+}
+
+// What the version row leaves alone, and it is most of a workflow file. A row
+// that refused these is a row somebody removes, and removing it is how a
+// fetched version gets written back into a step.
+func TestTheVersionRowLeavesTheUpdaterAndTheCommentsAlone(t *testing.T) {
+	for name, line := range map[string]string{
+		"an action pinned by commit with its version in the comment": `      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0`,
+		"a version named in a comment above a step":                  `        # The formatter moved to 3.10.0 upstream and the file was not updated.`,
+		"a whole line of comment":                                    `# Run 2026-08-10 against 1.26.1, which is what this used to carry.`,
+		"a number that is not a version":                             `    timeout-minutes: 10`,
+		"a cron expression":                                          `    - cron: "23 5 * * 1"`,
+		"a date":                                                     `        run: echo "taken 2026-08-10"`,
+	} {
+		if got := decideWorkflowVersions([]byte(line + "\n")); len(got) != 0 {
+			t.Errorf("the version row refused %s: %v", name, got)
+		}
+	}
+}
+
+// The two shapes a fetched version actually arrives in, each named with the
+// literal, because a message saying only that a version was written into a step
+// leaves the next person reading the file line by line.
+func TestTheVersionRowNamesWhatItRefused(t *testing.T) {
+	for name, line := range map[string]string{
+		"an environment value":         `          ZIZMOR_VERSION: "1.26.1"`,
+		"a version inside the command": `        run: uvx --no-build "zizmor@1.26.1" --min-severity=low .`,
+	} {
+		got := decideWorkflowVersions([]byte(line + "\n"))
+		if len(got) == 0 {
+			t.Errorf("%s was not refused", name)
+			continue
+		}
+		if !strings.Contains(got[0], "1.26.1") {
+			t.Errorf("%s was refused without naming the version: %v", name, got)
+		}
+		if !strings.Contains(got[0], "pins.json") {
+			t.Errorf("%s was refused without naming where the version belongs: %v", name, got)
+		}
 	}
 }
 

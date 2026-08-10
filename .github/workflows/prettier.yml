@@ -8,9 +8,10 @@
 # package manifest and no lockfile in the tree. That is a deliberate cost:
 # bringing a dependency graph into a repository that has none, in order to run a
 # formatter, would cost more than it buys, and the parity ledger is where the
-# deviation is recorded. What it buys instead is a version fetched at run time,
-# which no updater watches, and #93 is where pins of that shape are declared and
-# compared.
+# deviation is recorded. What it costs instead is a version fetched at run time,
+# which no updater watches. That version is declared in `pins.json` and read
+# from there by the step below, so the set of pins of that shape is countable
+# and the scheduled comparison is what says when this one has fallen behind.
 #
 # The runner's own Node is used rather than a fourth pinned action. What decides
 # the output is the formatter version, and that is exact.
@@ -42,6 +43,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Read the pinned formatter version
+        # One file holds it and this step reads it, so the version is not also
+        # written here where nothing would ever compare the two. `jq -e` exits
+        # non-zero when the selection is empty, so a pin renamed or removed
+        # fails this step rather than running the formatter at whatever `npx`
+        # decides is current.
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(jq -er '.[] | select(.id == "prettier") | .version' pins.json)"
+          echo "PRETTIER_VERSION=${version}" >> "$GITHUB_ENV"
+
       - name: Check formatting
         # `--end-of-line auto` on the check and on the write, or a checkout on a
         # machine that converts line endings reports every tracked file as
@@ -57,6 +70,4 @@ jobs:
         # a change on every save. Generated output is excluded in
         # `.prettierignore` for the same reason, because a formatter fighting a
         # template is noise.
-        env:
-          PRETTIER_VERSION: "3.9.6"
         run: npx --yes "prettier@${PRETTIER_VERSION}" --check --end-of-line auto "**/*.{md,css,html,js}"

@@ -30,8 +30,17 @@ produces, and it is also a leg of the gate, so running the gate covers it.
 `go run . reproduce` builds twice and compares what came out, and it is
 deliberately not a leg: a build that does not reproduce and a build that does not
 compile are different problems with different repairs, and they report under
-different names so a red pull request says which one you have. What the verbs are
-is printed by running one with no argument.
+different names so a red pull request says which one you have. `go run . pins`
+compares every version in `pins.json` against the registry that publishes it and
+writes nothing anywhere; it is not a leg either, because what it reads is three
+registries over the network, so its verdict moves when somebody else publishes
+rather than when this tree changes. What the verbs are is printed by running one
+with no argument.
+
+The versions in that file are the ones no updater watches: a tool fetched inside
+a workflow step and the image the container builds on. A workflow reads the
+version from there rather than carrying it, and one written into a step is
+refused by the invariant gate, so the set stays countable.
 
 Nothing in this repository runs the gate verb for you. There is no hook here to
 install:

@@ -1,0 +1,60 @@
+# The comparison between what this repository pins and what the registries
+# publish, for the pins no updater watches.
+#
+# It runs on a schedule rather than on a pull request. What it reads is three
+# registries over the network, so its verdict moves when somebody else publishes
+# rather than when this tree changes, and a merge blocked by that is a gate
+# punishing the wrong change. The consumer half of the same verb needs no
+# network at all and is decided on every run of the gate, by the suite and by
+# the invariant that refuses a version written into a workflow step.
+#
+# It reports and does not bump. A version and its checksum are one fact, and a
+# machine that rewrote both in the same commit has proved nothing about the
+# bytes it just trusted, so what comes out of this is the evidence for a change
+# somebody makes. The last step is what holds it to that.
+name: Pins
+
+on:
+  schedule:
+    # Weekly, on the same cadence the updater configuration uses for the two
+    # ecosystems it does cover, so the whole supply chain is looked at on one
+    # rhythm rather than on two nobody can hold in their head.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+jobs:
+  pins:
+    name: Compare the pins against their upstreams
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Compare every pin against its registry
+        run: go run . pins
+
+      - name: Prove the run wrote nothing
+        # After the comparison whether it passed or failed, because a run that
+        # rewrote a version on its way to a red verdict is the failure this
+        # step exists for and a red verdict is exactly when it would be missed.
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain=v1
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"

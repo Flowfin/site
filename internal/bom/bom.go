@@ -10,9 +10,10 @@
 //
 // Four sources, and each one is the file that decides the thing rather than a
 // second copy of it. The toolchain and the module graph come from go.mod, the
-// base image from the Dockerfile, and the formatter from the workflow that
-// fetches it. That last one is the pin #93 is about, and when the pins move into
-// one file this reads that file instead.
+// base image from the Dockerfile, and the formatter version from the file that
+// declares the pins no updater watches. The workflow that fetches the formatter
+// is named in what the document says about it and is not read for the number,
+// because the number is no longer written there.
 //
 // Nothing here reads the clock or the network. CycloneDX allows a timestamp and a
 // serial number in the metadata and both are left out on purpose: they would make
@@ -29,6 +30,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/Flowfin/site/internal/pins"
 )
 
 // The files the document is derived from. They are named here rather than passed
@@ -39,6 +42,12 @@ const (
 	DockerfileTxt = "Dockerfile"
 	FormatterFile = ".github/workflows/prettier.yml"
 )
+
+// FormatterPin is the identifier the formatter is declared under in the pins
+// file. The document names the pin rather than searching the file for something
+// that looks like a formatter, so a renamed pin is a failure here instead of a
+// component quietly dropping out of the document.
+const FormatterPin = "prettier"
 
 // SpecVersion is the CycloneDX version the document declares. A standard format
 // rather than one invented here, so a reader can put the document through a tool
@@ -86,7 +95,6 @@ var (
 	requireBlock  = regexp.MustCompile(`(?sm)^require\s*\((.*?)\n\)`)
 	requireEntry  = regexp.MustCompile(`(?m)^\s*(\S+)\s+(v\S+)\s*(//.*)?$`)
 	fromLine      = regexp.MustCompile(`(?m)^FROM\s+([^\s@:]+)(?::(\S+))?@sha256:([0-9a-f]{64})\s*$`)
-	formatterPin  = regexp.MustCompile(`(?m)^\s*PRETTIER_VERSION:\s*"([^"]+)"\s*$`)
 )
 
 // Build reads the tree at root and returns the document. Every source has to
@@ -171,7 +179,7 @@ func Write(root string, out, log io.Writer) error {
 		}
 	}
 	fmt.Fprintf(log, "sbom: CycloneDX %s, %d component(s) for %s\n", doc.SpecVersion, len(doc.Components), doc.Metadata.Component.Name)
-	fmt.Fprintf(log, "  read %s, %s and %s\n", GoModFile, DockerfileTxt, FormatterFile)
+	fmt.Fprintf(log, "  read %s, %s and %s\n", GoModFile, DockerfileTxt, pins.File)
 	if modules == 0 {
 		fmt.Fprintf(log, "  the module graph is empty, so the document lists the toolchain, the base image and the formatter and no library\n")
 	} else {
@@ -253,23 +261,24 @@ func baseImage(root string) (Component, error) {
 // check time and appears in no manifest and no lockfile, which is exactly the
 // kind of thing a bill of materials exists to make visible.
 func formatterVersion(root string) (Component, error) {
-	body, err := read(root, FormatterFile)
+	declared, err := pins.Load(root)
 	if err != nil {
 		return Component{}, err
 	}
-	m := formatterPin.FindSubmatch(body)
-	if m == nil {
-		return Component{}, fmt.Errorf("%s names no formatter version, so a thing the gate fetches would go unlisted", FormatterFile)
+	for _, p := range declared {
+		if p.ID != FormatterPin {
+			continue
+		}
+		return Component{
+			Type:        "application",
+			BOMRef:      "formatter/" + p.Name + "@" + p.Version,
+			Name:        p.Name,
+			Version:     p.Version,
+			PURL:        "pkg:npm/" + p.Name + "@" + p.Version,
+			Description: "declared in " + pins.File + " and fetched at check time by " + FormatterFile + ", with no manifest and no lockfile in the tree",
+		}, nil
 	}
-	version := string(m[1])
-	return Component{
-		Type:        "application",
-		BOMRef:      "formatter/prettier@" + version,
-		Name:        "prettier",
-		Version:     version,
-		PURL:        "pkg:npm/prettier@" + version,
-		Description: "fetched at check time by " + FormatterFile + ", with no manifest and no lockfile in the tree",
-	}, nil
+	return Component{}, fmt.Errorf("%s declares no pin called %q, so a thing the gate fetches would go unlisted", pins.File, FormatterPin)
 }
 
 func read(root, name string) ([]byte, error) {

@@ -44,13 +44,24 @@ jobs:
     permissions:
       security-events: write # upload the SARIF into the code-scanning tab
       contents: read # checkout the workflows to scan
-    env:
-      ZIZMOR_VERSION: "1.26.1"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Read the pinned auditor version
+        # The version is fetched at run time, so no updater sees it. It is
+        # declared in `pins.json` and read here rather than written into this
+        # file twice, and the scheduled comparison is what says when the index
+        # has moved past it. `jq -e` exits non-zero on an empty selection, so a
+        # pin renamed or removed fails this step rather than installing
+        # whatever `uvx` resolves to.
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(jq -er '.[] | select(.id == "zizmor") | .version' pins.json)"
+          echo "ZIZMOR_VERSION=${version}" >> "$GITHUB_ENV"
 
       - name: Install uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
