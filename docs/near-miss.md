@@ -87,11 +87,78 @@ The **format** leg and the **vet** leg are owed. What would record them is a
 pull request carrying one badly formatted Go file, and one carrying a construct
 the toolchain's own analysis refuses.
 
-The **test** leg has a refusal recorded off the server rather than on it, in the
-body of #113: a deleted space in the join that puts a wrapped paragraph back
-together, quoted with the gate output it produced. That is a run on a working
-tree, so it is weaker than the entries above, and what would retire it is a pull
-request carrying that edit.
+The **test** leg refused on the server on `0862b92`, carrying the fuzz target
+over the roster parser and a parser that accepted three of its seeds:
+
+    gh run view 31411818662 --repo Flowfin/site --log-failed
+    gate: 6 legs, in order: format, vet, test, build, links, invariants
+      format: ok, 19 file(s)
+      vet: ok
+      test: FAILED
+        go test refused:
+            --- FAIL: FuzzParse (0.00s)
+                --- FAIL: FuzzParse/seed#2 (0.00s)
+                    fuzz_test.go:122: row 1 was accepted with no identifier, and the identifier is what a page address and the per-plugin prose are keyed by
+                --- FAIL: FuzzParse/seed#3 (0.00s)
+                    fuzz_test.go:133: row 1 was accepted declaring the repository "", and the schema writes one as owner/name
+                --- FAIL: FuzzParse/seed#6 (0.00s)
+                    fuzz_test.go:135: row 1 was accepted declaring the repository "o/sub/jellyfin-plugin-a", which carries a path rather than the name after an owner
+            FAIL	github.com/Flowfin/site/internal/roster	0.005s
+    3 of 6 legs ran. Not reached: build, links, invariants.
+
+Each message names the row, what the parser accepted and what the schema says
+instead. Did not refuse: run 31412126264, on `4227218`, the same branch one
+commit later, which carries the target and a parser that refuses those rows.
+
+An earlier refusal of this leg is recorded off the server in the body of #113, a
+deleted space in the join that puts a wrapped paragraph back together. That one
+is a run on a working tree and stays weaker than the run above.
+
+### The fuzz target over the rendering path
+
+The other target in the same leg asks whether a page built from arbitrary prose
+carries any element or attribute the template did not write. Its pair is recorded
+off the server, on a working tree, which is weaker than every entry above and is
+said here rather than left to be noticed.
+
+The edit is one import, `html/template` exchanged for `text/template` in
+`internal/site/site.go` and nothing else, which is the smallest change that lets
+a value in the data reach a reader as markup and is the edit somebody makes on
+purpose when a template has to emit a fragment:
+
+    go test ./internal/site -run FuzzBuildEscapesPageProse
+    --- FAIL: FuzzBuildEscapesPageProse (0.29s)
+        --- FAIL: FuzzBuildEscapesPageProse/seed#1 (0.03s)
+            fuzz_test.go:125: the page carries 18 element(s) and the same shape carries 16, so a value in the prose became markup
+                from: "Title\n\n<script>alert(1)</script>\n"
+                page: <p><script>alert(1)</script></p>
+        --- FAIL: FuzzBuildEscapesPageProse/seed#2 (0.03s)
+            fuzz_test.go:125: the page carries 17 element(s) and the same shape carries 16, so a value in the prose became markup
+                from: "Title\n\n<img src=x onerror=alert(1)>\n"
+
+Run 2026-08-10 against the tree at `4227218` with that import changed. The page
+line is the one element of the produced page that matters here and the rest of it
+is elided; the command reproduces the whole. What would retire this entry is a
+pull request carrying the same edit, the way every entry above was recorded.
+
+Did not refuse: run 31412126264, on `4227218`, which carries the target and the
+escaping call it exists to watch.
+
+Neither target has found anything the seeds did not already carry. Both were run
+past their corpora, and a run that found nothing is recorded because the count is
+what says how far past:
+
+    go test ./internal/roster -run='^$' -fuzz='^FuzzParse$' -fuzztime=60s
+    fuzz: elapsed: 1m0s, execs: 28031831 (413817/sec), new interesting: 32 (total: 436)
+    PASS
+    go test ./internal/site -run='^$' -fuzz='^FuzzBuildEscapesPageProse$' -fuzztime=180s
+    fuzz: elapsed: 3m0s, execs: 4484 (6/sec), new interesting: 62 (total: 76)
+    PASS
+
+Run 2026-08-10 at `4227218`. Neither wrote an input under `testdata/`, which is
+where a crashing input lands and is the thing that says a run found one. The two
+rates are three orders of magnitude apart because the rendering target writes a
+tree and builds it once per execution, so its number is a number of builds.
 
 The **links** leg is the entry that follows this paragraph, because it has no
 check name of its own and its refusal is recorded under this one.
