@@ -1,0 +1,27 @@
+# Where a report goes that is not one of the two forms beside this file.
+#
+# Blank issues stay available. The forms are for somebody arriving from outside
+# with one thing to report; the issues this plan is made of state a problem, its
+# evidence and its done condition in a shape no form has fields for, and a
+# configuration that refused them would push the work onto a form that fits it
+# worse.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Report a security problem privately
+    url: https://github.com/Flowfin/site/security/advisories/new
+    about: >-
+      A defect that lets produced markup run as script, a workflow that grants
+      more than its job needs, a build that pulls something unpinned, a
+      published file that reaches another origin, or the domain serving
+      something this repository did not build. It goes through the private
+      route rather than the tracker, because an issue here is public from the
+      moment it is submitted.
+# That route is a repository setting rather than a file, and it is shut today:
+#
+#     gh api repos/Flowfin/site/private-vulnerability-reporting
+#     {"enabled":false}
+#
+# Run 2026-08-10. Opening it is #57 and what it is for is written down in #59.
+# The link is the destination those two name, so the address here does not have
+# to move when the setting changes.
