@@ -55,7 +55,13 @@ shows, and nothing else about them is edited.
 
 ## build
 
-It refuses a tree that `go run . ci` refuses, which is five legs.
+It refuses a tree that `go run . ci` refuses. How many legs that is, and in which
+order, is printed by the verb rather than written here:
+
+    go run . ci | head -1
+    gate: 6 legs, in order: format, vet, test, build, links, invariants
+
+Run 2026-08-10.
 
 Refused, on `fcb9fb5`:
 
@@ -74,8 +80,8 @@ file, the line and the field.
 
 Did not refuse: run 31318125893.
 
-Four of the five legs have no recorded refusal of their own under this check, and
-this is where they are named rather than covered by the one above.
+The other legs have no recorded refusal of their own under this check, and this
+is where each of them is named rather than covered by the one above.
 
 The **format** leg and the **vet** leg are owed. What would record them is a
 pull request carrying one badly formatted Go file, and one carrying a construct
@@ -87,7 +93,40 @@ together, quoted with the gate output it produced. That is a run on a working
 tree, so it is weaker than the entries above, and what would retire it is a pull
 request carrying that edit.
 
+The **links** leg is the entry that follows this paragraph, because it has no
+check name of its own and its refusal is recorded under this one.
+
 The **invariants** leg has its own check name and is the entry below.
+
+### The links leg
+
+It refuses a reference in the produced output that resolves to nothing the build
+wrote, and one that points at a place inside a page that does not exist.
+
+Refused, on `a17f184`, with one letter dropped from a page address in the
+template and a fragment that was never on that page, which is what a rename
+leaves behind everywhere it was referenced:
+
+    gh run view 31346218703 --repo Flowfin/site --log-failed
+    gate: 6 legs, in order: format, vet, test, build, links, invariants
+      links: FAILED
+        links: 1 reference(s) resolve to nothing the build wrote:
+            links: 1 reference(s) over 1 page(s), against 1 produced file(s)
+              dist/index.html: line 11 href="/design-sytem.html#tokens" resolves to dist/design-sytem.html, which the build did not write
+    5 of 6 legs ran. Not reached: invariants.
+    gate: the links leg refused this tree
+
+The message names the page, the line, the reference as written and the path it
+resolved to. Only the first half of that near miss was reached: a reference whose
+page does not exist is reported and its fragment is not read, because there is
+nothing to read it in. The fragment half has its pair in the suite instead:
+
+    go test ./internal/link -run TestADeadFragmentIsRefusedAndNamed -count=1
+
+Did not refuse: run 31346155709, on `736863d`, the same branch one commit
+earlier, which carries the leg and a page with no reference on it. What that
+neighbour does not cover is a page whose references resolve, and the suite is
+where that case is, over a tree it builds itself.
 
 ## Enforce greppable invariants
 

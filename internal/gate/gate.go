@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/Flowfin/site/internal/invariant"
+	"github.com/Flowfin/site/internal/link"
 	"github.com/Flowfin/site/internal/site"
 )
 
@@ -36,6 +37,7 @@ func legs() []leg {
 		{"vet", vetLeg},
 		{"test", testLeg},
 		{"build", buildLeg},
+		{"links", linksLeg},
 		{"invariants", invariantsLeg},
 	}
 }
@@ -156,6 +158,23 @@ func buildLeg(root string) (string, error) {
 		return "", fmt.Errorf("the build wrote no file, and a site of nothing is not a site")
 	}
 	return fmt.Sprintf("ok, %d file(s)", len(written)), nil
+}
+
+// linksLeg walks what the build produced and refuses a reference that resolves
+// to nothing. It sits after the build leg because it has nothing to walk until
+// the build works, and before the invariants leg because a page that points at a
+// file nobody wrote is a broken site whatever else is true of its markup.
+func linksLeg(root string) (string, error) {
+	var log strings.Builder
+	if err := link.Run(root, &log); err != nil {
+		lines := strings.Split(strings.TrimRight(log.String(), "\n"), "\n")
+		return "", fmt.Errorf("%v:\n%s", err, indent(lines))
+	}
+	// The last line the walk wrote is the one that says what it covered, and
+	// it is that line rather than a count assembled here, so a run that
+	// examined nothing says so in the walk's own words.
+	lines := strings.Split(strings.TrimRight(log.String(), "\n"), "\n")
+	return strings.TrimSpace(lines[len(lines)-1]), nil
 }
 
 // invariantsLeg decides the rules that can be read off the tree and off the
