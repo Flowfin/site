@@ -1,0 +1,67 @@
+# A proposal for something this repository does not do yet. It asks for the same
+# three things the defect form asks for, in the shape a proposal takes: what is
+# missing now, what would stand in its place, and the condition that would close
+# it. The cost field is the one that separates a proposal from a wish.
+name: Propose a change
+description: Something the site, the generator or the gate should do and does not
+title: "A short sentence saying what should change"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem does not go here. The link on the previous screen is
+        the private route for those, and a report filed here is public from the
+        moment it is submitted.
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happens today
+      description: >-
+        The state you are proposing to change, with the command that reads it
+        where there is one. A proposal that opens with what it wants leaves the
+        reader to work out what it is replacing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen instead
+      description: >-
+        What the repository would do once this lands, and what a reader or an
+        operator gets out of it that they do not get now.
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: What would close this
+      description: >-
+        The condition somebody else can check without asking you. Where a check
+        is part of it, say what a tree that breaks the rule looks like, because
+        a guard nobody has watched refuse anything is a guard nobody has tested.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: What it costs
+      description: >-
+        A dependency, a runtime, a file somebody has to keep current, a check
+        that will go red for reasons unrelated to the change under review. Say
+        so here rather than leaving it to be found later.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What else you considered
+      description: >-
+        The other shapes this could take and why you did not propose those.
+    validations:
+      required: false

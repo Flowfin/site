@@ -1,0 +1,70 @@
+# A report about something this repository already does. The three fields that
+# are required are the three an issue is worked on from: what happened, what
+# should have happened, and what would close it. Everything else is optional,
+# because a report that gets abandoned halfway through a long form is a report
+# nobody reads.
+name: Report a defect
+description: Something the site, the generator or the gate does that it should not
+title: "A short sentence saying what is wrong"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem does not go here. The link on the previous screen is
+        the private route for those, and a report filed here is public from the
+        moment it is submitted.
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happens
+      description: >-
+        What you saw. Where a number or a response is part of it, paste the
+        command that produced it and its output, so a reader can run the same
+        thing rather than reconstruct it.
+      placeholder: |
+        curl -sS -o /dev/null -w '%{http_code}\n' https://flowfin.dev/manifest.json
+        404
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen instead
+      description: >-
+        Where this repository already says somewhere what it should do, point at
+        that place rather than restating it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: What would close this
+      description: >-
+        The condition somebody else can check without asking you. A change that
+        cannot be told apart from no change is a change nobody can review.
+    validations:
+      required: true
+
+  - type: input
+    id: where
+    attributes:
+      label: Where you met it
+      description: >-
+        The commit, the tag, or the address you were reading. Leave it empty if
+        it does not apply.
+    validations:
+      required: false
+
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else
+      description: >-
+        What you tried, what you ruled out, and anything that would save the
+        next person the same walk.
+    validations:
+      required: false
