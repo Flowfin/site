@@ -149,23 +149,53 @@ failure removes the ability to merge the fix.
 ## The settings rows
 
 Three of the target's positions are repository settings rather than checks, which
-a ledger reading only workflow files would miss entirely. All three are on there
-and off here:
+a ledger reading only workflow files would miss entirely. Two of the three now
+read the same on both sides and the third does not:
 
     gh api repos/Flowfin/jellyfin-plugin-sso --jq '{secret_scanning:.security_and_analysis.secret_scanning.status, push_protection:.security_and_analysis.secret_scanning_push_protection.status, dependabot:.security_and_analysis.dependabot_security_updates.status}'
     {"dependabot":"enabled","push_protection":"enabled","secret_scanning":"enabled"}
     gh api repos/Flowfin/site --jq '{secret_scanning:.security_and_analysis.secret_scanning.status, push_protection:.security_and_analysis.secret_scanning_push_protection.status, dependabot:.security_and_analysis.dependabot_security_updates.status}'
-    {"dependabot":"disabled","push_protection":"disabled","secret_scanning":"disabled"}
+    {"dependabot":"disabled","push_protection":"enabled","secret_scanning":"enabled"}
 
-Run 2026-08-08. The Dependency graph state behind the `dependency-review` row
-above belongs here as well, and the private reporting form is a fourth setting of
-the same kind: the organisation's security policy says it is enabled on every
-repository in this organisation, and on this one it is not.
+Run 2026-08-10. Secret scanning and push protection are on here now. The security
+updates are the one of the three still off, and it is the one that opens a pull
+request when an advisory lands against something already pinned here, which is
+the case where waiting for the routine update cadence is the wrong answer.
+
+This paragraph read `disabled` for all three until 2026-08-10 and quoted a run
+from 2026-08-08 to say so. The settings moved and the quotation stayed, which is
+what a reading pasted into a document does when nothing re-runs it. Two of the
+three sentences a reader would have taken from here were wrong for as long as
+that lasted, and the repair is a fresh run rather than an edited number.
+
+The Dependency graph state behind the `dependency-review` row above belongs here
+as well, and the private reporting form is a fourth setting of the same kind: the
+organisation's security policy says it is enabled on every repository in this
+organisation, and on this one it is not.
 
     gh api repos/Flowfin/site/private-vulnerability-reporting
     {"enabled":false}
 
-Run 2026-08-08. None of the four is a change to this tree.
+Run 2026-08-10. That one is the setting the rest of the plan leans on. `SECURITY.md`
+in this tree names it as where a report goes and states in the same breath that it
+does not answer yet, and the issue form configuration points at the same address,
+so both describe a door that is currently shut. None of the four is a change to
+this tree.
+
+A fifth position is a surface rather than a security setting, and it sits here
+because this is where the settings are read. The wiki feature is on, and nothing
+has ever been written in it:
+
+    gh api repos/Flowfin/site --jq '{has_wiki}'
+    {"has_wiki":true}
+    git ls-remote https://github.com/Flowfin/site.wiki.git > /dev/null 2>&1; echo "exit=$?"
+    exit=128
+
+Run 2026-08-10. The wiki's git repository is created by the first page written
+into it, so the failure above is what an untouched wiki looks like from outside.
+The row about the wiki lint further up says there is no wiki, and that sentence is
+true of the content and not of the setting. Whether the feature is turned off, or
+left on with a reason recorded here, is not a change to this tree either.
 
 ## What this repository requires that the target does not
 
