@@ -110,6 +110,17 @@ var allowedOrigins = []string{
 	"flowfin.dev",
 }
 
+// affiliationNotice is the sentence every produced page has to carry. It is
+// written into the template, which is where a reader meets it, and it is
+// repeated here because a rule refusing a page that lost it has to know what it
+// is looking for. The two copies are held to each other by the row: a template
+// whose wording drifts reds every page until this line moves with it, so the
+// second copy cannot go quietly stale the way a second copy usually does.
+//
+// It is compared with runs of whitespace collapsed, so the sentence may be
+// wrapped in the template without the row deciding on the line breaks.
+const affiliationNotice = "Flowfin is not affiliated with the Jellyfin project."
+
 // Rules is the table. The order is the order a run reports them in.
 func Rules() []Rule {
 	return []Rule{
@@ -126,6 +137,13 @@ func Rules() []Rule {
 			Reason:  "the title is what a search result, a tab and a shared link show, so a page without one is a page nobody can tell apart from another",
 			Refuses: "a produced page with no title element, or one holding only whitespace",
 			decide:  decideTitle,
+		},
+		{
+			ID:      "page-carries-the-affiliation-notice",
+			Subject: ProducedPages,
+			Reason:  "this project uses another project's name on every page it produces and is not affiliated with it, and a notice a page can ship without is a notice that reaches the pages somebody remembered",
+			Refuses: "a produced page that does not carry the affiliation notice",
+			decide:  decideAffiliation,
 		},
 		{
 			ID:      "page-fetches-no-script",
@@ -413,10 +431,6 @@ func decideImports(body []byte) []string {
 func Owing() []Owed {
 	return []Owed{
 		{
-			ID:      "page-carries-the-affiliation-notice",
-			Waiting: "the notice itself, in #51. No produced page carries one today, so a row added now would refuse every page for the absence of a sentence nobody has written",
-		},
-		{
 			ID:      "design-tokens-live-in-exactly-one-file",
 			Waiting: "the token file, in #65 and #66. There is no token in this tree, so the rule would compare one absent file against another",
 		},
@@ -609,6 +623,27 @@ func decideTitle(body []byte) []string {
 		return []string{"the title element holds only whitespace"}
 	}
 	return nil
+}
+
+// decideAffiliation refuses a produced page that does not carry the notice.
+//
+// It reads the output rather than the template, which is the case that matters:
+// the value of putting the sentence in one file is that every page rendered
+// through it carries the sentence, and what proves that is the pages rather than
+// the file they came from. A second template, or a page written by hand, is
+// exactly what this catches and is invisible to a rule that read the template.
+func decideAffiliation(body []byte) []string {
+	if strings.Contains(collapseSpace(string(body)), affiliationNotice) {
+		return nil
+	}
+	return []string{"this page carries no affiliation notice, and the sentence it has to carry is " + affiliationNotice}
+}
+
+// collapseSpace turns every run of whitespace into one space, so a sentence
+// wrapped across lines in a template reads the same to the row as one written
+// on a single line.
+func collapseSpace(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 func decideScriptSrc(body []byte) []string {
