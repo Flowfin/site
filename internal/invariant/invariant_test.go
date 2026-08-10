@@ -39,6 +39,12 @@ const cleanPage = `<!DOCTYPE html>
   </head>
   <body>
     <main><h1>A title</h1></main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with.
+      </p>
+    </footer>
   </body>
 </html>
 `
@@ -69,6 +75,12 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// The element emptied rather than removed, which is what a
 		// template producing a title from an absent value writes.
 		"page-carries-a-title": []byte(strings.Replace(cleanPage, `<title>A title</title>`, `<title></title>`, 1)),
+		// The footer dropped, which is what a second template or a page
+		// written by hand looks like. The sentence lives in one file so
+		// that no page can ship without it, and this is the row that
+		// makes that a property of the pages rather than a habit.
+		"page-carries-the-affiliation-notice": []byte(strings.Replace(cleanPage,
+			"Flowfin is not affiliated with the Jellyfin project.", "", 1)),
 		// One element, of the shape a copied snippet arrives in.
 		"page-fetches-no-script": []byte(strings.Replace(cleanPage, `</head>`,
 			`  <script src="https://example.invalid/a.js"></script>`+"\n  </head>", 1)),
@@ -193,6 +205,30 @@ func TestTheVersionRowNamesWhatItRefused(t *testing.T) {
 		if !strings.Contains(got[0], "pins.json") {
 			t.Errorf("%s was refused without naming where the version belongs: %v", name, got)
 		}
+	}
+}
+
+// The notice is one sentence in one file and a template wraps its prose, so the
+// row reads the sentence rather than the line breaks around it. A row that
+// decided on whitespace would go red the first time somebody reformatted the
+// template, which is how a rule gets removed.
+func TestTheNoticeRowReadsTheSentenceRatherThanTheLineBreaks(t *testing.T) {
+	wrapped := strings.Replace(cleanPage,
+		"Flowfin is not affiliated with the Jellyfin project.",
+		"Flowfin is not\n        affiliated with\n        the Jellyfin project.", 1)
+	if got := decideAffiliation([]byte(wrapped)); len(got) != 0 {
+		t.Errorf("the notice row refused a page whose notice is wrapped: %v", got)
+	}
+
+	// A page carrying most of the sentence is a page carrying a different
+	// sentence, and the row says which one it wanted.
+	got := decideAffiliation([]byte(strings.Replace(cleanPage,
+		"is not affiliated with the Jellyfin project", "is affiliated with the Jellyfin project", 1)))
+	if len(got) == 0 {
+		t.Fatal("the notice row passed a page saying the opposite of the notice")
+	}
+	if !strings.Contains(got[0], "Flowfin is not affiliated with the Jellyfin project.") {
+		t.Errorf("the refusal reads %q, which does not say what the page has to carry", got[0])
 	}
 }
 
@@ -327,6 +363,12 @@ const goodTemplate = `<!DOCTYPE html>
       <p>{{ . }}</p>
       {{- end }}
     </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with.
+      </p>
+    </footer>
   </body>
 </html>
 `
