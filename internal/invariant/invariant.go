@@ -30,6 +30,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Flowfin/site/internal/pins"
 	"github.com/Flowfin/site/internal/site"
 )
 
@@ -49,6 +50,9 @@ const (
 	// TestSources is every tracked test source. The headless rule is a rule
 	// about what the suite does, so it reads the suite.
 	TestSources = "every tracked test source"
+	// Workflows is every tracked workflow file. A rule about what a step
+	// pins reads the steps.
+	Workflows = "every tracked workflow file"
 )
 
 // vocabularyFile is the path excluded from TrackedText, and it is derived from
@@ -152,6 +156,13 @@ func Rules() []Rule {
 			decide:  decideMarkers,
 		},
 		{
+			ID:      "workflow-step-carries-no-version-literal",
+			Subject: Workflows,
+			Reason:  "a version fetched at run time is in neither ecosystem the updater covers, so one written into a step is a pin nobody watches, and a pin nobody watches is not a stable version but an old one",
+			Refuses: "a version literal in a workflow step, outside a comment and outside the action reference that carries its own updater",
+			decide:  decideWorkflowVersions,
+		},
+		{
 			ID:      "test-opens-no-window",
 			Subject: TestSources,
 			Reason:  "a suite that needs a screen is a suite that is run rarely, and a suite that is run rarely is not a gate",
@@ -228,9 +239,13 @@ var (
 )
 
 var (
-	elevation  = regexp.MustCompile(`(?i)\b(sudo|gsudo|pkexec|runas|netsh|schtasks|sc\.exe)\b|-verb\s+runas`)
-	listenCall = regexp.MustCompile(`(?s)Listen[A-Za-z]*\(\s*(?:"[a-z0-9]+"\s*,\s*)?"([^"]*)"`)
-	importLine = regexp.MustCompile(`(?m)^\s*(?:_\s+|\.\s+|[a-zA-Z0-9_]+\s+)?"([^"]+)"\s*$`)
+	// Three dot-separated numbers, with whatever release suffix follows,
+	// bounded so that a longer number is not read as a version hiding
+	// inside it.
+	versionLiteral = regexp.MustCompile(`(^|[^0-9.])([0-9]+\.[0-9]+\.[0-9]+(?:[-.][0-9A-Za-z-]+)*)`)
+	elevation      = regexp.MustCompile(`(?i)\b(sudo|gsudo|pkexec|runas|netsh|schtasks|sc\.exe)\b|-verb\s+runas`)
+	listenCall     = regexp.MustCompile(`(?s)Listen[A-Za-z]*\(\s*(?:"[a-z0-9]+"\s*,\s*)?"([^"]*)"`)
+	importLine     = regexp.MustCompile(`(?m)^\s*(?:_\s+|\.\s+|[a-zA-Z0-9_]+\s+)?"([^"]+)"\s*$`)
 )
 
 // What the origin row reads. Markup is read as elements and attributes rather
@@ -323,6 +338,52 @@ func decideBind(body []byte) []string {
 		}
 	}
 	return details
+}
+
+// decideWorkflowVersions refuses a version written into a workflow step.
+//
+// Two things it deliberately does not read. A comment, because the version
+// beside an action reference is where the updater writes what the commit it
+// pinned was, and refusing that would refuse the pinning convention itself. And
+// a `uses:` line, for the same reason one step further: an action is one of the
+// two ecosystems the updater already covers, so it is watched and this rule is
+// about the pins that are not.
+//
+// The bound is the shape of the literal rather than its meaning. Three
+// dot-separated numbers is what a fetched version looks like and it is what
+// somebody writes; a version spelled any other way walks through, which is why
+// the file is the authority for the set rather than this row.
+func decideWorkflowVersions(body []byte) []string {
+	var details []string
+	for i, line := range strings.Split(string(body), "\n") {
+		text := withoutComment(line)
+		if strings.HasPrefix(strings.TrimSpace(text), "uses:") {
+			continue
+		}
+		for _, m := range versionLiteral.FindAllStringSubmatch(text, -1) {
+			details = append(details, fmt.Sprintf(
+				"line %d writes the version %s into a step, and %s is where a version no updater watches is declared and read from",
+				i+1, m[2], pins.File))
+		}
+	}
+	return details
+}
+
+// withoutComment drops what YAML reads as a comment, which is a hash preceded
+// by whitespace or standing at the start of the line.
+func withoutComment(line string) string {
+	for i, r := range line {
+		if r != '#' {
+			continue
+		}
+		if i == 0 {
+			return ""
+		}
+		if prev := line[i-1]; prev == ' ' || prev == '\t' {
+			return line[:i]
+		}
+	}
+	return line
 }
 
 // decideImports refuses an import that is neither standard library nor inside
@@ -463,7 +524,7 @@ func gather(root string) (map[string][]file, error) {
 		}
 	}
 
-	tracked, tests, err := trackedText(root)
+	tracked, tests, workflows, err := trackedText(root)
 	if err != nil {
 		return nil, err
 	}
@@ -473,22 +534,27 @@ func gather(root string) (map[string][]file, error) {
 		ProducedFiles: produced,
 		TrackedText:   tracked,
 		TestSources:   tests,
+		Workflows:     workflows,
 	}, nil
 }
+
+// workflowDir is where a workflow has to live for the server to run it, so it
+// is what a rule about workflow files reads.
+const workflowDir = ".github/workflows/"
 
 // trackedText reads every tracked file that is not binary, and separates out the
 // test sources. It asks git rather than walking, because the rule is about what
 // this repository carries and a walk also reads whatever happens to be sitting in
 // the working directory.
-func trackedText(root string) ([]file, []file, error) {
+func trackedText(root string) ([]file, []file, []file, error) {
 	cmd := exec.Command("git", "ls-files", "-z")
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, nil, fmt.Errorf("listing the tracked files: %w", err)
+		return nil, nil, nil, fmt.Errorf("listing the tracked files: %w", err)
 	}
 
-	var text, tests []file
+	var text, tests, workflows []file
 	for _, name := range strings.Split(strings.TrimRight(string(out), "\x00"), "\x00") {
 		if name == "" {
 			continue
@@ -500,7 +566,7 @@ func trackedText(root string) ([]file, []file, error) {
 				// checkout somebody is in the middle of, not a violation.
 				continue
 			}
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if bytes.IndexByte(b, 0) >= 0 {
 			continue
@@ -509,11 +575,14 @@ func trackedText(root string) ([]file, []file, error) {
 		if strings.HasSuffix(name, "_test.go") {
 			tests = append(tests, f)
 		}
+		if strings.HasPrefix(name, workflowDir) {
+			workflows = append(workflows, f)
+		}
 		if name != vocabularyFile {
 			text = append(text, f)
 		}
 	}
-	return text, tests, nil
+	return text, tests, workflows, nil
 }
 
 func decideLang(body []byte) []string {

@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Flowfin/site/internal/pins"
 )
 
 const (
@@ -28,19 +30,37 @@ toolchain go1.26.5
 
 WORKDIR /src
 `
-	sampleFormatter = `jobs:
-  prettier:
-    steps:
-      - name: Check formatting
-        env:
-          PRETTIER_VERSION: "3.9.6"
-        run: npx --yes "prettier@${PRETTIER_VERSION}" --check .
+	samplePins = `[
+  {
+    "id": "prettier",
+    "registry": "npm",
+    "name": "prettier",
+    "version": "3.9.6",
+    "checksum": "",
+    "reads": [".github/workflows/prettier.yml"],
+    "repeats": [],
+    "why": "The formatter is fetched at run time and no updater sees it."
+  }
+]
+`
+	pinsWithoutTheFormatter = `[
+  {
+    "id": "zizmor",
+    "registry": "pypi",
+    "name": "zizmor",
+    "version": "1.26.1",
+    "checksum": "",
+    "reads": [".github/workflows/zizmor.yml"],
+    "repeats": [],
+    "why": "The workflow audit is fetched at run time and no updater sees it."
+  }
+]
 `
 )
 
 // tree writes the three files the document is derived from, so a test changes one
 // of them and reads what the document did about it.
-func tree(t *testing.T, gomod, dockerfile, formatter string) string {
+func tree(t *testing.T, gomod, dockerfile, pinned string) string {
 	t.Helper()
 
 	root := t.TempDir()
@@ -59,8 +79,8 @@ func tree(t *testing.T, gomod, dockerfile, formatter string) string {
 	if dockerfile != "" {
 		write(DockerfileTxt, dockerfile)
 	}
-	if formatter != "" {
-		write(FormatterFile, formatter)
+	if pinned != "" {
+		write(pins.File, pinned)
 	}
 	return root
 }
@@ -68,7 +88,7 @@ func tree(t *testing.T, gomod, dockerfile, formatter string) string {
 // The three things the document owes, each read off the document rather than off
 // the file it came from.
 func TestTheDocumentCarriesTheToolchainTheGraphAndTheBaseImage(t *testing.T) {
-	doc, err := Build(tree(t, sampleGoMod, sampleDockerfile, sampleFormatter))
+	doc, err := Build(tree(t, sampleGoMod, sampleDockerfile, samplePins))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -103,7 +123,7 @@ func TestTheDocumentCarriesTheToolchainTheGraphAndTheBaseImage(t *testing.T) {
 		t.Fatalf("the document lists no formatter; it lists %v", Names(doc))
 	}
 	if formatter.Version != "3.9.6" {
-		t.Errorf("the formatter reads %q, and the workflow pins 3.9.6", formatter.Version)
+		t.Errorf("the formatter reads %q, and the pins file declares 3.9.6", formatter.Version)
 	}
 
 	// The graph is empty in this fixture, and an empty graph is a fact the
@@ -119,7 +139,7 @@ func TestTheDocumentCarriesTheToolchainTheGraphAndTheBaseImage(t *testing.T) {
 // document produced from that tree, so the change and the entry cannot arrive in
 // different pull requests.
 func TestAModuleAddedToTheTreeIsInTheDocument(t *testing.T) {
-	before, err := Build(tree(t, sampleGoMod, sampleDockerfile, sampleFormatter))
+	before, err := Build(tree(t, sampleGoMod, sampleDockerfile, samplePins))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -130,7 +150,7 @@ require (
 	example.com/two v0.4.0 // indirect
 )
 `
-	after, err := Build(tree(t, withModule, sampleDockerfile, sampleFormatter))
+	after, err := Build(tree(t, withModule, sampleDockerfile, samplePins))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -155,7 +175,7 @@ require (
 // A single-line require is the other spelling and it is the one a tree grows
 // first, so the document reads it too.
 func TestASingleRequireLineIsRead(t *testing.T) {
-	doc, err := Build(tree(t, sampleGoMod+"\nrequire example.com/one v1.2.3\n", sampleDockerfile, sampleFormatter))
+	doc, err := Build(tree(t, sampleGoMod+"\nrequire example.com/one v1.2.3\n", sampleDockerfile, samplePins))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -168,18 +188,18 @@ func TestASingleRequireLineIsRead(t *testing.T) {
 // the same thing as a document produced from a tree that has none, and the whole
 // value of this file is that those two are not the same statement.
 func TestASourceThatCannotBeReadStopsTheDocument(t *testing.T) {
-	for name, roots := range map[string]struct{ gomod, dockerfile, formatter, want string }{
-		"no go.mod":     {"", sampleDockerfile, sampleFormatter, GoModFile},
-		"no Dockerfile": {sampleGoMod, "", sampleFormatter, DockerfileTxt},
-		"no formatter":  {sampleGoMod, sampleDockerfile, "", FormatterFile},
+	for name, roots := range map[string]struct{ gomod, dockerfile, pinned, want string }{
+		"no go.mod":     {"", sampleDockerfile, samplePins, GoModFile},
+		"no Dockerfile": {sampleGoMod, "", samplePins, DockerfileTxt},
+		"no pins file":  {sampleGoMod, sampleDockerfile, "", pins.File},
 		"a base image pinned by tag alone": {sampleGoMod,
-			"FROM golang:1.26.5-bookworm\n", sampleFormatter, DockerfileTxt},
-		"a workflow with no version pin": {sampleGoMod, sampleDockerfile,
-			"jobs:\n  prettier:\n    steps:\n      - run: npx prettier --check .\n", FormatterFile},
+			"FROM golang:1.26.5-bookworm\n", samplePins, DockerfileTxt},
+		"a pins file declaring no formatter": {sampleGoMod, sampleDockerfile,
+			pinsWithoutTheFormatter, pins.File},
 		"a go.mod naming no toolchain": {"module github.com/Flowfin/site\n",
-			sampleDockerfile, sampleFormatter, GoModFile},
+			sampleDockerfile, samplePins, GoModFile},
 	} {
-		_, err := Build(tree(t, roots.gomod, roots.dockerfile, roots.formatter))
+		_, err := Build(tree(t, roots.gomod, roots.dockerfile, roots.pinned))
 		if err == nil {
 			t.Errorf("%s produced a document rather than a failure", name)
 			continue
@@ -194,7 +214,7 @@ func TestASourceThatCannotBeReadStopsTheDocument(t *testing.T) {
 // would make a bill of materials something nobody can compare between runs, which
 // is most of what it is for.
 func TestTwoRunsOverOneSourceProduceTheSameBytes(t *testing.T) {
-	root := tree(t, sampleGoMod, sampleDockerfile, sampleFormatter)
+	root := tree(t, sampleGoMod, sampleDockerfile, samplePins)
 
 	var first, second bytes.Buffer
 	if err := Write(root, &first, io.Discard); err != nil {
@@ -223,7 +243,7 @@ func TestTwoRunsOverOneSourceProduceTheSameBytes(t *testing.T) {
 // read as one that listed the tree.
 func TestTheRunReportsWhatItCovered(t *testing.T) {
 	var doc, report bytes.Buffer
-	if err := Write(tree(t, sampleGoMod, sampleDockerfile, sampleFormatter), &doc, &report); err != nil {
+	if err := Write(tree(t, sampleGoMod, sampleDockerfile, samplePins), &doc, &report); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
 	for _, want := range []string{"CycloneDX " + SpecVersion, "3 component(s)", "the module graph is empty"} {

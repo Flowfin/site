@@ -14,6 +14,7 @@ import (
 	"github.com/Flowfin/site/internal/gate"
 	"github.com/Flowfin/site/internal/hygiene"
 	"github.com/Flowfin/site/internal/invariant"
+	"github.com/Flowfin/site/internal/pins"
 	"github.com/Flowfin/site/internal/reproduce"
 	"github.com/Flowfin/site/internal/site"
 )
@@ -68,6 +69,17 @@ func run(args []string, out, errOut io.Writer) error {
 		// covered goes beside it, so redirecting the first into a file
 		// leaves a reader with the second rather than with silence.
 		return bom.Write(".", out, errOut)
+	case "pins":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("pins takes no argument")
+		}
+		// Deliberately not a leg of the gate. What it reads is three
+		// registries over the network, so its verdict moves when somebody
+		// else publishes rather than when this tree changes, and the half
+		// that needs no network is decided by the suite and by the
+		// invariant gate on every run.
+		return pins.Run(".", pins.Registries, out)
 	case "hygiene":
 		return hygiene.Run(args[1:], out)
 	default:
@@ -87,6 +99,8 @@ func usage(w io.Writer) {
                    build twice and compare what came out, byte for byte
   go run . sbom    write the bill of materials for what produces the published
                    bytes, as CycloneDX on the output stream
+  go run . pins    compare every version in `+pins.File+` against the registry
+                   that publishes it, and report without writing anything
   go run . hygiene [-origin=internal|external] <base> <head>
                    judge the commit messages in a range
 `)

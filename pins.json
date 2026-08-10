@@ -1,0 +1,32 @@
+[
+  {
+    "id": "prettier",
+    "registry": "npm",
+    "name": "prettier",
+    "version": "3.9.6",
+    "checksum": "",
+    "reads": [".github/workflows/prettier.yml"],
+    "repeats": [],
+    "why": "The formatter decides the shape of the prose files, and it is fetched at run time with no package manifest and no lockfile in the tree. That is a cost the formatting gate took deliberately, and this is where it is paid for: the version is here, the workflow reads it, and the run below says when the registry has moved past it. The registry publishes no digest a caller can hold the download to, so this pin has no checksum and the gap is the field being empty rather than a value nobody checked."
+  },
+  {
+    "id": "zizmor",
+    "registry": "pypi",
+    "name": "zizmor",
+    "version": "1.26.1",
+    "checksum": "",
+    "reads": [".github/workflows/zizmor.yml"],
+    "repeats": [],
+    "why": "The workflow audit is the check that reads the workflow files, so a version of it that stops matching the syntax it audits is the one drift nothing else in this tree would notice. It is installed from a prebuilt wheel at run time, and the resolver compares against what the index publishes rather than against the wheel, so what this watches is the release and not the bytes."
+  },
+  {
+    "id": "golang-image",
+    "registry": "docker-hub",
+    "name": "library/golang",
+    "version": "1.26.5-bookworm",
+    "checksum": "sha256:6c5605ab3a9a9fb3c4eafe5b3d63cdbf3881caf113262b67862547b54a9db599",
+    "reads": [],
+    "repeats": ["Dockerfile"],
+    "why": "The container builds the site from this image, and the digest is what makes that build the same one twice. It is repeated rather than read because a FROM instruction takes no indirection, so the reference is derived from the fields here and the file is refused when it carries a different one. What the run compares is the digest the tag resolves to today, because a tag rebuilt under the same name is exactly the drift a version string would not see."
+  }
+]
