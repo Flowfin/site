@@ -26,6 +26,10 @@ by moving a row, rather than in a sort somebody has to justify.
 Every field is required and every one is a string. A row carrying a field not
 named here is malformed, and so is a row missing one.
 
+Required means carrying a value. A field present and empty is the same state to
+anybody reading the file as a field that is not there, and it is refused the same
+way, because the alternative is a page whose address is built out of nothing.
+
 `id` is the plugin's identifier, and it matches the suffix of the repository name
 after `jellyfin-plugin-`. It is what the address of the plugin's page is built
 from and what the per-plugin prose in this repository is keyed by, so it is the
