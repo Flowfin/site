@@ -9,9 +9,9 @@
 # would have to name. The caller is `Package (site)`, in package-caller.yml, and
 # the job below is `Build bundle`.
 #
-# The bill of materials in #41 puts its job in this file rather than in one of its
-# own, for the same reason: a second callable file would be a second name to keep
-# in agreement with a rule.
+# The bill of materials puts its job in this file rather than in one of its own,
+# for the same reason: a second callable file would be a second name to keep in
+# agreement with a rule. Its job below is `Generate SBOM`.
 #
 # A caller has to grant every permission a callable file declares, or the call
 # does not start. This declares the smallest set its job needs, which is the one
@@ -78,4 +78,46 @@ jobs:
         with:
           name: site-bundle
           path: site-bundle.tar.gz
+          if-no-files-found: error
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing is published from here
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Write the bill of materials
+        # It runs on every pull request rather than only on a release, which is
+        # a deliberate departure from the gate this repository is measured by
+        # and is recorded as one in docs/parity.md. There the job is skipped
+        # unless a release input is set, and a skipped job reports a conclusion
+        # a ruleset accepts, so a required context is satisfied by a job that
+        # did not run. One cheap job on every pull request means a dependency
+        # arriving in a change is visible in the review of that change.
+        #
+        # The document goes to the output stream and the report of what it
+        # covered goes beside it, so the log says what was listed even though
+        # the document itself went into a file.
+        run: go run . sbom > sbom.cdx.json
+
+      - name: Say what the document lists
+        run: cat sbom.cdx.json
+
+      - name: Upload the bill of materials
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-sbom
+          path: sbom.cdx.json
           if-no-files-found: error

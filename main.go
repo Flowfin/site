@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/Flowfin/site/internal/bom"
 	"github.com/Flowfin/site/internal/gate"
 	"github.com/Flowfin/site/internal/hygiene"
 	"github.com/Flowfin/site/internal/invariant"
@@ -58,6 +59,15 @@ func run(args []string, out, errOut io.Writer) error {
 			return errors.New("reproduce takes no argument")
 		}
 		return reproduce.Run(".", out)
+	case "sbom":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("sbom takes no argument")
+		}
+		// The document goes to the output stream and the report of what it
+		// covered goes beside it, so redirecting the first into a file
+		// leaves a reader with the second rather than with silence.
+		return bom.Write(".", out, errOut)
 	case "hygiene":
 		return hygiene.Run(args[1:], out)
 	default:
@@ -75,6 +85,8 @@ func usage(w io.Writer) {
                    output a build produces
   go run . reproduce
                    build twice and compare what came out, byte for byte
+  go run . sbom    write the bill of materials for what produces the published
+                   bytes, as CycloneDX on the output stream
   go run . hygiene [-origin=internal|external] <base> <head>
                    judge the commit messages in a range
 `)
