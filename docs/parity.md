@@ -42,6 +42,21 @@ purpose, a different thing being packed.
 unchanged in purpose. A site with almost no dependencies still has a toolchain, a
 base image and a fetched formatter, and those are what the document is for.
 
+It departs in one direction and the direction is the stronger one. There the job
+is skipped unless a release input is set:
+
+    gh api repos/Flowfin/jellyfin-plugin-sso/contents/.github/workflows/build.yml --jq '.content' \
+      | base64 -d | grep -A2 'name: Generate SBOM'
+        name: Generate SBOM
+        if: ${{ inputs.attest }}
+
+Run 2026-08-10. The pull request caller passes no such input, so on a pull
+request a required context of that name is satisfied by a job that did not run,
+because a skipped job reports a conclusion a ruleset accepts. Here it runs on
+every pull request with no condition on it, which costs one cheap job and means a
+dependency arriving in a change is visible in the review of that change rather
+than after the tag.
+
 `CodeQL` and `Analyze (csharp)` collapse into `Analyze (go)`. The target names two
 contexts because it has more than one analysis leg; there is one language here. A
 second required context reporting on an empty job would be a check that verifies
