@@ -10,7 +10,7 @@
 # the build would be a second procedure that drifts from the first, and the
 # reproducibility check is what proves it has not: the same source built inside
 # and outside has to produce identical bytes.
-FROM golang:1.26.5-bookworm
+FROM golang:1.26.5-bookworm@sha256:6c5605ab3a9a9fb3c4eafe5b3d63cdbf3881caf113262b67862547b54a9db599
 
 # The toolchain is the one in the image, which is the one go.mod pins. `local`
 # refuses to fetch another, so a mismatch is a failure here rather than a quiet
