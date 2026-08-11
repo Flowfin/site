@@ -17,6 +17,7 @@ import (
 	"github.com/Flowfin/site/internal/pins"
 	"github.com/Flowfin/site/internal/reproduce"
 	"github.com/Flowfin/site/internal/site"
+	"github.com/Flowfin/site/internal/tokens"
 )
 
 func main() {
@@ -80,6 +81,17 @@ func run(args []string, out, errOut io.Writer) error {
 		// that needs no network is decided by the suite and by the
 		// invariant gate on every run.
 		return pins.Run(".", pins.Registries, out)
+	case "tokens":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("tokens takes no argument")
+		}
+		// Deliberately not a leg of the gate, for the reason the pins verb
+		// above is not one: what it reads is a file somebody else
+		// publishes, so its verdict moves when they change it rather than
+		// when this tree does. What the build needs from the copy is
+		// decided on every run, because the build reads it.
+		return tokens.Run(".", tokens.Publisher, out)
 	case "hygiene":
 		return hygiene.Run(args[1:], out)
 	default:
@@ -101,6 +113,8 @@ func usage(w io.Writer) {
                    bytes, as CycloneDX on the output stream
   go run . pins    compare every version in `+pins.File+` against the registry
                    that publishes it, and report without writing anything
+  go run . tokens  compare the pinned copy in `+tokens.File+` against the
+                   published token file, naming every value that differs
   go run . hygiene [-origin=internal|external] <base> <head>
                    judge the commit messages in a range
 `)
