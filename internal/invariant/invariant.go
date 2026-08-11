@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Flowfin/site/internal/markup"
 	"github.com/Flowfin/site/internal/pins"
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/site"
@@ -201,6 +202,41 @@ func Rules() []Rule {
 			Reason:  "an expiry that has passed tells somebody who found a problem that the route was abandoned, which is worse than the file not being there, and it is the one thing in the output that goes wrong by sitting still",
 			Refuses: "a produced file whose expiry is not in the future, or whose expiry is not a moment",
 			decide:  decideExpiry,
+		},
+		{
+			ID:      "page-parses",
+			Subject: ProducedPages,
+			Reason:  "a browser recovers from broken markup, so a template can produce an unclosed element for months while every page still renders and nothing says a word about it",
+			Refuses: "a produced page with an element that is never closed, an end tag that closes something else, or a tag that never ends",
+			decide:  decideMarkup(markup.Structure),
+		},
+		{
+			ID:      "page-uses-no-identifier-twice",
+			Subject: ProducedPages,
+			Reason:  "an identifier is what a link, a label and an assistive technology reach an element by, and two elements answering to one name means a reference reaches whichever the reader's software picked",
+			Refuses: "a produced page carrying one identifier on two elements, or an empty one",
+			decide:  decideMarkup(markup.Identity),
+		},
+		{
+			ID:      "page-skips-no-heading-level",
+			Subject: ProducedPages,
+			Reason:  "a reader moving through a page by heading is reading the outline, and a level that jumps leaves them unable to tell what is under what while the page looks right to everybody else",
+			Refuses: "a produced page whose heading level rises by more than one",
+			decide:  decideMarkup(markup.Heading),
+		},
+		{
+			ID:      "page-image-carries-alternative-text",
+			Subject: ProducedPages,
+			Reason:  "an image with no alternative text is a hole in the page for anybody who cannot see it, and an image that genuinely says nothing carries an empty one deliberately rather than none at all",
+			Refuses: "a produced page carrying an image with no alt attribute",
+			decide:  decideMarkup(markup.Alt),
+		},
+		{
+			ID:      "page-names-every-control",
+			Subject: ProducedPages,
+			Reason:  "a control with nothing naming it asks somebody to fill in a field without telling them what goes in it, and the page looks complete to whoever wrote it",
+			Refuses: "a produced page carrying a form control with no accessible name on it",
+			decide:  decideMarkup(markup.Label),
 		},
 		{
 			ID:      "tracked-text-names-no-tool",
@@ -445,6 +481,20 @@ func withoutComment(line string) string {
 		}
 	}
 	return line
+}
+
+// decideMarkup makes the row for one kind of problem. The page is walked once
+// per row, which is a walk of a few kilobytes and is worth what it buys: each
+// property is a row of its own, with its own reason and its own refusal, rather
+// than one row that says a page is wrong somehow.
+func decideMarkup(kind string) func(body []byte) []string {
+	return func(body []byte) []string {
+		var details []string
+		for _, p := range markup.Of(kind, markup.Read(body)) {
+			details = append(details, p.String())
+		}
+		return details
+	}
 }
 
 // decideExpiry refuses a produced file whose expiry has passed.
