@@ -42,16 +42,48 @@ func legs() []leg {
 	}
 }
 
+// outsideSet is a set of checks this repository runs deliberately and never
+// here. It carries what asking for it costs, because a reader deciding whether
+// to run it needs the cost rather than an invitation.
+type outsideSet struct {
+	name string
+	cost string
+	how  string
+}
+
+// outside is every such set. The gate prints it on every run, at the top, so a
+// run that fails at its first leg still says what it never covers. A gate that
+// listed only its own legs would read as the whole of what this repository
+// checks, and the sets below are the ones whose absence is least visible: they
+// judge a published site rather than this tree, so nothing in a diff ever
+// suggests they were owed.
+func outside() []outsideSet {
+	return []outsideSet{{
+		name: "needs-network",
+		cost: "a request to the public name from whatever machine runs it, and a verdict that " +
+			"moves when somebody else's service does rather than when this tree changes",
+		how: "go run ./harness/needs-network",
+	}}
+}
+
 // Run executes every leg against the tree at root, in order, and stops at the
 // first failure.
 func Run(root string, log io.Writer) error {
-	all := legs()
+	return run(root, log, legs())
+}
 
+// run is Run with the legs supplied, so the suite can drive the reporting
+// without the gate running `go test` inside a test and calling itself.
+func run(root string, log io.Writer, all []leg) error {
 	names := make([]string, len(all))
 	for i, l := range all {
 		names[i] = l.name
 	}
 	fmt.Fprintf(log, "gate: %d legs, in order: %s\n", len(all), strings.Join(names, ", "))
+
+	for _, s := range outside() {
+		fmt.Fprintf(log, "  %s was not asked for. Asking costs %s. Ask with: %s\n", s.name, s.cost, s.how)
+	}
 
 	for i, l := range all {
 		report, err := l.run(root)

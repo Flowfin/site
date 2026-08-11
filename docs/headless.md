@@ -39,7 +39,11 @@ comparisons run on a schedule instead of as gate legs.
 
 Anything this repository puts outside the gate carries the published harness
 names, `needs-network`, `needs-browser` and `needs-jellyfin`, rather than a
-vocabulary invented here.
+vocabulary invented here. Such a set lives in `harness/`, one directory per
+name, and [harness/README.md](../harness/README.md) is where what a run of one
+leaves behind is argued. The gate verb names every set there on every run,
+along with what asking for it would cost, so a run of the gate cannot be read as
+having covered them.
 
 ## The six constraints
 
