@@ -120,6 +120,20 @@ func Parse(body []byte, exists Exists) ([]Entry, error) {
 			}
 		}
 
+		// A present field holding nothing is refused the same way a missing
+		// one is. The two are one state to a reader of the file and were
+		// two to this parser, so a row could arrive with no identifier and
+		// no repository in it and be handed on as a row.
+		if e.ID == "" {
+			if _, ok := row["id"]; ok {
+				refuse("carries an empty identifier, and the identifier is what a page address and the per-plugin prose in this repository are keyed by")
+			}
+		}
+		if e.Repository == "" {
+			if _, ok := row["repository"]; ok {
+				refuse("carries an empty repository, and a row that names none is a row the release list cannot be asked for")
+			}
+		}
 		if e.Summary == "" {
 			if _, ok := row["summary"]; ok {
 				refuse("carries an empty sentence, and a plugin the site cannot say anything about is a page nobody can read")
@@ -132,8 +146,18 @@ func Parse(body []byte, exists Exists) ([]Entry, error) {
 				seen[e.ID] = i + 1
 			}
 		}
+		// The two halves of the address are read apart rather than by
+		// matching the end of the string. A suffix match accepts anything
+		// in front of the name, so a path with a third segment in it passed
+		// as a repository, and `owner/name` is what the schema says a
+		// repository is written as.
 		if e.ID != "" && e.Repository != "" {
-			if want := repositoryPrefix + e.ID; !strings.HasSuffix(e.Repository, "/"+want) {
+			owner, name, split := strings.Cut(e.Repository, "/")
+			want := repositoryPrefix + e.ID
+			switch {
+			case !split || owner == "" || name == "" || strings.Contains(name, "/"):
+				refuse("declares the repository %s, and a repository is written here as an owner and a name with one separator between them", e.Repository)
+			case name != want:
 				refuse("declares the repository %s, and an identifier of %s means the name after the owner has to be %s", e.Repository, e.ID, want)
 			}
 		}
