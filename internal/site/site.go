@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/tokens"
 )
 
@@ -91,6 +92,12 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 	written = append(written, path.Join(label, "index.html"))
 	fmt.Fprintf(log, "wrote %s (%d bytes)\n", path.Join(label, "index.html"), rendered.Len())
 
+	reported, err := writeSecurityTxt(root, out, label, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, reported...)
+
 	copied, err := copyAssets(filepath.Join(root, AssetsDir), out, label, log)
 	if err != nil {
 		return nil, err
@@ -129,6 +136,42 @@ func readTokens(root string, log io.Writer) error {
 	}
 	fmt.Fprintf(log, "read %s (%d value(s))\n", tokens.File, len(values))
 	return nil
+}
+
+// writeSecurityTxt renders the route a person who found a problem in the
+// published pages goes looking for, at the one path they already know. What it
+// says and why it is produced rather than committed is in the security package;
+// what this function decides is that it is written by the build, so the path is
+// answered by whatever serves the output rather than by a file somebody
+// remembered to copy.
+//
+// An absent source is reported rather than passed over, the way the assets walk
+// below reports an absent directory. What refuses a tree that carries no source
+// for it is the invariant over the tree, because that is a rule about this
+// repository rather than about a fixture somebody built a page in.
+func writeSecurityTxt(root, out, label string, log io.Writer) ([]string, error) {
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(security.File))); os.IsNotExist(err) {
+		fmt.Fprintf(log, "no %s in the tree, so no %s was written\n", security.File, security.Path)
+		return nil, nil
+	}
+	c, err := security.Load(root)
+	if err != nil {
+		return nil, fmt.Errorf("reading the security contact: %w", err)
+	}
+	body, err := security.Render(c)
+	if err != nil {
+		return nil, fmt.Errorf("rendering %s: %w", security.Path, err)
+	}
+	name := filepath.Join(out, filepath.FromSlash(security.Path))
+	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+		return nil, fmt.Errorf("creating the directory for %s: %w", security.Path, err)
+	}
+	if err := os.WriteFile(name, []byte(body), 0o644); err != nil {
+		return nil, fmt.Errorf("writing %s: %w", security.Path, err)
+	}
+	slashed := path.Join(label, security.Path)
+	fmt.Fprintf(log, "wrote %s (%d bytes)\n", slashed, len(body))
+	return []string{slashed}, nil
 }
 
 // copyAssets copies everything under src into out unchanged. An absent

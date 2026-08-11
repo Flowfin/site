@@ -20,7 +20,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/tokens"
 )
 
@@ -101,6 +103,11 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// repair it wants.
 		"output-references-no-domain-outside-the-allowlist": []byte(strings.Replace(cleanPage, `</head>`,
 			`  <link rel="stylesheet" href="https://cdn.example.invalid/a.css" />`+"\n  </head>", 1)),
+		// The day the route was last confirmed left where it was for a
+		// year, which is the whole failure: nobody edits a file that is
+		// still there and still looks right.
+		"output-carries-no-expired-reporting-route": []byte(
+			"Contact: https://example.invalid/report\nExpires: 2020-01-01T00:00:00Z\n"),
 		"tracked-text-names-no-tool": b64(t, "QSBub3RlIGFib3ZlLgpHZW5lcmF0ZWQgYnkgQ2hhdEdQVCBhbmQgbGVmdCBpbi4K"),
 		// The version put back where it is convenient, which is what
 		// somebody does who is adding a step and does not know the file
@@ -353,6 +360,12 @@ func tree(t *testing.T, template string) string {
 	// carry one, and a fixture whose copy held none would prove nothing
 	// about which file that is.
 	wr(filepath.FromSlash(tokens.File), `{"surface":{"ground":{"dark":{"srgb":"#121216","alpha":1}}}}`)
+	// The source of the produced reporting route. The day is far enough
+	// ahead that the fixture does not expire while nobody is looking at it,
+	// which is the one thing in this tree that would go red on a date rather
+	// than on a change.
+	wr(filepath.FromSlash(security.File), `{"route":"https://example.invalid/report",
+		"policy":"https://example.invalid/policy","confirmed":"2099-01-01"}`)
 
 	git(t, root, "init", "-q")
 	git(t, root, "add", "-A")
@@ -609,6 +622,55 @@ func TestRunRefusesATreeCarryingNoCopyOfTheDesignTokens(t *testing.T) {
 		t.Fatalf("Run accepted a tree with no copy of the design tokens:\n%s", log.String())
 	}
 	if !strings.Contains(err.Error(), tokens.File) {
+		t.Errorf("the refusal reads %q, which does not name the file that is missing", err)
+	}
+}
+
+// The expiry row, at the level of the decision. It is the one row that reads
+// the clock, so the three answers it has to tell apart are the point: a file
+// that is not its subject, one whose expiry is still ahead, and one whose
+// expiry has passed.
+func TestTheExpiryRowRefusesAPassedDateAndPassesTheRest(t *testing.T) {
+	ahead := time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339)
+	if got := decideExpiry([]byte("Expires: " + ahead + "\n")); len(got) != 0 {
+		t.Errorf("the expiry row refused a file that has not expired: %v", got)
+	}
+	if got := decideExpiry([]byte(cleanPage)); len(got) != 0 {
+		t.Errorf("the expiry row refused a file carrying no expiry: %v", got)
+	}
+
+	got := decideExpiry([]byte("Expires: 2020-01-01T00:00:00Z\n"))
+	if len(got) != 1 {
+		t.Fatalf("the expiry row did not refuse a date that has passed: %v", got)
+	}
+	if !strings.Contains(got[0], "2020-01-01T00:00:00Z") {
+		t.Errorf("the refusal reads %q and does not name the date", got[0])
+	}
+	if !strings.Contains(got[0], security.File) {
+		t.Errorf("the refusal reads %q and does not say where the date is moved forward", got[0])
+	}
+
+	if got := decideExpiry([]byte("Expires: next August\n")); len(got) != 1 {
+		t.Errorf("the expiry row passed a file whose expiry is not a moment: %v", got)
+	}
+}
+
+// A tree carrying no source for the produced file is refused by name. Without
+// it the row above would examine an output that has no such file in it and
+// report that nothing had expired.
+func TestRunRefusesATreeCarryingNoSourceForTheReportingRoute(t *testing.T) {
+	root := tree(t, goodTemplate)
+	if err := os.Remove(filepath.Join(root, filepath.FromSlash(security.File))); err != nil {
+		t.Fatalf("removing the source: %v", err)
+	}
+	git(t, root, "rm", "-q", "--cached", security.File)
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run accepted a tree with no source for the reporting route:\n%s", log.String())
+	}
+	if !strings.Contains(err.Error(), security.File) {
 		t.Errorf("the refusal reads %q, which does not name the file that is missing", err)
 	}
 }
