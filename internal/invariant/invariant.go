@@ -83,6 +83,10 @@ var (
 	titleElement = regexp.MustCompile(`(?is)<title\b[^>]*>(.*?)</title>`)
 	scriptSrc    = regexp.MustCompile(`(?is)<script\b[^>]*\bsrc\s*=`)
 	unfinished   = regexp.MustCompile(`TODO|FIXME`)
+	imgElement   = regexp.MustCompile(`(?is)<img\b[^>]*>`)
+	srcAttr      = regexp.MustCompile(`(?is)\bsrc\s*=\s*"([^"]*)"`)
+	widthAttr    = regexp.MustCompile(`(?is)\bwidth\s*=\s*"([^"]*)"`)
+	heightAttr   = regexp.MustCompile(`(?is)\bheight\s*=\s*"([^"]*)"`)
 )
 
 // markers is the vocabulary the tool-marker rule refuses, lower-cased. It is a
@@ -151,6 +155,13 @@ func Rules() []Rule {
 			Reason:  "the budget puts required scripting at zero bytes, and a script element with a source is a request this site did not have to make and a party that learns who is reading",
 			Refuses: "a produced page carrying a script element with a src attribute, wherever it points",
 			decide:  decideScriptSrc,
+		},
+		{
+			ID:      "image-carries-its-own-dimensions",
+			Subject: ProducedPages,
+			Reason:  "the budget puts layout shift at exactly zero, and the usual cause of a page missing it is an image whose size the browser only learns once the bytes have arrived, so everything under it moves when they do",
+			Refuses: "a produced page carrying an image element without a usable width and height on it",
+			decide:  decideImageDimensions,
 		},
 		{
 			ID:      "output-carries-no-unfinished-marker",
@@ -434,6 +445,10 @@ func Owing() []Owed {
 			ID:      "design-tokens-live-in-exactly-one-file",
 			Waiting: "the token file, in #65 and #66. There is no token in this tree, so the rule would compare one absent file against another",
 		},
+		{
+			ID:      "image-dimensions-match-the-file",
+			Waiting: "the first image the build writes, in #69. The row above refuses a produced image with no usable dimensions on it; this one is the other half, that the numbers written are the ones the image file carries rather than numbers somebody typed, and the build writes no image today, so there is nothing on either side of that comparison",
+		},
 	}
 }
 
@@ -652,6 +667,83 @@ func decideScriptSrc(body []byte) []string {
 		details = append(details, fmt.Sprintf("line %d carries a script element with a src attribute", lineOf(body, loc[0])))
 	}
 	return details
+}
+
+// decideImageDimensions refuses an image on a produced page that does not carry
+// the space it is going to take.
+//
+// The property the budget states is layout shift of exactly zero, and #35
+// measures that in a browser against the built output served. Measuring is the
+// honest last line and it is the expensive one, and the usual cause of a
+// failure is one thing that a reading of the markup decides for nothing: an
+// image the browser has to fetch before it knows how tall the box is. So the
+// cause is refused here and the browser run stays as the thing that catches
+// what a reading cannot see.
+//
+// An attribute that is present and empty is refused exactly as an absent one
+// is. That is the mistake somebody actually makes: a template writing
+// width="{{ .Width }}" against a value that is not there produces an attribute
+// a grep for the word finds and a browser ignores, which is the shape a rule
+// reading only for the name of the attribute would pass.
+//
+// The bound is that this reads the produced markup and nothing else. Whether
+// the number on the element is the number the image file carries is a
+// comparison against a file this build does not write yet, and it is owed
+// rather than decided here.
+func decideImageDimensions(body []byte) []string {
+	var details []string
+	for _, loc := range imgElement.FindAllIndex(body, -1) {
+		tag := body[loc[0]:loc[1]]
+		where := fmt.Sprintf("line %d, the image %s", lineOf(body, loc[0]), sourceOf(tag))
+		for _, d := range []struct {
+			name string
+			re   *regexp.Regexp
+		}{{"width", widthAttr}, {"height", heightAttr}} {
+			switch value, present := attribute(tag, d.re); {
+			case !present:
+				details = append(details, fmt.Sprintf("%s carries no %s attribute", where, d.name))
+			case !isDimension(value):
+				details = append(details, fmt.Sprintf("%s carries the %s %q, which is not a number of pixels a browser can reserve space from", where, d.name, value))
+			}
+		}
+	}
+	return details
+}
+
+// sourceOf names the image a detail is about, so a page with several says which
+// one. An element with no source at all is named as that rather than as an
+// empty string, because the two read identically in a message and are different
+// mistakes.
+func sourceOf(tag []byte) string {
+	if src, ok := attribute(tag, srcAttr); ok && src != "" {
+		return src
+	}
+	return "with no source on it"
+}
+
+// attribute reads one attribute off an element, and reports whether it was
+// there at all separately from what it held.
+func attribute(tag []byte, re *regexp.Regexp) (string, bool) {
+	m := re.FindSubmatch(tag)
+	if m == nil {
+		return "", false
+	}
+	return string(m[1]), true
+}
+
+// isDimension answers whether a value is a whole number of pixels. A browser
+// reserves space from a bare number, and anything else on these two attributes
+// is either ignored or is a unit the attribute does not take.
+func isDimension(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // decideForeignOrigin refuses every reference in a produced file that would
