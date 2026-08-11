@@ -124,7 +124,7 @@ func copyAssets(src, out, label string, log io.Writer) ([]string, error) {
 			}
 			return os.MkdirAll(filepath.Join(out, rel), 0o755)
 		}
-		b, err := os.ReadFile(p)
+		b, err := os.ReadFile(filepath.Clean(p))
 		if err != nil {
 			return err
 		}
@@ -147,7 +147,7 @@ func copyAssets(src, out, label string, log io.Writer) ([]string, error) {
 // that lets the prose live in content/ rather than inside the generator, and
 // it is what the pages issues replace once there is a real page to write.
 func readPage(name string) (page, error) {
-	f, err := os.Open(name)
+	f, err := os.Open(filepath.Clean(name))
 	if err != nil {
 		return page{}, err
 	}
