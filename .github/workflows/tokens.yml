@@ -1,0 +1,63 @@
+# The comparison between the design token values this repository vendors and
+# the ones the published file carries.
+#
+# It runs on a schedule rather than on a pull request, for the reason the pins
+# comparison beside it does: what it reads is a file published somewhere else,
+# so its verdict moves when somebody else commits rather than when this tree
+# changes, and a merge blocked by that is a gate punishing the wrong change.
+# The half that needs no network is the build, which reads the pinned copy on
+# every run of the gate.
+#
+# It reports and does not write. A run that quietly pulled the published values
+# into the tree would destroy the difference, and the difference is the evidence
+# for the change somebody makes. The last step is what holds it to that.
+#
+# A stale token is the drift with no other witness. A stale version shows up as
+# a number a reader can compare; a stale colour or spacing step renders
+# perfectly and matches nothing the clients are held to.
+name: Design tokens
+
+on:
+  schedule:
+    # Weekly, on the cadence the other comparisons of a pinned copy use, so the
+    # whole set is looked at on one rhythm rather than on several nobody can
+    # hold in their head.
+    - cron: "37 5 * * 2"
+  workflow_dispatch:
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+jobs:
+  tokens:
+    name: Compare the pinned tokens against the published file
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Compare every pinned value against the published one
+        run: go run . tokens
+
+      - name: Prove the run wrote nothing
+        # After the comparison whether it passed or failed, because a run that
+        # rewrote a value on its way to a red verdict is the failure this step
+        # exists for and a red verdict is exactly when it would be missed.
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain=v1
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
