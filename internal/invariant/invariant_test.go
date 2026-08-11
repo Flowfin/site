@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Flowfin/site/internal/tokens"
 )
 
 // b64 decodes a fixture whose bytes are the point.
@@ -106,6 +108,13 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// back out of the set anything watches.
 		"workflow-step-carries-no-version-literal": []byte(strings.Replace(cleanWorkflow,
 			`prettier@${PRETTIER_VERSION}`, `prettier@3.9.6`, 1)),
+		// The colour typed into the markup that needs it, which is what
+		// somebody does with the value already on the screen in front of
+		// them. It is the second definition of a value published
+		// elsewhere, and the page goes on rendering it perfectly after the
+		// published one moves.
+		"design-tokens-live-in-exactly-one-file": []byte(strings.Replace(cleanPage, `<body>`,
+			`<body style="background: #121216">`, 1)),
 		// The six shapes the headless rule refuses, each in the smallest
 		// test somebody would actually write. Base64 for the same reason
 		// the marker fixture is: a test source carrying these literally is
@@ -336,8 +345,14 @@ func tree(t *testing.T, template string) string {
 
 	mk("templates")
 	mk("content")
+	mk(filepath.Dir(filepath.FromSlash(tokens.File)))
 	wr(filepath.Join("templates", "page.html.tmpl"), template)
 	wr(filepath.Join("content", "index.txt"), "A title\n\nOne paragraph.\n")
+	// The copy the build reads. It carries a colour, because the row about
+	// where a colour is read from is about there being one file that may
+	// carry one, and a fixture whose copy held none would prove nothing
+	// about which file that is.
+	wr(filepath.FromSlash(tokens.File), `{"surface":{"ground":{"dark":{"srgb":"#121216","alpha":1}}}}`)
 
 	git(t, root, "init", "-q")
 	git(t, root, "add", "-A")
@@ -523,5 +538,77 @@ func TestAnImageWithoutItsDimensionsRedsExactlyOneRow(t *testing.T) {
 	}
 	if len(refused) != 1 || refused[0] != "image-carries-its-own-dimensions" {
 		t.Errorf("the image refused %v, want only image-carries-its-own-dimensions", refused)
+	}
+}
+
+// The colour row, at the level of the decision rather than through a whole run,
+// because what it has to get right is which bytes are a colour and which are an
+// address that looks like one.
+func TestTheColourRowRefusesATypedColourAndLeavesAFragmentAlone(t *testing.T) {
+	refused := map[string]string{
+		"a full hex value in a style attribute": `<p style="color: #ECECEF">Read this</p>`,
+		"the shorthand for a published value":   `<style>a { color: #fff }</style>`,
+		"a value with alpha on it":              `<style>hr { background: #FFFFFF12 }</style>`,
+		"a colour in the prose the build reads": `The accent is #5B9CFF on a dark ground.`,
+	}
+	for name, line := range refused {
+		got := decideTypedColour([]byte(line))
+		if len(got) != 1 {
+			t.Errorf("the colour row did not refuse %s: %v", name, got)
+			continue
+		}
+		if !strings.Contains(got[0], tokens.File) {
+			t.Errorf("refusing %s reads %q, which does not say where a colour is read from", name, got[0])
+		}
+	}
+
+	spared := map[string]string{
+		"a fragment reference":         `<a href="#content">Skip to the content</a>`,
+		"a fragment on an image":       `<img src="#a1b2c3" alt="" width="1" height="1" />`,
+		"a word that is not a colour":  `<a href="/install/">#install the plugin</a>`,
+		"a run of digits that is five": `<p>Case #12345 is closed.</p>`,
+	}
+	for name, line := range spared {
+		if got := decideTypedColour([]byte(line)); len(got) != 0 {
+			t.Errorf("the colour row refused %s: %v", name, got)
+		}
+	}
+}
+
+// The one-character version of the mistake: the value is on the screen in front
+// of somebody writing the markup that needs it, so they type it.
+func TestRunRefusesAColourTypedIntoTheTemplate(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate, `<body>`, `<body style="background: #121216">`, 1))
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run accepted a colour typed into the template:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), "design-tokens-live-in-exactly-one-file: REFUSED") {
+		t.Errorf("the run does not name the row that refused:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), "writes the colour #121216") {
+		t.Errorf("the run does not say which colour was typed:\n%s", log.String())
+	}
+}
+
+// Exactly one file, and zero is not one. A run over a tree carrying no copy
+// would otherwise report that it found no second definition of a value that has
+// no first one, which is a green run over the state the row exists to refuse.
+func TestRunRefusesATreeCarryingNoCopyOfTheDesignTokens(t *testing.T) {
+	root := tree(t, goodTemplate)
+	if err := os.Remove(filepath.Join(root, filepath.FromSlash(tokens.File))); err != nil {
+		t.Fatalf("removing the copy: %v", err)
+	}
+	git(t, root, "rm", "-q", "--cached", tokens.File)
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run accepted a tree with no copy of the design tokens:\n%s", log.String())
+	}
+	if !strings.Contains(err.Error(), tokens.File) {
+		t.Errorf("the refusal reads %q, which does not name the file that is missing", err)
 	}
 }

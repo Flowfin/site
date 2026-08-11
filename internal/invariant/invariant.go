@@ -32,6 +32,7 @@ import (
 
 	"github.com/Flowfin/site/internal/pins"
 	"github.com/Flowfin/site/internal/site"
+	"github.com/Flowfin/site/internal/tokens"
 )
 
 // The populations a row can read. A row names one of them, and the run reads
@@ -53,6 +54,13 @@ const (
 	// Workflows is every tracked workflow file. A rule about what a step
 	// pins reads the steps.
 	Workflows = "every tracked workflow file"
+	// BuildInputs is every tracked file the build reads to render a page.
+	// It is the population where a value typed by hand is a second
+	// definition of something: a value in a document is prose, a value in a
+	// test is what a case needs in order to fail, and a value in a golden
+	// file is a copy of output rather than a source of it. Only what the
+	// build reads can put a wrong value on a page.
+	BuildInputs = "every tracked file the build reads to render a page"
 )
 
 // vocabularyFile is the path excluded from TrackedText, and it is derived from
@@ -87,6 +95,13 @@ var (
 	srcAttr      = regexp.MustCompile(`(?is)\bsrc\s*=\s*"([^"]*)"`)
 	widthAttr    = regexp.MustCompile(`(?is)\bwidth\s*=\s*"([^"]*)"`)
 	heightAttr   = regexp.MustCompile(`(?is)\bheight\s*=\s*"([^"]*)"`)
+	// The hex forms CSS reads, longest first so that the six digits of a
+	// full colour are not matched as a four-digit one with a stray digit
+	// after it. The shorthand forms are in the set because they spell
+	// published values exactly: #FFFFFF is one of them and #fff is the same
+	// colour.
+	hexColour         = regexp.MustCompile(`(?i)#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})\b`)
+	fragmentReference = regexp.MustCompile(`(?is)\b(?:href|src)\s*=\s*"#[^"]*"`)
 )
 
 // markers is the vocabulary the tool-marker rule refuses, lower-cased. It is a
@@ -190,6 +205,13 @@ func Rules() []Rule {
 			Reason:  "a version fetched at run time is in neither ecosystem the updater covers, so one written into a step is a pin nobody watches, and a pin nobody watches is not a stable version but an old one",
 			Refuses: "a version literal in a workflow step, outside a comment and outside the action reference that carries its own updater",
 			decide:  decideWorkflowVersions,
+		},
+		{
+			ID:      "design-tokens-live-in-exactly-one-file",
+			Subject: BuildInputs,
+			Reason:  "a colour typed into a template is a second definition of a value published somewhere else, and the day the published one moves the page goes on rendering the old one perfectly, so nobody sees it",
+			Refuses: "a colour written into what the build reads, in any of the hex forms the published file uses, outside a fragment reference",
+			decide:  decideTypedColour,
 		},
 		{
 			ID:      "test-opens-no-window",
@@ -415,6 +437,35 @@ func withoutComment(line string) string {
 	return line
 }
 
+// decideTypedColour refuses a colour written into what the build reads.
+//
+// The design system is published as data and this repository vendors a copy of
+// it, which is decisions/0007-where-the-design-tokens-live.md: the page and the
+// stylesheet are generated from that copy and neither is typed. A hex value
+// typed into a template is the second definition that record refuses, and it is
+// the one mistake somebody actually makes, because the value is on the screen
+// in front of them while they are writing the markup that needs it.
+//
+// It reads the shape rather than the published values. A rule comparing against
+// the copy would refuse the values that are in it today and pass the ones
+// somebody typed that are not, which is the wrong half: what is wrong with a
+// typed colour is that it was typed, whether or not it is currently right.
+//
+// A fragment reference is dropped first, because `href="#abc"` is an address
+// and not a colour, and the two are the same bytes.
+func decideTypedColour(body []byte) []string {
+	var details []string
+	for i, line := range strings.Split(string(body), "\n") {
+		text := fragmentReference.ReplaceAllString(line, "")
+		for _, m := range hexColour.FindAllString(text, -1) {
+			details = append(details, fmt.Sprintf(
+				"line %d writes the colour %s, and %s is the one file a colour is read from",
+				i+1, m, tokens.File))
+		}
+	}
+	return details
+}
+
 // decideImports refuses an import that is neither standard library nor inside
 // this module. A standard library path has no dot in its first element, which is
 // the rule the toolchain itself uses to tell the two apart.
@@ -441,10 +492,6 @@ func decideImports(body []byte) []string {
 // names what has to exist first. Printed by every run, passing or not.
 func Owing() []Owed {
 	return []Owed{
-		{
-			ID:      "design-tokens-live-in-exactly-one-file",
-			Waiting: "the token file, in #65 and #66. There is no token in this tree, so the rule would compare one absent file against another",
-		},
 		{
 			ID:      "image-dimensions-match-the-file",
 			Waiting: "the first image the build writes, in #69. The row above refuses a produced image with no usable dimensions on it; this one is the other half, that the numbers written are the ones the image file carries rather than numbers somebody typed, and the build writes no image today, so there is nothing on either side of that comparison",
@@ -553,18 +600,39 @@ func gather(root string) (map[string][]file, error) {
 		}
 	}
 
-	tracked, tests, workflows, err := trackedText(root)
+	tracked, err := trackedText(root)
 	if err != nil {
 		return nil, err
+	}
+
+	// The rule about where a colour is read from is a rule about there being
+	// exactly one such file, and a run that decided it against a tree
+	// carrying none would report that no second definition was found in a
+	// tree with no first one. So the copy being absent is refused here, by
+	// name, rather than passing as a row with nothing to compare.
+	if len(tracked.tokenCopies) == 0 {
+		return nil, fmt.Errorf("%s is not tracked in this tree, and the row about where a colour is read from is a row about there being exactly one such file", tokens.File)
 	}
 
 	return map[string][]file{
 		ProducedPages: pages,
 		ProducedFiles: produced,
-		TrackedText:   tracked,
-		TestSources:   tests,
-		Workflows:     workflows,
+		TrackedText:   tracked.text,
+		TestSources:   tracked.tests,
+		Workflows:     tracked.workflows,
+		BuildInputs:   tracked.buildInputs,
 	}, nil
+}
+
+// tracked is what one walk of the index produces. The populations are cut from
+// one listing rather than from one walk each, because two listings of the same
+// index taken a moment apart is a difference nobody would look for.
+type tracked struct {
+	text        []file
+	tests       []file
+	workflows   []file
+	buildInputs []file
+	tokenCopies []file
 }
 
 // workflowDir is where a workflow has to live for the server to run it, so it
@@ -575,15 +643,15 @@ const workflowDir = ".github/workflows/"
 // test sources. It asks git rather than walking, because the rule is about what
 // this repository carries and a walk also reads whatever happens to be sitting in
 // the working directory.
-func trackedText(root string) ([]file, []file, []file, error) {
+func trackedText(root string) (tracked, error) {
 	cmd := exec.Command("git", "ls-files", "-z")
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("listing the tracked files: %w", err)
+		return tracked{}, fmt.Errorf("listing the tracked files: %w", err)
 	}
 
-	var text, tests, workflows []file
+	var found tracked
 	for _, name := range strings.Split(strings.TrimRight(string(out), "\x00"), "\x00") {
 		if name == "" {
 			continue
@@ -595,23 +663,30 @@ func trackedText(root string) ([]file, []file, []file, error) {
 				// checkout somebody is in the middle of, not a violation.
 				continue
 			}
-			return nil, nil, nil, err
+			return tracked{}, err
 		}
 		if bytes.IndexByte(b, 0) >= 0 {
 			continue
 		}
 		f := file{name: name, body: b}
 		if strings.HasSuffix(name, "_test.go") {
-			tests = append(tests, f)
+			found.tests = append(found.tests, f)
 		}
 		if strings.HasPrefix(name, workflowDir) {
-			workflows = append(workflows, f)
+			found.workflows = append(found.workflows, f)
 		}
 		if name != vocabularyFile {
-			text = append(text, f)
+			found.text = append(found.text, f)
+		}
+		if name == tokens.File {
+			found.tokenCopies = append(found.tokenCopies, f)
+			continue
+		}
+		if strings.HasPrefix(name, site.TemplatesDir+"/") || strings.HasPrefix(name, site.ContentDir+"/") {
+			found.buildInputs = append(found.buildInputs, f)
 		}
 	}
-	return text, tests, workflows, nil
+	return found, nil
 }
 
 func decideLang(body []byte) []string {
