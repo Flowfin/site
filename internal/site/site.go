@@ -3,9 +3,10 @@
 // The places the build knows about are named here rather than passed around,
 // because the layout is a decision about the repository and not a parameter of
 // a run: templates holds the page templates, content holds the prose that is
-// not generated, assets holds anything served exactly as it is committed, and
-// the output directory holds what came out. Everything the generator is made
-// of lives under internal.
+// not generated, data holds the pinned copy of anything this repository reads
+// and does not author, assets holds anything served exactly as it is
+// committed, and the output directory holds what came out. Everything the
+// generator is made of lives under internal.
 package site
 
 import (
@@ -18,6 +19,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/Flowfin/site/internal/tokens"
 )
 
 // The directories the build reads and the one it writes.
@@ -59,6 +62,10 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 	}
 	fmt.Fprintf(log, "read %s\n", path.Join(ContentDir, "index.txt"))
 
+	if err := readTokens(root, log); err != nil {
+		return nil, err
+	}
+
 	out := outDir
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
@@ -92,6 +99,36 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 
 	fmt.Fprintf(log, "%d file(s) written into %s\n", len(written), label)
 	return written, nil
+}
+
+// readTokens reads the pinned copy of the design token file, which is the one
+// input to this build that this repository does not author. It is read here
+// rather than where the first page renders a value, so that the copy is a build
+// input from the day it lands: a malformed one is a red build now rather than a
+// surprise on the day somebody is writing the page that shows it.
+//
+// The build reads that copy and never the published file. A build that fetched
+// a token would produce different bytes on different days, and
+// decisions/0007-where-the-design-tokens-live.md is where the direction of
+// travel and the pinning are argued. What says when the copy has fallen behind
+// is the scheduled comparison, which is not part of a build.
+//
+// An absent copy is reported rather than passed over, for the reason the assets
+// walk below gives: a run that read nothing must not read like a run that had
+// nothing to read. What refuses a tree that lost the file is the invariant over
+// the tree, because that is a rule about this repository rather than about a
+// fixture somebody built a page in.
+func readTokens(root string, log io.Writer) error {
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(tokens.File))); os.IsNotExist(err) {
+		fmt.Fprintf(log, "no %s in the tree, so no token was read\n", tokens.File)
+		return nil
+	}
+	values, err := tokens.Load(root)
+	if err != nil {
+		return fmt.Errorf("reading the design tokens: %w", err)
+	}
+	fmt.Fprintf(log, "read %s (%d value(s))\n", tokens.File, len(values))
+	return nil
 }
 
 // copyAssets copies everything under src into out unchanged. An absent

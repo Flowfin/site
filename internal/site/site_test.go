@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Flowfin/site/internal/tokens"
 )
 
 // tree writes a minimal buildable tree under a temporary root and returns the
@@ -253,5 +255,50 @@ func TestBuildRefusesATreeWithNoTemplate(t *testing.T) {
 	}
 	if _, err := os.Stat(kept); err != nil {
 		t.Errorf("a refused build removed %s: %v", kept, err)
+	}
+}
+
+// The pinned copy of the design token file is a build input, so a malformed one
+// is a build that stops rather than a page that renders a value nobody read.
+// The tree this repository actually carries is what the gate's build leg reads;
+// this case builds its own, so it judges the code rather than the file.
+func TestBuildRefusesAMalformedCopyOfTheDesignTokens(t *testing.T) {
+	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(tokens.File))))
+	write(t, filepath.Join(root, filepath.FromSlash(tokens.File)), "{\n")
+
+	_, err := Build(root, OutputDir, io.Discard)
+	if err == nil {
+		t.Fatal("Build accepted a copy of the design tokens that does not parse")
+	}
+	if !strings.Contains(err.Error(), tokens.File) {
+		t.Errorf("the refusal reads %q, which does not name the file that was wrong", err)
+	}
+}
+
+// What the build reads is the copy in the tree, and the log says so with what
+// was in it. A build that read the file and said nothing would be a build a
+// reader cannot tell from one that skipped it.
+func TestBuildSaysItReadThePinnedDesignTokensAndSaysWhenThereAreNone(t *testing.T) {
+	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+
+	var absent bytes.Buffer
+	if _, err := Build(root, OutputDir, &absent); err != nil {
+		t.Fatalf("Build refused a tree with no pinned copy: %v", err)
+	}
+	if !strings.Contains(absent.String(), "no "+tokens.File+" in the tree") {
+		t.Errorf("the build passed over an absent copy in silence:\n%s", absent.String())
+	}
+
+	mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(tokens.File))))
+	write(t, filepath.Join(root, filepath.FromSlash(tokens.File)),
+		`{"shape":{"radius":{"value":12},"radius-small":{"value":8}}}`)
+
+	var present bytes.Buffer
+	if _, err := Build(root, OutputDir, &present); err != nil {
+		t.Fatalf("Build refused a tree carrying a pinned copy: %v", err)
+	}
+	if !strings.Contains(present.String(), "read "+tokens.File+" (2 value(s))") {
+		t.Errorf("the build does not say what it read:\n%s", present.String())
 	}
 }
