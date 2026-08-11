@@ -108,6 +108,26 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// still there and still looks right.
 		"output-carries-no-expired-reporting-route": []byte(
 			"Contact: https://example.invalid/report\nExpires: 2020-01-01T00:00:00Z\n"),
+		// One end tag left out, which is the mistake this row exists for
+		// and the one a browser hides.
+		"page-parses": []byte(strings.Replace(cleanPage, "<main><h1>A title</h1></main>",
+			"<main><h1>A title</h1></section></main>", 1)),
+		// The same identifier on two elements, which is what a template
+		// rendering a name into an id does the moment two rows share one.
+		"page-uses-no-identifier-twice": []byte(strings.Replace(cleanPage, "<main>",
+			`<main><p id="sso">One</p><p id="sso">Two</p>`, 1)),
+		// The level under a heading chosen because it looked right rather
+		// than because it was next.
+		"page-skips-no-heading-level": []byte(strings.Replace(cleanPage, "<h1>A title</h1>",
+			"<h1>A title</h1><h3>A section</h3>", 1)),
+		// An image written with its source and its size and nothing for
+		// anybody who cannot see it.
+		"page-image-carries-alternative-text": []byte(strings.Replace(cleanPage, "<main>",
+			`<main><img src="/icon.png" width="32" height="32" />`, 1)),
+		// A field somebody is asked to fill in with nothing saying what
+		// goes in it.
+		"page-names-every-control": []byte(strings.Replace(cleanPage, "<main>",
+			`<main><input type="search" />`, 1)),
 		"tracked-text-names-no-tool": b64(t, "QSBub3RlIGFib3ZlLgpHZW5lcmF0ZWQgYnkgQ2hhdEdQVCBhbmQgbGVmdCBpbi4K"),
 		// The version put back where it is convenient, which is what
 		// somebody does who is adding a step and does not know the file
