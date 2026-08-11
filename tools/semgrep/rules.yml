@@ -1,0 +1,173 @@
+# The shapes this generator has decided it does not want, written as rules a
+# pattern engine decides rather than as sentences somebody remembers.
+#
+# This is not the code-scanning analysis and does not replace it. That one is a
+# dataflow engine asking which sinks are reachable from an attacker's input;
+# this one asks whether the source contains a construct this project has ruled
+# out, whether or not anything reaches it. A construct nobody can reach today is
+# reachable after the next change, and by then it reads as the way things are
+# done here.
+#
+# Every rule below is `severity: ERROR`, because the gate step runs with
+# `--error` and a finding fails the run. There is deliberately no warning level:
+# a rule too noisy to fail on is a rule to remove or to repair, and a rule that
+# only files a report is one nobody reads.
+#
+# Where a rule has to be held off a file, the exclusion is written here with its
+# reason beside it, and where it has to be held off a line, a `nosemgrep`
+# directive naming the rule carries the reason at the line. A bare directive is
+# the thing this file exists to prevent.
+rules:
+  # The template is the only place a value becomes markup, and the escaping is
+  # what makes that safe. Each of these conversions tells the engine that a
+  # value is already markup and must be written out untouched, which is the one
+  # way to get a page that carries bytes the template did not write.
+  #
+  # A literal is refused along with everything else. The rule reads the shape
+  # rather than the argument, so a conversion of a constant string passes no
+  # more easily than a conversion of a roster field; the constant is the case
+  # somebody adds first and the field is what the line carries a month later.
+  - id: template-escaping-bypassed
+    message: >-
+      This converts a value into markup the template engine will write out
+      without escaping it. The only markup on a page is markup the template
+      itself wrote; everything else arrives from the roster or from content/
+      and is somebody else's bytes. Remove the conversion, or write the reason
+      it is safe beside a nosemgrep directive naming this rule.
+    languages: [go]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: template.HTML($X)
+          - pattern: template.HTMLAttr($X)
+          - pattern: template.JS($X)
+          - pattern: template.JSStr($X)
+          - pattern: template.URL($X)
+          - pattern: template.Srcset($X)
+          - pattern: template.CSS($X)
+
+  # The wholesale version of the rule above. Exchanging one import turns the
+  # escaping off for every value on every page at once, and the change is two
+  # words in an import block that reviews as a tidy-up. It is the edit the
+  # rendering fuzz target was shown to catch, and this rule refuses it before a
+  # test has to.
+  - id: page-rendered-by-an-engine-that-does-not-escape
+    message: >-
+      text/template writes what it is given. The pages are HTML, so the engine
+      that renders them is html/template, whose escaping is contextual and is
+      the reason a value in the prose cannot become an element. Nothing in this
+      repository renders a non-HTML template.
+    languages: [go]
+    severity: ERROR
+    pattern-regex: '"text/template"'
+
+  # A page address is built from a roster row, and a roster is a file this
+  # repository reads and does not author. A row that puts a separator or a
+  # parent reference in the value it is keyed by writes outside the output
+  # directory, and the write looks exactly like every other write in the log.
+  #
+  # Taint rather than a call-site pattern, because the mistake is not
+  # `Join(out, e.ID)`. It is `Join(out, e.ID+".html")`, or the same value
+  # through one local variable, which a pattern over the call site does not see.
+  #
+  # The sanitiser is filepath.Base and not filepath.Clean. Clean resolves a
+  # path and keeps a leading parent reference, so a cleaned value can still
+  # leave the directory it was joined to; Base keeps the last segment and
+  # nothing else, which is what a single path segment out of a data file may be.
+  - id: roster-data-reaches-a-filesystem-path
+    message: >-
+      A value that came out of the roster reaches a filesystem path. The roster
+      is read and not authored here, so a row decides where the build writes
+      unless the value is reduced to one path segment first. Put it through
+      filepath.Base, or refuse the row in the parser where the other roster
+      rules live.
+    mode: taint
+    languages: [go]
+    severity: ERROR
+    pattern-sources:
+      - pattern: $E.ID
+      - pattern: $E.Repository
+      - pattern: $E.Summary
+      - pattern: $E.State
+      - pattern: roster.Parse(...)
+    pattern-sanitizers:
+      - pattern: filepath.Base(...)
+      - pattern: url.PathEscape(...)
+    pattern-sinks:
+      - pattern: filepath.Join(...)
+      - pattern: path.Join(...)
+      - pattern: os.Create(...)
+      - pattern: os.Open(...)
+      - pattern: os.OpenFile(...)
+      - pattern: os.ReadFile(...)
+      - pattern: os.WriteFile(...)
+      - pattern: os.MkdirAll(...)
+      - pattern: os.RemoveAll(...)
+
+  # A read whose path the call site cannot show to be assembled is a read that
+  # depends on every caller above it staying careful. filepath.Join cleans what
+  # it produces and filepath.Clean says so in one word, so requiring one of the
+  # two at the call site makes the property local: a reader of the line knows,
+  # without following the value backwards through the package.
+  #
+  # Test sources are held off this rule. A test builds its paths out of its own
+  # literals and the directory the harness gave it, so the value the rule is
+  # about - one that arrived from a file the build read - is not in them, and
+  # requiring the wrapper there would buy nothing and be obeyed by habit.
+  - id: file-read-with-a-path-the-call-site-cannot-vouch-for
+    message: >-
+      This reads a file at a path the call site does not show to be assembled.
+      Wrap it in filepath.Join or filepath.Clean so the line itself says the
+      path is not whatever arrived, rather than leaving that to be checked by
+      reading every caller.
+    languages: [go]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: os.ReadFile($P)
+          - pattern: os.Open($P)
+          - pattern: os.OpenFile($P, ...)
+      - pattern-not: os.ReadFile(filepath.Join(...))
+      - pattern-not: os.ReadFile(filepath.Clean(...))
+      - pattern-not: os.Open(filepath.Join(...))
+      - pattern-not: os.Open(filepath.Clean(...))
+      - pattern-not: os.OpenFile(filepath.Join(...), ...)
+      - pattern-not: os.OpenFile(filepath.Clean(...), ...)
+    paths:
+      exclude:
+        - "*_test.go"
+
+  # The generator reads files and writes files and has no reason to start a
+  # process. A subprocess is where an argument built out of data becomes a
+  # command, and it is also the one thing in a build that behaves differently on
+  # a machine with a different program installed, which the reproducibility
+  # check exists to refuse.
+  #
+  # Three packages are held off this rule and none of them renders anything.
+  # The gate runs the toolchain, the commit-message check runs git over a
+  # revision range, and the invariant table asks git which files are tracked.
+  # For each, the subprocess is the interface to a tool that has no library, so
+  # the rule would be refusing the only means available rather than a choice.
+  - id: the-build-starts-a-process
+    message: >-
+      This starts a subprocess. The generator reads and writes files and needs
+      no process to do it, and a command built out of data is how a value in a
+      file becomes an instruction. If a tool with no library is genuinely the
+      only route, hold this rule off the package here with the reason, the way
+      the three packages above it are held off.
+    languages: [go]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: exec.Command(...)
+          - pattern: exec.CommandContext(...)
+          - pattern-regex: '"os/exec"'
+    paths:
+      # Anchored at the repository root, with the leading slash the engine reads
+      # as an anchor. Written unanchored these would match a directory of the
+      # same name at any depth, and a new `internal/site/internal/gate/` would
+      # inherit the exemption without anybody asking for it.
+      exclude:
+        - "/internal/gate/*.go"
+        - "/internal/hygiene/*.go"
+        - "/internal/invariant/*.go"

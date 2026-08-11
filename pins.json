@@ -20,6 +20,16 @@
     "why": "The workflow audit is the check that reads the workflow files, so a version of it that stops matching the syntax it audits is the one drift nothing else in this tree would notice. It is installed from a prebuilt wheel at run time, and the resolver compares against what the index publishes rather than against the wheel, so what this watches is the release and not the bytes."
   },
   {
+    "id": "semgrep",
+    "registry": "pypi",
+    "name": "semgrep",
+    "version": "1.172.0",
+    "checksum": "",
+    "reads": [".github/workflows/semgrep.yml"],
+    "repeats": [],
+    "why": "The static analysis over the generator source is the check that decides the shapes this project has ruled out, and the rules are written against the patterns one release of the engine understands. A release that changes how a pattern is matched turns a rule that refuses something into a rule that refuses nothing, and the run stays green either way, so this is the drift with no other witness. It is installed from a prebuilt wheel at run time and the resolver compares against what the index publishes rather than against the wheel, so what this watches is the release and not the bytes."
+  },
+  {
     "id": "golang-image",
     "registry": "docker-hub",
     "name": "library/golang",

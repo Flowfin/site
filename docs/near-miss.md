@@ -373,6 +373,57 @@ The message names the file, the line and the audit.
 
 Did not refuse: run 31318125853.
 
+## Static analysis (semgrep)
+
+It refuses source carrying one of the shapes the rule set in
+`tools/semgrep/rules.yml` names. The pair below covers every rule in that set
+rather than one of them, because a set is only as proven as its least exercised
+rule, and a rule that matches nothing looks exactly like a tree with nothing in
+it to match.
+
+Refused, on `726a020`, which carried one instance of each shape in a file
+nothing called. Which rules refused is quoted rather than the paragraph beside
+each finding, since that paragraph is the rule's own text and is in the rule
+file:
+
+    gh run view 31475636799 --repo Flowfin/site --log-failed \
+      | grep -o 'tools\.semgrep\.[a-z-]*' | sort | uniq -c
+          1 tools.semgrep.file-read-with-a-path-the-call-site-cannot-vouch-for
+          1 tools.semgrep.page-rendered-by-an-engine-that-does-not-escape
+          1 tools.semgrep.roster-data-reaches-a-filesystem-path
+          1 tools.semgrep.template-escaping-bypassed
+          2 tools.semgrep.the-build-starts-a-process
+
+    gh run view 31475636799 --repo Flowfin/site --log-failed \
+      | grep -o 'Ran 5 rules on [0-9]* files: [0-9]* findings.'
+    Ran 5 rules on 11 files: 6 findings.
+
+Five rules and six findings, because the process rule matched the import and the
+call as two. Every finding named the file and the line it matched.
+
+Did not refuse: run 31476053436 on `fb9cc5d`, which is the same rules over the
+same tree with that file taken out again, and run 31475222126 on `ce96a00`,
+which is the rules arriving with nothing to refuse.
+
+The findings reach the code scanning tab as well as the run, and the count there
+follows the tree rather than staying at whatever the first upload said:
+
+    gh api 'repos/Flowfin/site/code-scanning/analyses?per_page=30' \
+      --jq '.[] | select(.tool.name == "Semgrep OSS") | "\(.results_count)\t\(.created_at)"'
+    0	2026-08-11T09:04:42Z
+    6	2026-08-11T08:59:25Z
+    6	2026-08-11T08:55:48Z
+    0	2026-08-11T08:53:44Z
+
+All run 2026-08-11.
+
+What the pair does not show. Each rule was tripped by its construct written
+plainly, which is the case a reader spots too, so the pair says the rules bite
+and not that they are hard to walk past. The rule about a roster value reaching
+a path is where that gap is widest: it was tripped by a value concatenated
+inside one function, and a value that arrives through a second function is not
+something the engine follows on the analysis this repository runs.
+
 ## Required check names
 
 It compares the names a rule on the default branch requires against the names

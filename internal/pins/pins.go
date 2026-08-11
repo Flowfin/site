@@ -98,7 +98,7 @@ var (
 // is invalid makes the next person bisect it by hand.
 func Load(root string) ([]Pin, error) {
 	name := filepath.Join(root, File)
-	body, err := os.ReadFile(name)
+	body, err := os.ReadFile(filepath.Clean(name))
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", File, err)
 	}

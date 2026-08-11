@@ -1,0 +1,100 @@
+# Static analysis over the source that renders the site, against the rule set in
+# tools/semgrep/rules.yml. It is the pattern half of the pair: the code scanning
+# workflow beside it asks which sinks are reachable, and this one asks whether
+# the source carries a construct this project has ruled out at all.
+#
+# The scan is offline. The rules are a file in this tree rather than a registry
+# identifier, the version check is off, and metrics are off, so the run reads
+# nothing but the checkout and reports nothing anywhere.
+#
+# Two steps rather than one, for the same reason the workflow audit beside it
+# has two: the first produces the document the code scanning tab reads and is
+# allowed to succeed with findings in it, and the second is the gate. Keeping
+# them apart means a failed upload cannot swallow a finding.
+name: Generator Source Static Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+
+# Explicit deny-all at workflow level; the job below grants only what it needs.
+permissions: {}
+
+# Cancel a superseded run on the same ref so a new push or pull request update
+# does not queue behind an obsolete scan. This is an analysis job and not a
+# publish, so cancelling a superseded run loses nothing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Static analysis (semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      security-events: write # upload the SARIF into the code-scanning tab
+      contents: read # checkout the source to scan
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes via git, so do not persist the token in .git/config.
+          persist-credentials: false
+
+      - name: Read the pinned analyser version
+        # The version is fetched at run time, so no updater sees it. It is
+        # declared in `pins.json` and read here rather than written into this
+        # file twice, and the scheduled comparison is what says when the index
+        # has moved past it. `jq -e` exits non-zero on an empty selection, so a
+        # pin renamed or removed fails this step rather than installing
+        # whatever the resolver picks.
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(jq -er '.[] | select(.id == "semgrep") | .version' pins.json)"
+          echo "SEMGREP_VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+
+      - name: Scan the source (SARIF for code scanning)
+        # --no-build: install from a prebuilt wheel only, never executing a
+        # source-dist build script. Without --error the run exits 0 with
+        # findings in the document, so the upload below happens either way and
+        # the gate step is the only thing that fails the build.
+        shell: bash
+        run: |
+          set -euo pipefail
+          uvx --no-build "semgrep@${SEMGREP_VERSION}" scan \
+            --config tools/semgrep/rules.yml \
+            --metrics=off --disable-version-check \
+            --sarif --output results.sarif .
+
+      - name: Upload SARIF
+        # Only upload where the token can write security events: pushes to main
+        # and same-repository pull requests. A fork or updater pull request runs
+        # with a read-only token, so the upload is skipped there and the gate
+        # step below still runs. continue-on-error keeps the gate independent of
+        # the upload: a transient code-scanning failure must not skip the step
+        # that refuses a finding.
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]')
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
+        with:
+          sarif_file: results.sarif
+          category: semgrep
+
+      - name: Refuse a finding
+        # --error is what turns a finding into a failed run. The same rules and
+        # the same tree as the step above, so the two cannot disagree about what
+        # was found.
+        shell: bash
+        run: |
+          set -euo pipefail
+          uvx --no-build "semgrep@${SEMGREP_VERSION}" scan \
+            --config tools/semgrep/rules.yml \
+            --metrics=off --disable-version-check \
+            --error .
