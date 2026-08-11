@@ -163,7 +163,11 @@ rules:
           - pattern: exec.CommandContext(...)
           - pattern-regex: '"os/exec"'
     paths:
+      # Anchored at the repository root, with the leading slash the engine reads
+      # as an anchor. Written unanchored these would match a directory of the
+      # same name at any depth, and a new `internal/site/internal/gate/` would
+      # inherit the exemption without anybody asking for it.
       exclude:
-        - "internal/gate/*.go"
-        - "internal/hygiene/*.go"
-        - "internal/invariant/*.go"
+        - "/internal/gate/*.go"
+        - "/internal/hygiene/*.go"
+        - "/internal/invariant/*.go"
