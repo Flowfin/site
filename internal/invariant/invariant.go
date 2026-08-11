@@ -21,6 +21,7 @@ package invariant
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -29,8 +30,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Flowfin/site/internal/pins"
+	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/site"
 	"github.com/Flowfin/site/internal/tokens"
 )
@@ -191,6 +194,13 @@ func Rules() []Rule {
 			Reason:  "a subresource served from somebody else's domain is a round trip the reader pays for and a record of who read what, handed to a party the reader did not choose, and a promise that this does not happen cannot rest on nobody having added a font or a badge yet",
 			Refuses: "a produced file fetching a stylesheet, a font, an image, a script or anything else from a host that is not on the allowlist, while leaving a link a reader clicks alone",
 			decide:  decideForeignOrigin,
+		},
+		{
+			ID:      "output-carries-no-expired-reporting-route",
+			Subject: ProducedFiles,
+			Reason:  "an expiry that has passed tells somebody who found a problem that the route was abandoned, which is worse than the file not being there, and it is the one thing in the output that goes wrong by sitting still",
+			Refuses: "a produced file whose expiry is not in the future, or whose expiry is not a moment",
+			decide:  decideExpiry,
 		},
 		{
 			ID:      "tracked-text-names-no-tool",
@@ -437,6 +447,34 @@ func withoutComment(line string) string {
 	return line
 }
 
+// decideExpiry refuses a produced file whose expiry has passed.
+//
+// This is the one row that reads the clock, and the distinction is worth
+// stating because the rest of this repository refuses one. A build may not read
+// the clock: what it writes has to be the same bytes twice from one commit.
+// Whether a date has passed is a question about the world rather than about the
+// tree, so it is asked here, over what the build wrote, and the answer is
+// allowed to change on a day when nothing was committed. That is the whole
+// point of an expiry.
+//
+// A file carrying no expiry is not this row's subject and is passed over. Today
+// exactly one produced file carries the field.
+func decideExpiry(body []byte) []string {
+	at, err := security.ExpiryOf(body)
+	switch {
+	case errors.Is(err, security.ErrNoExpiry):
+		return nil
+	case err != nil:
+		return []string{"this file " + err.Error()}
+	}
+	if !at.After(time.Now()) {
+		return []string{fmt.Sprintf(
+			"this file expired on %s, and %s is where the day it was last confirmed is moved forward",
+			at.Format(time.RFC3339), security.File)}
+	}
+	return nil
+}
+
 // decideTypedColour refuses a colour written into what the build reads.
 //
 // The design system is published as data and this repository vendors a copy of
@@ -610,6 +648,9 @@ func gather(root string) (map[string][]file, error) {
 	// carrying none would report that no second definition was found in a
 	// tree with no first one. So the copy being absent is refused here, by
 	// name, rather than passing as a row with nothing to compare.
+	if len(tracked.securitySources) == 0 {
+		return nil, fmt.Errorf("%s is not tracked in this tree, so the build wrote no %s and the row about an expired reporting route has nothing to read", security.File, security.Path)
+	}
 	if len(tracked.tokenCopies) == 0 {
 		return nil, fmt.Errorf("%s is not tracked in this tree, and the row about where a colour is read from is a row about there being exactly one such file", tokens.File)
 	}
@@ -628,11 +669,12 @@ func gather(root string) (map[string][]file, error) {
 // one listing rather than from one walk each, because two listings of the same
 // index taken a moment apart is a difference nobody would look for.
 type tracked struct {
-	text        []file
-	tests       []file
-	workflows   []file
-	buildInputs []file
-	tokenCopies []file
+	text            []file
+	tests           []file
+	workflows       []file
+	buildInputs     []file
+	tokenCopies     []file
+	securitySources []file
 }
 
 // workflowDir is where a workflow has to live for the server to run it, so it
@@ -680,6 +722,10 @@ func trackedText(root string) (tracked, error) {
 		}
 		if name == tokens.File {
 			found.tokenCopies = append(found.tokenCopies, f)
+			continue
+		}
+		if name == security.File {
+			found.securitySources = append(found.securitySources, f)
 			continue
 		}
 		if strings.HasPrefix(name, site.TemplatesDir+"/") || strings.HasPrefix(name, site.ContentDir+"/") {

@@ -15,10 +15,12 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/tokens"
 )
 
@@ -300,5 +302,65 @@ func TestBuildSaysItReadThePinnedDesignTokensAndSaysWhenThereAreNone(t *testing.
 	}
 	if !strings.Contains(present.String(), "read "+tokens.File+" (2 value(s))") {
 		t.Errorf("the build does not say what it read:\n%s", present.String())
+	}
+}
+
+// The build writes the reporting route into the output, at the path somebody
+// looking for it already knows, and says what it wrote. A tree with no source
+// for it is reported rather than passed over.
+func TestBuildWritesTheReportingRouteAndSaysWhenThereIsNoSourceForIt(t *testing.T) {
+	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+
+	var absent bytes.Buffer
+	written, err := Build(root, OutputDir, &absent)
+	if err != nil {
+		t.Fatalf("Build refused a tree with no security contact: %v", err)
+	}
+	for _, w := range written {
+		if strings.Contains(w, ".well-known") {
+			t.Errorf("Build wrote %s out of nothing", w)
+		}
+	}
+	if !strings.Contains(absent.String(), "no "+security.File+" in the tree") {
+		t.Errorf("the build passed over an absent source in silence:\n%s", absent.String())
+	}
+
+	mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(security.File))))
+	write(t, filepath.Join(root, filepath.FromSlash(security.File)),
+		`{"route":"https://example.invalid/report","policy":"https://example.invalid/policy","confirmed":"2026-08-11"}`)
+
+	var present bytes.Buffer
+	written, err = Build(root, OutputDir, &present)
+	if err != nil {
+		t.Fatalf("Build refused a tree carrying a security contact: %v", err)
+	}
+	body := read(t, filepath.Join(root, OutputDir, filepath.FromSlash(security.Path)))
+	if !strings.Contains(body, "Expires: 2027-08-11T00:00:00Z") {
+		t.Errorf("what the build wrote does not carry the expiry:\n%s", body)
+	}
+	var found bool
+	for _, w := range written {
+		if w == path.Join(OutputDir, security.Path) {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the build did not report writing %s: %v", security.Path, written)
+	}
+}
+
+// A source that does not read is a build that stops, rather than a site served
+// with no route on it or with a route nobody checked.
+func TestBuildRefusesASecurityContactItCannotRead(t *testing.T) {
+	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(security.File))))
+	write(t, filepath.Join(root, filepath.FromSlash(security.File)), `{"route":"write to me"}`)
+
+	_, err := Build(root, OutputDir, io.Discard)
+	if err == nil {
+		t.Fatal("Build accepted a security contact that does not read")
+	}
+	if !strings.Contains(err.Error(), security.File) {
+		t.Errorf("the refusal reads %q, which does not name the file that was wrong", err)
 	}
 }
