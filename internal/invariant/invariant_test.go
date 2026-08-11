@@ -84,6 +84,12 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// One element, of the shape a copied snippet arrives in.
 		"page-fetches-no-script": []byte(strings.Replace(cleanPage, `</head>`,
 			`  <script src="https://example.invalid/a.js"></script>`+"\n  </head>", 1)),
+		// An image written the way somebody writes one, with the source
+		// and the alternative text and nothing about how much room it
+		// needs. It is the first thing anybody adds to a page and it is
+		// the whole of the layout shift the budget puts at zero.
+		"image-carries-its-own-dimensions": []byte(strings.Replace(cleanPage, `<main>`,
+			`<main><img src="/icon.png" alt="The mark" />`, 1)),
 		// A note to the author that reached the output.
 		"output-carries-no-unfinished-marker": []byte(strings.Replace(cleanPage, `<h1>A title</h1>`,
 			`<h1>A title</h1><!-- TODO: the real heading -->`, 1)),
@@ -443,5 +449,79 @@ func TestRunRefusesATreeItCannotBuild(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "the build refused") {
 		t.Errorf("the error reads %q, which does not say the build was the problem", err)
+	}
+}
+
+// The image row against the shapes it has to tell apart, and against the ones it
+// may not touch. A row that refused an image carrying its size would be a row
+// somebody removes the first time they add a picture.
+func TestTheImageRowReadsTheValueRatherThanTheAttributeName(t *testing.T) {
+	for name, c := range map[string]struct {
+		markup  string
+		refused bool
+		names   string
+	}{
+		"both dimensions, written out": {
+			`<img src="/icon.png" alt="The mark" width="64" height="64" />`, false, ""},
+		"no width": {
+			`<img src="/icon.png" alt="The mark" height="64" />`, true, "carries no width attribute"},
+		"no height": {
+			`<img src="/icon.png" alt="The mark" width="64" />`, true, "carries no height attribute"},
+		// The one a rule reading for the name of the attribute passes:
+		// the template wrote the attribute and the value behind it was
+		// not there. A grep finds the word and a browser reserves
+		// nothing.
+		"an attribute the template left empty": {
+			`<img src="/icon.png" alt="The mark" width="" height="64" />`, true, `carries the width ""`},
+		// The same mistake one step along, where somebody writes the
+		// unit a stylesheet takes on an attribute that does not take
+		// one.
+		"a unit on the attribute": {
+			`<img src="/icon.png" alt="The mark" width="64px" height="64" />`, true, `carries the width "64px"`},
+		"an image with no source at all": {
+			`<img alt="The mark" />`, true, "with no source on it"},
+	} {
+		body := []byte(strings.Replace(cleanPage, `<main>`, `<main>`+c.markup, 1))
+		got := decideImageDimensions(body)
+		switch {
+		case c.refused && len(got) == 0:
+			t.Errorf("%s was not refused", name)
+		case !c.refused && len(got) != 0:
+			t.Errorf("%s was refused: %v", name, got)
+		case c.refused && !strings.Contains(strings.Join(got, "\n"), c.names):
+			t.Errorf("%s was refused without saying %q: %v", name, c.names, got)
+		}
+	}
+}
+
+// The failure names the page, the file and the attribute. A message saying only
+// that something about the markup was wrong leaves the next person opening every
+// produced page to find which image it meant.
+func TestTheImageRowNamesTheFileAndBothMissingAttributes(t *testing.T) {
+	body := []byte(strings.Replace(cleanPage, `<main>`,
+		`<main><img src="/assets/icon.png" alt="The mark" />`, 1))
+
+	got := strings.Join(decideImageDimensions(body), "\n")
+	for _, want := range []string{"/assets/icon.png", "no width attribute", "no height attribute"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the refusal does not name %q: %s", want, got)
+		}
+	}
+}
+
+// An image with nothing wrong but its dimensions reds this row and no other, so
+// a red run says which repair it wants rather than which area to look in.
+func TestAnImageWithoutItsDimensionsRedsExactlyOneRow(t *testing.T) {
+	body := []byte(strings.Replace(cleanPage, `<main>`,
+		`<main><img src="/icon.png" alt="The mark" />`, 1))
+
+	var refused []string
+	for _, r := range Rules() {
+		if len(r.decide(body)) > 0 {
+			refused = append(refused, r.ID)
+		}
+	}
+	if len(refused) != 1 || refused[0] != "image-carries-its-own-dimensions" {
+		t.Errorf("the image refused %v, want only image-carries-its-own-dimensions", refused)
 	}
 }
