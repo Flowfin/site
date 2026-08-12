@@ -37,6 +37,7 @@ import (
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/site"
 	"github.com/Flowfin/site/internal/tokens"
+	"github.com/Flowfin/site/internal/version"
 )
 
 // The populations a row can read. A row names one of them, and the run reads
@@ -58,6 +59,12 @@ const (
 	// Workflows is every tracked workflow file. A rule about what a step
 	// pins reads the steps.
 	Workflows = "every tracked workflow file"
+	// TrackedTextOutsideTheVersionRegister is every tracked text file
+	// except the registers a version is allowed to appear in. The
+	// exclusion is what makes the rule decidable at all: the file holding
+	// the constant carries it by definition, so a population that included
+	// it would refuse the original along with every copy.
+	TrackedTextOutsideTheVersionRegister = "every tracked text file, outside the register that holds the version"
 	// BuildInputs is every tracked file the build reads to render a page.
 	// It is the population where a value typed by hand is a second
 	// definition of something: a value in a document is prose, a value in a
@@ -106,6 +113,13 @@ var (
 	// colour.
 	hexColour         = regexp.MustCompile(`(?i)#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})\b`)
 	fragmentReference = regexp.MustCompile(`(?is)\b(?:href|src)\s*=\s*"#[^"]*"`)
+	// A run of digits separated by dots, which is every version-shaped thing
+	// in a line. The row compares each whole run against the one version
+	// this repository holds rather than searching for that version inside a
+	// line, so a longer version spelled around it stays a different version
+	// and a version at the end of a sentence is still found with the full
+	// stop after it.
+	versionShaped = regexp.MustCompile(`[0-9]+(?:\.[0-9]+)+`)
 	// What a page cites a check by. The attribute is what a machine reads
 	// and the name is also written where a reader sees it, both from one
 	// value, so a page cannot show a reader one name and this row another.
@@ -269,6 +283,13 @@ func Rules() []Rule {
 			Reason:  "a colour typed into a template is a second definition of a value published somewhere else, and the day the published one moves the page goes on rendering the old one perfectly, so nobody sees it",
 			Refuses: "a colour written into what the build reads, in any of the hex forms the published file uses, outside a fragment reference",
 			decide:  decideTypedColour,
+		},
+		{
+			ID:      "version-lives-in-exactly-one-file",
+			Subject: TrackedTextOutsideTheVersionRegister,
+			Reason:  "a version written a second time is right on the day it is typed, and the copy that goes stale is the one a reader takes the version from rather than the one the release run reads, so the tree announces a release nobody tagged and nothing about the tag says otherwise",
+			Refuses: "the version this repository releases under, written into a tracked file outside the register that holds it",
+			decide:  decideSecondVersion,
 		},
 		{
 			ID:      "test-opens-no-window",
@@ -552,6 +573,51 @@ func decideExpiry(body []byte) []string {
 //
 // A fragment reference is dropped first, because `href="#abc"` is an address
 // and not a colour, and the two are the same bytes.
+// versionRegisters is every tracked file the version may appear in. It holds
+// the file that defines it, and it is a list rather than a comparison against
+// one constant because the shape of the rule is a comparison against a set: a
+// second register arrives as an entry here rather than as a branch beside the
+// row, and a file listing released versions is exactly that case.
+var versionRegisters = []string{
+	version.SourceFile,
+}
+
+func versionRegister(name string) bool {
+	for _, r := range versionRegisters {
+		if name == r {
+			return true
+		}
+	}
+	return false
+}
+
+// decideSecondVersion refuses the version this repository releases under,
+// written anywhere the release run does not read it from.
+//
+// It compares whole version-shaped runs rather than searching for a substring,
+// because a pinned tool and this repository are unrelated facts that happen to
+// be spelled with digits, and a row that could not tell them apart is a row
+// somebody switches off.
+//
+// What it reaches is the copy at the moment it is written, which is the moment
+// it can still be repaired cheaply. A copy made before a version moved carries
+// the old number and reads to this row as a different version, so the row does
+// not find yesterday's stale sentence and is not what would.
+func decideSecondVersion(body []byte) []string {
+	var details []string
+	for i, line := range strings.Split(string(body), "\n") {
+		for _, m := range versionShaped.FindAllString(line, -1) {
+			if m != version.Number {
+				continue
+			}
+			details = append(details, fmt.Sprintf(
+				"line %d writes the version %s, and %s is the one file it is read from",
+				i+1, version.Number, version.SourceFile))
+		}
+	}
+	return details
+}
+
 func decideTypedColour(body []byte) []string {
 	var details []string
 	for i, line := range strings.Split(string(body), "\n") {
@@ -717,12 +783,13 @@ func gather(root string) (map[string][]file, error) {
 	}
 
 	return map[string][]file{
-		ProducedPages: pages,
-		ProducedFiles: produced,
-		TrackedText:   tracked.text,
-		TestSources:   tracked.tests,
-		Workflows:     tracked.workflows,
-		BuildInputs:   tracked.buildInputs,
+		ProducedPages:                        pages,
+		ProducedFiles:                        produced,
+		TrackedText:                          tracked.text,
+		TestSources:                          tracked.tests,
+		Workflows:                            tracked.workflows,
+		BuildInputs:                          tracked.buildInputs,
+		TrackedTextOutsideTheVersionRegister: tracked.outsideVersion,
 	}, nil
 }
 
@@ -731,6 +798,7 @@ func gather(root string) (map[string][]file, error) {
 // index taken a moment apart is a difference nobody would look for.
 type tracked struct {
 	text            []file
+	outsideVersion  []file
 	tests           []file
 	workflows       []file
 	buildInputs     []file
@@ -780,6 +848,9 @@ func trackedText(root string) (tracked, error) {
 		}
 		if name != vocabularyFile {
 			found.text = append(found.text, f)
+		}
+		if !versionRegister(name) {
+			found.outsideVersion = append(found.outsideVersion, f)
 		}
 		if name == tokens.File {
 			found.tokenCopies = append(found.tokenCopies, f)

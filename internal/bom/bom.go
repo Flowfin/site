@@ -32,6 +32,7 @@ import (
 	"strings"
 
 	"github.com/Flowfin/site/internal/pins"
+	"github.com/Flowfin/site/internal/version"
 )
 
 // The files the document is derived from. They are named here rather than passed
@@ -145,11 +146,20 @@ func Build(root string) (Document, error) {
 		Format:      "CycloneDX",
 		SpecVersion: SpecVersion,
 		Version:     1,
+		// The version is on the thing the document is about rather than
+		// on any of its components. This document is what a release
+		// carries beside the bundle, and a bill of materials naming
+		// everything that went into some bytes without saying which bytes
+		// is a document an operator holding two archives cannot tell apart.
+		// It is read from the one constant the tree holds, so the tag, the
+		// bundle and this document state one version or the release run
+		// never started.
 		Metadata: Metadata{Component: Component{
 			Type:        "application",
-			BOMRef:      path,
+			BOMRef:      path + "@" + version.Number,
 			Name:        path,
-			PURL:        "pkg:golang/" + path,
+			Version:     version.Number,
+			PURL:        "pkg:golang/" + path + "@" + version.Number,
 			Description: "the generator that renders this site, and the pages it produces",
 		}},
 		Components: components,

@@ -22,6 +22,7 @@ import (
 
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/tokens"
+	"github.com/Flowfin/site/internal/version"
 )
 
 // The directories the build reads and the one it writes.
@@ -71,6 +72,12 @@ type promise struct {
 // gate renders into a directory it throws away without the result landing
 // beside a reader's real output.
 func Build(root, outDir string, log io.Writer) ([]string, error) {
+	// Which version these bytes are is said before anything is read, so a
+	// run that fails halfway still says what it was producing. It is the
+	// report rather than a page: no page states a version, and one that did
+	// would be a second copy of the constant this line reads.
+	fmt.Fprintf(log, "version %s\n", version.Number)
+
 	tmplPath := filepath.Join(root, TemplatesDir, "page.html.tmpl")
 	tmpl, err := template.ParseFiles(tmplPath)
 	if err != nil {
