@@ -94,6 +94,12 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// the whole of the layout shift the budget puts at zero.
 		"image-carries-its-own-dimensions": []byte(strings.Replace(cleanPage, `<main>`,
 			`<main><img src="/icon.png" alt="The mark" />`, 1)),
+		// The name of a row with one letter more than the row has, which
+		// is what a page ends up citing after somebody renames a row and
+		// repairs the page from memory. The sentence beside it goes on
+		// saying a check refuses this, and no check does.
+		"page-cites-only-checks-that-exist": []byte(strings.Replace(cleanPage, "<main>",
+			`<main><ul><li data-refused-by="page-fetches-no-scripts">No page fetches a script.</li></ul>`, 1)),
 		// A note to the author that reached the output.
 		"output-carries-no-unfinished-marker": []byte(strings.Replace(cleanPage, `<h1>A title</h1>`,
 			`<h1>A title</h1><!-- TODO: the real heading -->`, 1)),
@@ -271,6 +277,51 @@ func TestTheNoticeRowReadsTheSentenceRatherThanTheLineBreaks(t *testing.T) {
 	}
 	if !strings.Contains(got[0], "Flowfin is not affiliated with the Jellyfin project.") {
 		t.Errorf("the refusal reads %q, which does not say what the page has to carry", got[0])
+	}
+}
+
+// What the citation row leaves alone, which is a page naming a row this gate
+// actually decides. A row that refused a correct citation would be a row
+// somebody removes, and removing it is how the names on the privacy page stop
+// meaning anything. The name is taken out of the table rather than typed here,
+// so this test cannot go on passing against a row that was renamed.
+func TestTheCitationRowLeavesARealCheckAlone(t *testing.T) {
+	real := Rules()[0].ID
+	page := []byte(strings.Replace(cleanPage, "<main>",
+		`<main><ul><li data-refused-by="`+real+`">A statement.</li></ul>`, 1))
+	if got := decideCitedChecks(page); len(got) != 0 {
+		t.Errorf("the row refused a page citing %s, which it decides: %v", real, got)
+	}
+}
+
+// The empty citation, which is what a template renders from a value nobody
+// supplied. It reads on the page as a name and is not one, so it is refused for
+// its own reason rather than falling through the comparison against the table.
+func TestTheCitationRowRefusesANameThatIsNotThere(t *testing.T) {
+	page := []byte(strings.Replace(cleanPage, "<main>",
+		`<main><ul><li data-refused-by="">A statement.</li></ul>`, 1))
+	got := decideCitedChecks(page)
+	if len(got) != 1 {
+		t.Fatalf("the row reported %d violation(s) for a citation naming nothing: %v", len(got), got)
+	}
+	if !strings.Contains(got[0], "no name") {
+		t.Errorf("the message does not say what was wrong: %s", got[0])
+	}
+}
+
+// A row this gate is owed and does not decide is not a check a page may cite.
+// The two lists are separate for a reason the run prints on every line, and a
+// page citing an owed row would be naming something the run itself reports as
+// not decided.
+func TestTheCitationRowRefusesAnOwedRow(t *testing.T) {
+	owed := Owing()
+	if len(owed) == 0 {
+		t.Skip("nothing is owed today, so there is no owed name to cite")
+	}
+	page := []byte(strings.Replace(cleanPage, "<main>",
+		`<main><ul><li data-refused-by="`+owed[0].ID+`">A statement.</li></ul>`, 1))
+	if got := decideCitedChecks(page); len(got) == 0 {
+		t.Errorf("the row passed a page citing %s, which this gate does not decide", owed[0].ID)
 	}
 }
 

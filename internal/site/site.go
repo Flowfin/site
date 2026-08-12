@@ -32,12 +32,34 @@ const (
 	OutputDir    = "dist"
 )
 
-// page is what a template is given. It is deliberately small: the placeholder
-// page is the only page there is until the pages are written, and a field
-// added here before a page needs it is a guess about that page.
+// page is what a template is given. It is deliberately small: a field added
+// here before a page needs it is a guess about that page. The three lists below
+// are empty on every page but the privacy one, and the template renders nothing
+// for an empty one, so a page that has no statements to make does not carry the
+// headings for them.
 type page struct {
 	Title      string
 	Paragraphs []string
+	Claims     []claim
+	Promises   []promise
+	Residuals  []string
+}
+
+// claim is a statement a check refuses a page for breaking, and the name of
+// that check. Both reach the rendered page: the sentence for a reader, and the
+// name for the reader who wants to know what stands behind it and for the
+// invariant that refuses a name nothing answers to.
+type claim struct {
+	Text      string
+	RefusedBy string
+}
+
+// promise is a statement nothing refuses yet, and the issue that would refuse
+// it. It is a register rather than an omission, because a promise that reads
+// like a property is the failure the privacy page exists to avoid.
+type promise struct {
+	Text    string
+	Waiting string
 }
 
 // Build renders the tree at root into outDir, replacing whatever was there,
@@ -91,6 +113,12 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 	}
 	written = append(written, path.Join(label, "index.html"))
 	fmt.Fprintf(log, "wrote %s (%d bytes)\n", path.Join(label, "index.html"), rendered.Len())
+
+	privacy, err := writePrivacy(root, out, label, tmpl, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, privacy...)
 
 	reported, err := writeSecurityTxt(root, out, label, log)
 	if err != nil {

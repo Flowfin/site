@@ -11,6 +11,30 @@
       {{- range .Paragraphs }}
       <p>{{ . }}</p>
       {{- end }}
+      {{- if .Claims }}
+      <h2>What is checked, and by what</h2>
+      <ul>
+        {{- range .Claims }}
+        <li data-refused-by="{{ .RefusedBy }}">
+          {{ .Text }} Refused by <code>{{ .RefusedBy }}</code>.
+        </li>
+        {{- end }}
+      </ul>
+      {{- end }}
+      {{- if .Promises }}
+      <h2>What is promised and not yet checked</h2>
+      <ul>
+        {{- range .Promises }}
+        <li>{{ .Text }} Nothing refuses this yet, and {{ .Waiting }} is where the check that would is held.</li>
+        {{- end }}
+      </ul>
+      {{- end }}
+      {{- if .Residuals }}
+      <h2>What this page does not claim</h2>
+      {{- range .Residuals }}
+      <p>{{ . }}</p>
+      {{- end }}
+      {{- end }}
     </main>
     <footer>
       <p>

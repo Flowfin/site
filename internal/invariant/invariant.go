@@ -106,6 +106,10 @@ var (
 	// colour.
 	hexColour         = regexp.MustCompile(`(?i)#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})\b`)
 	fragmentReference = regexp.MustCompile(`(?is)\b(?:href|src)\s*=\s*"#[^"]*"`)
+	// What a page cites a check by. The attribute is what a machine reads
+	// and the name is also written where a reader sees it, both from one
+	// value, so a page cannot show a reader one name and this row another.
+	citedCheck = regexp.MustCompile(`(?is)\bdata-refused-by\s*=\s*"([^"]*)"`)
 )
 
 // markers is the vocabulary the tool-marker rule refuses, lower-cased. It is a
@@ -181,6 +185,13 @@ func Rules() []Rule {
 			Reason:  "the budget puts layout shift at exactly zero, and the usual cause of a page missing it is an image whose size the browser only learns once the bytes have arrived, so everything under it moves when they do",
 			Refuses: "a produced page carrying an image element without a usable width and height on it",
 			decide:  decideImageDimensions,
+		},
+		{
+			ID:      "page-cites-only-checks-that-exist",
+			Subject: ProducedPages,
+			Reason:  "a page that says a check refuses a violation of what it claims is worth the name it gives, and a row renamed or taken out leaves the sentence standing on the page reading as a property that nothing decides, which is the one defect on a privacy page that a reader cannot see",
+			Refuses: "a produced page citing a check this gate does not decide, or citing one with no name at all",
+			decide:  decideCitedChecks,
 		},
 		{
 			ID:      "output-carries-no-unfinished-marker",
@@ -1027,6 +1038,47 @@ func foreignHost(ref string) (string, bool) {
 		}
 	}
 	return host, true
+}
+
+// decideCitedChecks refuses a page naming a check this gate does not decide.
+//
+// The names on a page are a second copy of the table below, and a second copy
+// is exactly what goes stale: renaming a row is a change somebody makes in this
+// file, and nothing outside it moves, so the sentence on the page goes on
+// reading as a property while the name under it answers to nothing. That is
+// invisible to a reader, who has no way to ask which names exist.
+//
+// A row that is owed rather than decided is refused here as well. A page citing
+// one would be naming a check the run itself prints as not decided, which is a
+// promise wearing a property's clothes, and the register for that on the page is
+// the one that names an issue instead.
+func decideCitedChecks(body []byte) []string {
+	var details []string
+	for _, m := range citedCheck.FindAllSubmatch(body, -1) {
+		name := strings.TrimSpace(string(m[1]))
+		if name == "" {
+			details = append(details, "cites a check with no name, and the sentence beside it reads as refused by something")
+			continue
+		}
+		if decided(name) {
+			continue
+		}
+		details = append(details, fmt.Sprintf(
+			"cites the check %q, which this gate does not decide, so the sentence beside it reads as a property and is a promise", name))
+	}
+	return details
+}
+
+// decided answers whether a name is a row this gate decides. It reads the table
+// rather than a list written beside it, so a row added, renamed or removed
+// changes this answer without anybody remembering to.
+func decided(name string) bool {
+	for _, r := range Rules() {
+		if r.ID == name {
+			return true
+		}
+	}
+	return false
 }
 
 func decideUnfinished(body []byte) []string {
