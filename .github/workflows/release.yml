@@ -59,6 +59,14 @@ jobs:
         # a leg that refuses the tree stops the tag from existing.
         run: go run . ci
 
+      - name: Refuse a version nothing describes
+        # Here rather than in the gate verb, because the version in the tree is
+        # the one the next release carries and the section describing it is
+        # written when somebody decides to release. A leg would refuse every
+        # ordinary change for a description nobody owes yet; this is the moment
+        # it is owed, and it runs before anything has been packed or tagged.
+        run: go run . changelog
+
   package:
     name: Pack what the release carries
     needs: gate

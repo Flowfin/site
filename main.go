@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/Flowfin/site/internal/bom"
+	"github.com/Flowfin/site/internal/changelog"
 	"github.com/Flowfin/site/internal/gate"
 	"github.com/Flowfin/site/internal/hygiene"
 	"github.com/Flowfin/site/internal/invariant"
@@ -105,6 +106,19 @@ func run(args []string, out, errOut io.Writer) error {
 		// assigning it to a variable.
 		_, err := fmt.Fprintln(out, version.Number)
 		return err
+	case "changelog":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("changelog takes no argument")
+		}
+		// Deliberately not a leg of the gate. The version in the tree is
+		// the one the next release carries, and the section describing it
+		// is written when somebody decides to release rather than when
+		// they bump a constant, so a leg would refuse every ordinary
+		// change for a section nobody owes yet. The release run is where
+		// the description is owed, and it runs this before it creates
+		// anything.
+		return changelog.Run(".", out)
 	case "hygiene":
 		return hygiene.Run(args[1:], out)
 	default:
@@ -130,6 +144,9 @@ func usage(w io.Writer) {
                    published token file, naming every value that differs
   go run . version print the version this repository releases under, alone on
                    one line, which is what the release run builds its tag from
+  go run . changelog
+                   refuse a version that `+changelog.File+` does not describe,
+                   which is what the release run asks before it creates a tag
   go run . hygiene [-origin=internal|external] <base> <head>
                    judge the commit messages in a range
 `)
