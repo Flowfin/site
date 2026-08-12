@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Flowfin/site/internal/security"
+	"github.com/Flowfin/site/internal/site"
 	"github.com/Flowfin/site/internal/tokens"
 	"github.com/Flowfin/site/internal/version"
 )
@@ -476,6 +477,17 @@ func tree(t *testing.T, template string) string {
 	mk(filepath.Dir(filepath.FromSlash(tokens.File)))
 	wr(filepath.Join("templates", "page.html.tmpl"), template)
 	wr(filepath.Join("content", "index.txt"), "A title\n\nOne paragraph.\n")
+	// The second page, and it is here for the frame rather than for
+	// anything the privacy register decides. A property of the one file
+	// every page is rendered through is a statement about all of them, and a
+	// fixture producing a single page cannot tell that apart from a property
+	// of that page. The name behind its one checked statement is read out of
+	// the table rather than typed, because a page citing a check nothing
+	// answers to is refused, and a fixture holding the name would red this
+	// whole suite the day a row is renamed.
+	wr(filepath.FromSlash(site.PrivacyFile),
+		"A second title\n\nOne paragraph.\n\nchecked: One statement. ["+Rules()[0].ID+"]\n\n"+
+			"residual: What a host sees is true whatever this site does.\n")
 	// The copy the build reads. It carries a colour, because the row about
 	// where a colour is read from is about there being one file that may
 	// carry one, and a fixture whose copy held none would prove nothing
@@ -567,9 +579,9 @@ func TestRunRefusesATemplateThatDroppedTheLanguage(t *testing.T) {
 }
 
 // The declaration lives in the head every page is rendered through, so losing
-// it there loses it from every page at once. The run is what shows that: the
-// row reports the count of pages it refused rather than the one somebody
-// happened to open.
+// it there loses it from every page at once. The run is what shows that, and
+// what makes it a statement about the frame is that both produced pages are
+// named rather than the one somebody happened to open.
 func TestRunRefusesATemplateThatDroppedTheSchemeOnEveryPageItProduced(t *testing.T) {
 	root := tree(t, strings.Replace(goodTemplate,
 		`    <meta name="color-scheme" content="light dark" />`+"\n", "", 1))
@@ -579,8 +591,54 @@ func TestRunRefusesATemplateThatDroppedTheSchemeOnEveryPageItProduced(t *testing
 		t.Fatalf("Run accepted a template declaring no colour scheme:\n%s", log.String())
 	}
 	for _, want := range []string{
-		"page-declares-the-schemes-it-supports: REFUSED",
+		"page-declares-the-schemes-it-supports: REFUSED, 2 violation(s)",
 		"dist/index.html: this page declares no colour scheme",
+		"dist/privacy/index.html: this page declares no colour scheme",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
+		}
+	}
+}
+
+// The notice is in the frame so that no page can ship without it, and the row
+// over it already refuses a page that dropped the sentence. This is the other
+// statement: the sentence removed from the one file every page goes through
+// reds every produced page rather than one of them, which is what catches the
+// frame being bypassed rather than the sentence being edited.
+func TestRunRefusesAFrameThatDroppedTheAffiliationNoticeOnEveryPageItProduced(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate,
+		"Flowfin is not affiliated with the Jellyfin project.", "", 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run accepted a frame carrying no affiliation notice:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"page-carries-the-affiliation-notice: REFUSED, 2 violation(s)",
+		"dist/index.html: this page carries no affiliation notice",
+		"dist/privacy/index.html: this page carries no affiliation notice",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
+		}
+	}
+}
+
+// A page added to the build brings no frame of its own, which is the last of
+// the frame's properties and the cheapest to lose. The fixture writes a second
+// source and nothing else, and the run over it decides the head rules on two
+// pages rather than on one.
+func TestASecondPageIsRenderedThroughTheSameFrame(t *testing.T) {
+	var log bytes.Buffer
+	if err := Run(tree(t, goodTemplate), &log); err != nil {
+		t.Fatalf("Run refused a tree that breaks nothing: %v\n%s", err, log.String())
+	}
+	for _, want := range []string{
+		"page-declares-its-language: ok, 2 file(s)",
+		"page-carries-a-title: ok, 2 file(s)",
+		"page-declares-the-schemes-it-supports: ok, 2 file(s)",
+		"page-carries-the-affiliation-notice: ok, 2 file(s)",
 	} {
 		if !strings.Contains(log.String(), want) {
 			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
