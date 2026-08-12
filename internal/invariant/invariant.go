@@ -105,10 +105,23 @@ var (
 	titleElement = regexp.MustCompile(`(?is)<title\b[^>]*>(.*?)</title>`)
 	scriptSrc    = regexp.MustCompile(`(?is)<script\b[^>]*\bsrc\s*=`)
 	unfinished   = regexp.MustCompile(`TODO|FIXME`)
-	imgElement   = regexp.MustCompile(`(?is)<img\b[^>]*>`)
-	srcAttr      = regexp.MustCompile(`(?is)\bsrc\s*=\s*"([^"]*)"`)
-	widthAttr    = regexp.MustCompile(`(?is)\bwidth\s*=\s*"([^"]*)"`)
-	heightAttr   = regexp.MustCompile(`(?is)\bheight\s*=\s*"([^"]*)"`)
+	// The two places a browser reads a colour scheme from, in the order it
+	// reads them. The element is what answers before a stylesheet has
+	// arrived, which is the whole reason the row exists, and the property
+	// is the same answer written for a page that has one. Both are matched
+	// because refusing a page that declares it in CSS would be a row
+	// somebody switches off the day a stylesheet lands.
+	colourSchemeMeta = regexp.MustCompile(`(?is)<meta\b[^>]*\bname\s*=\s*"color-scheme"[^>]*>`)
+	// What precedes the property is part of the pattern: a media query
+	// asking what the reader prefers spells the same word with a prefix on
+	// it, and reading that as a declaration would let a page ask the
+	// question without ever answering it.
+	colourSchemeProperty = regexp.MustCompile(`(?is)(^|[^-a-z])color-scheme\s*:\s*([^;{}"']*)`)
+	contentAttr          = regexp.MustCompile(`(?is)\bcontent\s*=\s*"([^"]*)"`)
+	imgElement           = regexp.MustCompile(`(?is)<img\b[^>]*>`)
+	srcAttr              = regexp.MustCompile(`(?is)\bsrc\s*=\s*"([^"]*)"`)
+	widthAttr            = regexp.MustCompile(`(?is)\bwidth\s*=\s*"([^"]*)"`)
+	heightAttr           = regexp.MustCompile(`(?is)\bheight\s*=\s*"([^"]*)"`)
 	// The hex forms CSS reads, longest first so that the six digits of a
 	// full colour are not matched as a four-digit one with a stray digit
 	// after it. The shorthand forms are in the set because they spell
@@ -181,6 +194,13 @@ func Rules() []Rule {
 			Reason:  "the title is what a search result, a tab and a shared link show, so a page without one is a page nobody can tell apart from another",
 			Refuses: "a produced page with no title element, or one holding only whitespace",
 			decide:  decideTitle,
+		},
+		{
+			ID:      "page-declares-the-schemes-it-supports",
+			Subject: ProducedPages,
+			Reason:  "a browser picks the background it paints before any stylesheet arrives and the rendering of every form control from the same answer, so a page that says nothing is drawn light for a reader whose machine is set dark, and the served pages this generator replaces carry the declaration",
+			Refuses: "a produced page that declares no colour scheme, or one whose declaration names nothing a browser reads",
+			decide:  decideColourScheme,
 		},
 		{
 			ID:      "page-carries-the-affiliation-notice",
@@ -909,6 +929,55 @@ func decideTitle(body []byte) []string {
 // through it carries the sentence, and what proves that is the pages rather than
 // the file they came from. A second template, or a page written by hand, is
 // exactly what this catches and is invisible to a rule that read the template.
+// The words a browser acts on. Anything else in the value is a forward
+// compatible identifier the specification allows and no browser reads, so a
+// value holding none of these three declares nothing whatever it says.
+var readableSchemes = map[string]bool{"normal": true, "light": true, "dark": true}
+
+func decideColourScheme(body []byte) []string {
+	var details []string
+	declared := false
+
+	for _, loc := range colourSchemeMeta.FindAllIndex(body, -1) {
+		declared = true
+		value := ""
+		if m := contentAttr.FindSubmatch(body[loc[0]:loc[1]]); m != nil {
+			value = string(m[1])
+		}
+		details = append(details, schemeValue(value, lineOf(body, loc[0]))...)
+	}
+	for _, loc := range colourSchemeProperty.FindAllSubmatchIndex(body, -1) {
+		declared = true
+		details = append(details, schemeValue(string(body[loc[4]:loc[5]]), lineOf(body, loc[0]))...)
+	}
+
+	if !declared {
+		return []string{"this page declares no colour scheme, and a browser picks the background it paints and the way it draws every control from that answer before a stylesheet has arrived"}
+	}
+	return details
+}
+
+// schemeValue judges one declaration. It reads the value rather than the name
+// of the attribute, because the mistake a template actually makes is writing
+// the declaration against something that was not there, and a rule looking for
+// the word finds it while a browser reads nothing.
+func schemeValue(value string, line int) []string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return []string{fmt.Sprintf(
+			"line %d declares a colour scheme with no value on it, which is what a template writes from a value that was not there",
+			line)}
+	}
+	for _, word := range strings.Fields(strings.ToLower(trimmed)) {
+		if readableSchemes[word] {
+			return nil
+		}
+	}
+	return []string{fmt.Sprintf(
+		"line %d declares the colour scheme %q, and a browser reads none of light, dark or normal out of it",
+		line, trimmed)}
+}
+
 func decideAffiliation(body []byte) []string {
 	if strings.Contains(collapseSpace(string(body)), affiliationNotice) {
 		return nil
