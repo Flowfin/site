@@ -24,6 +24,7 @@ import (
 
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/tokens"
+	"github.com/Flowfin/site/internal/version"
 )
 
 // b64 decodes a fixture whose bytes are the point.
@@ -148,6 +149,13 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// published one moves.
 		"design-tokens-live-in-exactly-one-file": []byte(strings.Replace(cleanPage, `<body>`,
 			`<body style="background: #121216">`, 1)),
+		// The sentence a document gains the day somebody wants a reader to
+		// know which release they are looking at. It is assembled from the
+		// constant rather than written out, because a test source carrying
+		// the version a second time is what this row refuses and the suite
+		// would fail the tree it judges.
+		"version-lives-in-exactly-one-file": []byte(
+			"The bundle to take is " + version.Number + ", and it is the one this page describes.\n"),
 		// The six shapes the headless rule refuses, each in the smallest
 		// test somebody would actually write. Base64 for the same reason
 		// the marker fixture is: a test source carrying these literally is
@@ -253,6 +261,40 @@ func TestTheVersionRowNamesWhatItRefused(t *testing.T) {
 		if !strings.Contains(got[0], "pins.json") {
 			t.Errorf("%s was refused without naming where the version belongs: %v", name, got)
 		}
+	}
+}
+
+// What the row about a second copy of the release version leaves alone. Every
+// line here is a version-shaped number this tree legitimately carries, and a row
+// that refused one of them would red a clean tree for a version that is not this
+// repository's, which is how a row gets taken out.
+func TestTheReleaseVersionRowTellsAnotherVersionApart(t *testing.T) {
+	for name, line := range map[string]string{
+		"a longer version spelled around this one": "the plugin published " + version.Number + ".1 as its first build",
+		"a version that ends the same way":         "1" + version.Number + " is a server generation and not this",
+		"a pinned tool":                            `    "version": "3.9.6",`,
+		"the toolchain":                            "toolchain go1.26.5",
+		"a date":                                   "Run 2026-08-12 against the default branch.",
+	} {
+		if got := decideSecondVersion([]byte(line + "\n")); len(got) != 0 {
+			t.Errorf("the row refused %s: %v", name, got)
+		}
+	}
+}
+
+// The copy at the end of a sentence, which is how a document actually writes a
+// version, and the refusal has to say where the version belongs or the next
+// person deletes the sentence instead of reading it from the one file.
+func TestTheReleaseVersionRowNamesWhereTheVersionBelongs(t *testing.T) {
+	got := decideSecondVersion([]byte("This bundle is " + version.Number + ".\n"))
+	if len(got) == 0 {
+		t.Fatal("the row passed the version written at the end of a sentence")
+	}
+	if !strings.Contains(got[0], version.Number) {
+		t.Errorf("the refusal reads %q and does not name the version it found", got[0])
+	}
+	if !strings.Contains(got[0], version.SourceFile) {
+		t.Errorf("the refusal reads %q and does not name the file the version is read from", got[0])
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/Flowfin/site/internal/reproduce"
 	"github.com/Flowfin/site/internal/site"
 	"github.com/Flowfin/site/internal/tokens"
+	"github.com/Flowfin/site/internal/version"
 )
 
 func main() {
@@ -92,6 +93,18 @@ func run(args []string, out, errOut io.Writer) error {
 		// when this tree does. What the build needs from the copy is
 		// decided on every run, because the build reads it.
 		return tokens.Run(".", tokens.Publisher, out)
+	case "version":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("version takes no argument")
+		}
+		// The release run reads the version here rather than out of a
+		// file, so the value the tag is built from is the one the build
+		// and the bill of materials already carry. It prints the version
+		// alone and on one line, because what reads it is a shell step
+		// assigning it to a variable.
+		_, err := fmt.Fprintln(out, version.Number)
+		return err
 	case "hygiene":
 		return hygiene.Run(args[1:], out)
 	default:
@@ -115,6 +128,8 @@ func usage(w io.Writer) {
                    that publishes it, and report without writing anything
   go run . tokens  compare the pinned copy in `+tokens.File+` against the
                    published token file, naming every value that differs
+  go run . version print the version this repository releases under, alone on
+                   one line, which is what the release run builds its tag from
   go run . hygiene [-origin=internal|external] <base> <head>
                    judge the commit messages in a range
 `)

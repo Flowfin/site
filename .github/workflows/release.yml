@@ -1,0 +1,122 @@
+# The release run. It gates, it packs what the release carries, and it creates
+# the tag with those files attached. It does not publish to any host.
+#
+# Publishing and tagging are separate acts, which is
+# decisions/0013-the-version-scheme.md and is worth restating where somebody
+# would otherwise add a deploy step: a run that tagged and published together
+# leaves a bad publish undoable without deleting a tag, and a deleted tag is the
+# one thing an operator holding an archive cannot re-derive anything from.
+#
+# Three jobs rather than one, because write access is the thing being kept small.
+# The gate reads. The packing reads, and it is the same callable file a pull
+# request runs, so the archive a release carries is packed by the definition that
+# has been exercised on every change rather than by a second one whose first real
+# run is release day. Only the last job writes, and it writes at the end, once
+# the two before it have passed.
+#
+# Manual only. Nothing here decides when a release happens; a person does, and a
+# trigger on a push would make the decision a property of what somebody merged.
+name: Release
+
+on:
+  workflow_dispatch:
+
+# Deny everything at the top level; each job below grants what it needs and the
+# last one is the only job that is granted a write.
+permissions: {}
+
+# A superseded run is queued rather than cancelled. Every other workflow here
+# cancels, because every other workflow only reads and a stale verdict is worth
+# nothing. This one creates a tag, and a run cancelled between the tag and the
+# upload leaves a release with nothing attached to it, which reads to anybody
+# fetching it as a release that shipped empty.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Gate the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Run the gate
+        # The whole verb, so a leg added to the gate is a leg the release has to
+        # pass without this file being edited. The job below needs this one, so
+        # a leg that refuses the tree stops the tag from existing.
+        run: go run . ci
+
+  package:
+    name: Pack what the release carries
+    needs: gate
+    # A caller grants every permission the callable file declares, and no more.
+    permissions:
+      contents: read
+    uses: ./.github/workflows/package.yml
+
+  publish:
+    name: Publish the release
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # the tag and the release; the only write in this file
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Collect the bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: site-bundle
+          path: release
+
+      - name: Collect the bill of materials
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: site-sbom
+          path: release
+
+      - name: Read the version the tag is built from
+        # From the verb rather than from a file, so the tag, the bundle and the
+        # bill of materials carry one version or this step never produced one.
+        run: |
+          version="$(go run . version)"
+          echo "RELEASE_TAG=v${version}" >> "$GITHUB_ENV"
+
+      - name: Say what is about to be attached
+        # Printed before the tag exists, so a run that attached the wrong file
+        # is readable from the log rather than from the release page.
+        run: ls -l release
+
+      - name: Create the tag and attach what the release carries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${RELEASE_TAG}" \
+            --target "${GITHUB_SHA}" \
+            --title "${RELEASE_TAG}" \
+            --notes "The bundle and the bill of materials for ${RELEASE_TAG}, packed by the run that made this tag. Nothing was published to a host by this run." \
+            release/site-bundle.tar.gz \
+            release/sbom.cdx.json
