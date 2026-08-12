@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Flowfin/site/internal/changelog"
 	"github.com/Flowfin/site/internal/markup"
 	"github.com/Flowfin/site/internal/pins"
 	"github.com/Flowfin/site/internal/security"
@@ -62,8 +63,10 @@ const (
 	// TrackedTextOutsideTheVersionRegister is every tracked text file
 	// except the registers a version is allowed to appear in. The
 	// exclusion is what makes the rule decidable at all: the file holding
-	// the constant carries it by definition, so a population that included
-	// it would refuse the original along with every copy.
+	// the constant carries it by definition, and the file describing each
+	// release carries a heading per version because that is what it is for,
+	// so a population that included either would refuse the register along
+	// with every copy.
 	TrackedTextOutsideTheVersionRegister = "every tracked text file, outside the register that holds the version"
 	// BuildInputs is every tracked file the build reads to render a page.
 	// It is the population where a value typed by hand is a second
@@ -580,6 +583,12 @@ func decideExpiry(body []byte) []string {
 // row, and a file listing released versions is exactly that case.
 var versionRegisters = []string{
 	version.SourceFile,
+	// The file describing each release, where a heading per version is what
+	// the file is for. It is a register rather than a copy: the release run
+	// refuses a version this file does not carry, so the two are held to
+	// each other by a refusal rather than drifting the way a second copy
+	// usually does.
+	changelog.File,
 }
 
 func versionRegister(name string) bool {
