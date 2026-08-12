@@ -1,0 +1,42 @@
+Privacy
+
+This site is a set of files that a build produced and a host serves as they
+are. There is no account, no form, no database and nothing of this project's
+running on a server, so there is nothing here that could hold anything about a
+reader.
+
+A page saying that is worth what a reader can check, and a reader can check
+none of it from the outside. So every statement below carries what stands
+behind it. A statement in the first list names the check that refuses a page
+breaking it, and a name that no check answers to reds the gate rather than
+staying here. A statement in the second list is a promise and says so, with the
+issue that would turn it into the first kind. The last list is what is true
+anyway and is not promised at all.
+
+checked: No page this site produces asks a reader's browser to fetch a script.
+  [page-fetches-no-script]
+
+checked: Nothing a page this site produces reaches for comes from a domain this
+  project does not control, so no font service, no icon service, no analytics
+  and no embedded player is told that somebody opened a page here.
+  [output-references-no-domain-outside-the-allowlist]
+
+promised: No cookie is set and nothing is written into either browser storage
+  area. [#50]
+
+promised: There is no form, no field and no other route by which a reader can
+  send anything from a page here. [#50]
+
+promised: No page needs scripting to be read, which is a wider statement than
+  the first checked one: what is refused today is a page fetching a script, and
+  a handler written into the page itself is refused by nothing yet. [#50]
+
+residual: Whatever host answers for these files sees each request, which is the
+  address it came from, what was asked for and when. Every host sees that much,
+  this project does not decide what the host keeps, and this page does not say
+  otherwise.
+
+residual: Every checked statement above is about the bytes this build produced.
+  What a reader's browser loads is whatever answers at the address, which can
+  include something served beside these files that this repository never wrote,
+  and nothing here reads that.
