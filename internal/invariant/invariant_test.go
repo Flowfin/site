@@ -40,6 +40,7 @@ func b64(t *testing.T, s string) []byte {
 const cleanPage = `<!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta name="color-scheme" content="light dark" />
     <title>A title</title>
   </head>
   <body>
@@ -80,6 +81,13 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// The element emptied rather than removed, which is what a
 		// template producing a title from an absent value writes.
 		"page-carries-a-title": []byte(strings.Replace(cleanPage, `<title>A title</title>`, `<title></title>`, 1)),
+		// The declaration gone from the head, which is what a head
+		// rewritten by hand carries and what this generator already
+		// produced against served pages that declare it. Nothing on the
+		// page looks wrong afterwards to anybody whose machine is set
+		// the way the page happens to be drawn.
+		"page-declares-the-schemes-it-supports": []byte(strings.Replace(cleanPage,
+			`    <meta name="color-scheme" content="light dark" />`+"\n", "", 1)),
 		// The footer dropped, which is what a second template or a page
 		// written by hand looks like. The sentence lives in one file so
 		// that no page can ship without it, and this is the row that
@@ -501,6 +509,7 @@ const goodTemplate = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
     <title>{{ .Title }}</title>
   </head>
   <body>
@@ -554,6 +563,28 @@ func TestRunRefusesATemplateThatDroppedTheLanguage(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "1 rule(s) refused") {
 		t.Errorf("the error reads %q, which does not say how many rules refused", err)
+	}
+}
+
+// The declaration lives in the head every page is rendered through, so losing
+// it there loses it from every page at once. The run is what shows that: the
+// row reports the count of pages it refused rather than the one somebody
+// happened to open.
+func TestRunRefusesATemplateThatDroppedTheSchemeOnEveryPageItProduced(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate,
+		`    <meta name="color-scheme" content="light dark" />`+"\n", "", 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run accepted a template declaring no colour scheme:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"page-declares-the-schemes-it-supports: REFUSED",
+		"dist/index.html: this page declares no colour scheme",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
+		}
 	}
 }
 
@@ -664,6 +695,72 @@ func TestAnImageWithoutItsDimensionsRedsExactlyOneRow(t *testing.T) {
 	}
 	if len(refused) != 1 || refused[0] != "image-carries-its-own-dimensions" {
 		t.Errorf("the image refused %v, want only image-carries-its-own-dimensions", refused)
+	}
+}
+
+// The scheme row against the shapes it has to tell apart. Two of these are the
+// reason it reads the value rather than the name: a declaration a template
+// wrote against nothing, and one naming a word no browser acts on, both of
+// which a rule searching for the attribute would pass.
+func TestTheSchemeRowReadsTheValueRatherThanTheAttribute(t *testing.T) {
+	for name, c := range map[string]struct {
+		head    string
+		refused bool
+		names   string
+	}{
+		"both schemes on the element": {
+			`<meta name="color-scheme" content="light dark" />`, false, ""},
+		"one scheme on the element": {
+			`<meta name="color-scheme" content="dark" />`, false, ""},
+		"the scheme forced to one": {
+			`<meta name="color-scheme" content="only light" />`, false, ""},
+		"the answer given in a stylesheet": {
+			`<style>:root { color-scheme: light dark }</style>`, false, ""},
+		"an unknown identifier beside a real one": {
+			`<meta name="color-scheme" content="ligth dark" />`, false, ""},
+		// What a template renders from a value that was not supplied.
+		// The word is on the page and a browser reads nothing.
+		"the value the template left empty": {
+			`<meta name="color-scheme" content="" />`, true, "no value on it"},
+		// The word somebody reaches for from another setting, which
+		// declares nothing here.
+		"a word no browser acts on": {
+			`<meta name="color-scheme" content="auto" />`, true, `"auto"`},
+		// The question asked and never answered. A page may carry the
+		// query and still owe the declaration, so reading the query as
+		// one would let the row pass a page that says nothing.
+		"the reader's preference asked about": {
+			`<style>@media (prefers-color-scheme: dark) { body { color: inherit } }</style>`,
+			true, "declares no colour scheme"},
+	} {
+		body := []byte(strings.Replace(cleanPage,
+			`    <meta name="color-scheme" content="light dark" />`+"\n", "    "+c.head+"\n", 1))
+		got := decideColourScheme(body)
+		switch {
+		case c.refused && len(got) == 0:
+			t.Errorf("%s was not refused", name)
+		case !c.refused && len(got) != 0:
+			t.Errorf("%s was refused: %v", name, got)
+		case c.refused && !strings.Contains(strings.Join(got, "\n"), c.names):
+			t.Errorf("%s was refused without saying %q: %v", name, c.names, got)
+		}
+	}
+}
+
+// A head that dropped the declaration reds this row and no other, so a red run
+// says which repair it wants rather than which area to look in.
+func TestAHeadWithNoSchemeRedsExactlyOneRow(t *testing.T) {
+	body := []byte(strings.Replace(cleanPage,
+		`    <meta name="color-scheme" content="light dark" />`+"\n", "", 1))
+
+	var refused []string
+	for _, r := range Rules() {
+		if len(r.decide(body)) > 0 {
+			refused = append(refused, r.ID)
+		}
+	}
+	if len(refused) != 1 || refused[0] != "page-declares-the-schemes-it-supports" {
+		t.Errorf("the head with no declaration refused %v, want only page-declares-the-schemes-it-supports", refused)
 	}
 }
 
