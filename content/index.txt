@@ -1,5 +1,8 @@
 Flowfin
 
+description: Flowfin is a set of Jellyfin plugins and native clients, and this
+  is the page that says what each of them is and what state it is in.
+
 Flowfin is a set of Jellyfin plugins and native clients. This page is what the
 build produces before the real pages exist, so that the verb that produces it,
 the directory it lands in and the exit code it returns are all working and can

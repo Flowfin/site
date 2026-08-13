@@ -20,6 +20,8 @@ import (
 // case proves is that one thing.
 const smallest = `Privacy
 
+description: What this fixture privacy page is, in one sentence.
+
 checked: No page fetches a script. [page-fetches-no-script]
 
 residual: The host sees the request.
@@ -50,7 +52,7 @@ const registerTemplate = `<title>{{ .Title }}</title>
 // whose privacy prose is the body given.
 func privacyTree(t *testing.T, prose string) string {
 	t.Helper()
-	root := tree(t, "A title\n\nOne paragraph.\n")
+	root := tree(t, "A title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	write(t, filepath.Join(root, TemplatesDir, "page.html.tmpl"), registerTemplate)
 	write(t, filepath.Join(root, ContentDir, "privacy.txt"), prose)
 	return root
@@ -79,6 +81,8 @@ func refusal(t *testing.T, body string) string {
 
 func TestPrivacyReadsTheThreeRegistersApart(t *testing.T) {
 	p, err := readPrivacy(privacyFile(t, `Privacy
+
+description: What this fixture privacy page is, in one sentence.
 
 An opening paragraph.
 
@@ -116,6 +120,8 @@ residual: The host sees the request.
 // the marker of a wrapped one on a sentence of its own.
 func TestPrivacyJoinsAWrappedStatement(t *testing.T) {
 	p, err := readPrivacy(privacyFile(t, `Privacy
+
+description: What this fixture privacy page is, in one sentence.
 
 checked: No page fetches a script, which is the whole of what
   this row decides.
@@ -207,6 +213,8 @@ func TestPrivacyRefusesAResidualThatNamesSomething(t *testing.T) {
 func TestPrivacyRefusesAFileWithNothingChecked(t *testing.T) {
 	said := refusal(t, `Privacy
 
+description: What this fixture privacy page is, in one sentence.
+
 residual: The host sees the request.
 `)
 	if !strings.Contains(said, "no checked statement") {
@@ -219,6 +227,8 @@ residual: The host sees the request.
 func TestPrivacyRefusesAFileWithNoResidual(t *testing.T) {
 	said := refusal(t, `Privacy
 
+description: What this fixture privacy page is, in one sentence.
+
 checked: No page fetches a script. [page-fetches-no-script]
 `)
 	if !strings.Contains(said, "no residual statement") {
@@ -230,6 +240,8 @@ checked: No page fetches a script. [page-fetches-no-script]
 // mistakes is three repairs and reporting one of them costs three runs.
 func TestPrivacyReportsEveryReasonItRefused(t *testing.T) {
 	said := refusal(t, `Privacy
+
+description: What this fixture privacy page is, in one sentence.
 
 checked: No page fetches a script. [#50]
 
@@ -287,6 +299,8 @@ func TestBuildWritesThePrivacyPageAndSaysWhatIsOnIt(t *testing.T) {
 func TestBuildRendersMarkupInAStatementAsText(t *testing.T) {
 	root := privacyTree(t, `Privacy
 
+description: What this fixture privacy page is, in one sentence.
+
 checked: No <script> is fetched. [page-fetches-no-script]
 
 residual: The host sees the request.
@@ -307,7 +321,7 @@ residual: The host sees the request.
 // existing, and a build that passed over its absence would read like a build
 // that had nothing to produce.
 func TestBuildSaysWhenThereIsNoPrivacyProse(t *testing.T) {
-	root := tree(t, "A title\n\nOne paragraph.\n")
+	root := tree(t, "A title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	var log strings.Builder
 	written, err := Build(root, OutputDir, &log)
 	if err != nil {

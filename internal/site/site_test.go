@@ -68,7 +68,7 @@ func read(t *testing.T, name string) string {
 // markup notices when they stop doing so: the page still renders, and it renders
 // two words run together in the middle of a sentence.
 func TestBuildJoinsAWrappedParagraphIntoOneSentence(t *testing.T) {
-	root := tree(t, "Fixture title\n\nA paragraph that the author\nwrapped across two lines.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nA paragraph that the author\nwrapped across two lines.\n")
 
 	written, err := Build(root, OutputDir, io.Discard)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestBuildJoinsAWrappedParagraphIntoOneSentence(t *testing.T) {
 // The first block is the title and every block after it is a paragraph, in the
 // order they were written.
 func TestBuildRendersTheTitleAndEveryParagraphInOrder(t *testing.T) {
-	root := tree(t, "Fixture title\n\nFirst.\n\nSecond.\n\nThird.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nFirst.\n\nSecond.\n\nThird.\n")
 
 	if _, err := Build(root, OutputDir, io.Discard); err != nil {
 		t.Fatalf("Build: %v", err)
@@ -118,7 +118,7 @@ func TestBuildRendersTheTitleAndEveryParagraphInOrder(t *testing.T) {
 // standing, which is a directory nobody asked about and, on the way, removes
 // whatever was already there under that name.
 func TestBuildResolvesARelativeOutputDirectoryAgainstTheRoot(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 
 	if _, err := Build(root, OutputDir, io.Discard); err != nil {
 		t.Fatalf("Build: %v", err)
@@ -133,7 +133,7 @@ func TestBuildResolvesARelativeOutputDirectoryAgainstTheRoot(t *testing.T) {
 // An absolute outDir is used as it is, which is the shape the gate's build leg
 // relies on to keep its throwaway output away from a reader's real one.
 func TestBuildWritesAnAbsoluteOutputDirectoryWhereItWasAsked(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	elsewhere := filepath.Join(t.TempDir(), OutputDir)
 
 	written, err := Build(root, elsewhere, io.Discard)
@@ -157,7 +157,7 @@ func TestBuildWritesAnAbsoluteOutputDirectoryWhereItWasAsked(t *testing.T) {
 // is tested with bytes that try rather than with the words that happen to be in
 // content/ today.
 func TestBuildRendersMarkupInTheProseAsText(t *testing.T) {
-	root := tree(t, "Fixture title\n\n<script>alert(1)</script> & \"quoted\"\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\n<script>alert(1)</script> & \"quoted\"\n")
 
 	if _, err := Build(root, OutputDir, io.Discard); err != nil {
 		t.Fatalf("Build: %v", err)
@@ -176,7 +176,7 @@ func TestBuildRendersMarkupInTheProseAsText(t *testing.T) {
 // left behind by an earlier run is a page that is served and cannot be produced
 // again, which is the drift the whole generator exists to prevent.
 func TestBuildRemovesWhatAnEarlierRunLeftBehind(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	stale := filepath.Join(root, OutputDir, "gone.html")
 	mkdir(t, filepath.Join(root, OutputDir))
 	write(t, stale, "a page from a build nobody can reproduce")
@@ -193,7 +193,7 @@ func TestBuildRemovesWhatAnEarlierRunLeftBehind(t *testing.T) {
 // Everything under assets/ is served exactly as it was committed, including the
 // bytes a text tool would tidy.
 func TestBuildCopiesAssetsByteForByte(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	mkdir(t, filepath.Join(root, AssetsDir, "nested"))
 	body := "a:not(b) {\n\tcolor: red;\n}\n"
 	write(t, filepath.Join(root, AssetsDir, "nested", "style.css"), body)
@@ -215,7 +215,7 @@ func TestBuildCopiesAssetsByteForByte(t *testing.T) {
 // A run that copied nothing says which of the two reasons it was, because a
 // silent run cannot be told from one that had nothing to do.
 func TestBuildSaysWhenThereIsNoAssetsDirectory(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 
 	var log bytes.Buffer
 	if _, err := Build(root, OutputDir, &log); err != nil {
@@ -244,7 +244,7 @@ func TestBuildRefusesProseThatCarriesNoTitle(t *testing.T) {
 // A tree with no template is refused before anything is written, so a failed
 // build does not leave a half-emptied output directory behind it.
 func TestBuildRefusesATreeWithNoTemplate(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	if err := os.Remove(filepath.Join(root, TemplatesDir, "page.html.tmpl")); err != nil {
 		t.Fatalf("removing the template: %v", err)
 	}
@@ -265,7 +265,7 @@ func TestBuildRefusesATreeWithNoTemplate(t *testing.T) {
 // The tree this repository actually carries is what the gate's build leg reads;
 // this case builds its own, so it judges the code rather than the file.
 func TestBuildRefusesAMalformedCopyOfTheDesignTokens(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(tokens.File))))
 	write(t, filepath.Join(root, filepath.FromSlash(tokens.File)), "{\n")
 
@@ -282,7 +282,7 @@ func TestBuildRefusesAMalformedCopyOfTheDesignTokens(t *testing.T) {
 // was in it. A build that read the file and said nothing would be a build a
 // reader cannot tell from one that skipped it.
 func TestBuildSaysItReadThePinnedDesignTokensAndSaysWhenThereAreNone(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 
 	var absent bytes.Buffer
 	if _, err := Build(root, OutputDir, &absent); err != nil {
@@ -309,7 +309,7 @@ func TestBuildSaysItReadThePinnedDesignTokensAndSaysWhenThereAreNone(t *testing.
 // looking for it already knows, and says what it wrote. A tree with no source
 // for it is reported rather than passed over.
 func TestBuildWritesTheReportingRouteAndSaysWhenThereIsNoSourceForIt(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 
 	var absent bytes.Buffer
 	written, err := Build(root, OutputDir, &absent)
@@ -352,7 +352,7 @@ func TestBuildWritesTheReportingRouteAndSaysWhenThereIsNoSourceForIt(t *testing.
 // A source that does not read is a build that stops, rather than a site served
 // with no route on it or with a route nobody checked.
 func TestBuildRefusesASecurityContactItCannotRead(t *testing.T) {
-	root := tree(t, "Fixture title\n\nOne paragraph.\n")
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(security.File))))
 	write(t, filepath.Join(root, filepath.FromSlash(security.File)), `{"route":"write to me"}`)
 

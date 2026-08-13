@@ -36,7 +36,7 @@ func tree(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	write(t, root, filepath.Join("templates", "page.html.tmpl"), template)
-	write(t, root, filepath.Join("content", "index.txt"), "A title\n\nOne paragraph.\n")
+	write(t, root, filepath.Join("content", "index.txt"), "A title\n\ndescription: What this fixture page is.\n\nOne paragraph.\n")
 	return root
 }
 

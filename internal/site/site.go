@@ -10,7 +10,6 @@
 package site
 
 import (
-	"bufio"
 	"fmt"
 	"html/template"
 	"io"
@@ -33,13 +32,29 @@ const (
 	OutputDir    = "dist"
 )
 
+// IndexPath is where the page a reader arrives at lands. It is a name rather
+// than a literal in two places, because the address the page states about itself
+// is derived from it.
+const IndexPath = indexDocument
+
 // page is what a template is given. It is deliberately small: a field added
 // here before a page needs it is a guess about that page. The lists below are
 // empty on every page but the one that needs them, and the template renders
 // nothing for an empty one, so a page that has no statements to make does not
 // carry the headings for them.
 type page struct {
-	Title      string
+	Title string
+	// Description is what a search result and a shared card show under the
+	// title. It comes out of the same file the prose does, because one
+	// written into the frame would be one description for every page.
+	Description string
+	// Canonical is the one address this page is meant to be read at, stated
+	// inside the document so that a page reachable at a second one does not
+	// compete with itself. It is put on by whatever writes the page rather
+	// than read out of the prose, because the address is a property of where
+	// the build puts the file.
+	Canonical  string
+	SiteName   string
 	Paragraphs []string
 	Onward     []link
 	Claims     []claim
@@ -120,24 +135,33 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 
 	var written []string
 
+	// What each page says about itself in a search result is collected as the
+	// pages are written, because the build is the only place that holds more
+	// than one of them at a time.
+	said := descriptions{}
+
+	p.locate(IndexPath)
+	if err := said.add(IndexPath, p.Description); err != nil {
+		return nil, err
+	}
 	var rendered strings.Builder
 	if err := tmpl.Execute(&rendered, p); err != nil {
 		return nil, fmt.Errorf("rendering the page: %w", err)
 	}
-	indexPath := filepath.Join(out, "index.html")
+	indexPath := filepath.Join(out, IndexPath)
 	if err := os.WriteFile(indexPath, []byte(rendered.String()), 0o644); err != nil {
 		return nil, fmt.Errorf("writing the page: %w", err)
 	}
-	written = append(written, path.Join(label, "index.html"))
-	fmt.Fprintf(log, "wrote %s (%d bytes)\n", path.Join(label, "index.html"), rendered.Len())
+	written = append(written, path.Join(label, IndexPath))
+	fmt.Fprintf(log, "wrote %s (%d bytes)\n", path.Join(label, IndexPath), rendered.Len())
 
-	privacy, err := writePrivacy(root, out, label, tmpl, log)
+	privacy, err := writePrivacy(root, out, label, tmpl, said, log)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, privacy...)
 
-	notFound, err := writeNotFound(root, out, label, tmpl, log)
+	notFound, err := writeNotFound(root, out, label, tmpl, said, log)
 	if err != nil {
 		return nil, err
 	}
@@ -278,43 +302,43 @@ func copyAssets(src, out, label string, log io.Writer) ([]string, error) {
 // that lets the prose live in content/ rather than inside the generator, and
 // it is what the pages issues replace once there is a real page to write.
 func readPage(name string) (page, error) {
-	f, err := os.Open(filepath.Clean(name))
+	read, err := blocks(name)
 	if err != nil {
 		return page{}, err
 	}
-	defer f.Close()
 
 	var p page
-	var block []string
-	flush := func() {
-		if len(block) == 0 {
-			return
-		}
-		joined := strings.Join(block, " ")
-		block = nil
-		if p.Title == "" {
+	var reasons []string
+	for i, b := range read {
+		joined := strings.Join(b, " ")
+		switch {
+		case i == 0:
 			p.Title = joined
-			return
+		case strings.HasPrefix(joined, descriptionKeyword):
+			text, reason := describe(joined)
+			if reason != "" {
+				reasons = append(reasons, reason)
+				continue
+			}
+			p.Description = text
+		case keywordLine.MatchString(joined):
+			reasons = append(reasons, fmt.Sprintf(
+				"a block opens %q, and the only keyword this file carries is %s, so a block that opens like one and is read as a paragraph loses whatever it was for: %s",
+				strings.SplitN(joined, ":", 2)[0]+":", descriptionKeyword, short(joined)))
+		default:
+			p.Paragraphs = append(p.Paragraphs, joined)
 		}
-		p.Paragraphs = append(p.Paragraphs, joined)
 	}
-
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		line := strings.TrimSpace(s.Text())
-		if line == "" {
-			flush()
-			continue
-		}
-		block = append(block, line)
-	}
-	if err := s.Err(); err != nil {
-		return page{}, err
-	}
-	flush()
 
 	if p.Title == "" {
-		return page{}, fmt.Errorf("%s carries no title line", name)
+		reasons = append(reasons, "the file carries no title line")
+	}
+	if p.Description == "" {
+		reasons = append(reasons, missingDescription())
+	}
+	if len(reasons) > 0 {
+		return page{}, fmt.Errorf("%s was refused, %d reason(s):\n  %s",
+			filepath.ToSlash(name), len(reasons), strings.Join(reasons, "\n  "))
 	}
 	return p, nil
 }
