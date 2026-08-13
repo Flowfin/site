@@ -37,6 +37,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Flowfin/site/internal/budget"
 	"github.com/Flowfin/site/internal/changelog"
 	"github.com/Flowfin/site/internal/markup"
 	"github.com/Flowfin/site/internal/pins"
@@ -97,6 +98,15 @@ type Rule struct {
 	// carry rather than the page itself. It is what the run prints, so it
 	// reads as a plural noun.
 	Counted string
+	// Only narrows the population to one produced path, where the rule is
+	// about one page rather than about all of them. It exists because the
+	// speed budget counts the landing page's requests and says nothing about
+	// the other pages, so a row applying that line everywhere would refuse
+	// more than the record does, which is a rule nobody argued. A row that
+	// names a path the build did not write reports that it decided nothing
+	// rather than passing, so a page renamed out from under this does not
+	// leave a silently green row behind.
+	Only string
 	// decide returns one detail per violation in body, or nothing.
 	decide func(body []byte) []string
 	// counts says how many things of the kind this row judges the body
@@ -301,6 +311,37 @@ func Rules() []Rule {
 			Reason:  "most readers meet a page before they open it, as a line in a search result or a card in a chat window, and a page offering nothing there is shown its address instead, so a project whose site exists to explain what it is spends that first impression saying one word",
 			Refuses: "a produced page with no description element, or one whose content is missing or holds only whitespace",
 			decide:  decideDescription,
+		},
+		{
+			ID:      "page-fits-the-markup-budget",
+			Subject: ProducedPages,
+			Reason:  "the budget is written as numbers a build can miss rather than as an intention, and a page of prose that cannot be written inside that much markup is carrying structure the reader is not being shown",
+			Refuses: fmt.Sprintf("a produced page whose whole document is %d bytes or more, uncompressed", budget.HTMLBytes),
+			decide:  decideMarkupBudget,
+		},
+		{
+			ID:      "page-fits-the-stylesheet-budget",
+			Subject: ProducedPages,
+			Reason:  "inlining the stylesheet removes a round trip before anything renders, and the size is what keeps inlining cheaper than the request it replaced, so a page that outgrows it has given back what inlining bought",
+			Refuses: fmt.Sprintf("a produced page carrying %d bytes or more of inlined stylesheet", budget.InlineCSSBytes),
+			Counted: "inlined stylesheets",
+			decide:  decideStylesheetBudget,
+			counts:  countStylesheets,
+		},
+		{
+			ID:      "page-downloads-no-web-font",
+			Subject: ProducedPages,
+			Reason:  "a downloaded face blocks or reflows the first text a reader sees, and the faces already on the reader's machine cost nothing and arrive first; the row about a foreign domain catches a face served from somebody else's host and says nothing about one this site would serve itself",
+			Refuses: "a produced page declaring a font face that fetches a file, wherever it is served from",
+			decide:  decideWebFont,
+		},
+		{
+			ID:      "landing-page-asks-for-at-most-two-images",
+			Subject: ProducedPages,
+			Only:    site.IndexPath,
+			Reason:  "the first page has to be complete after the fewest exchanges, and a limit counted in requests is the one a reader on a slow link actually feels; the record counts this page's requests and says nothing about the others, so this row reads this page and no other",
+			Refuses: fmt.Sprintf("the produced landing page carrying more than %d image elements", budget.LandingImages),
+			decide:  decideLandingImages,
 		},
 		{
 			ID:      "page-links-the-legal-notice",
@@ -804,6 +845,9 @@ func Run(root string, log io.Writer) error {
 		if !ok {
 			return fmt.Errorf("rule %s reads %q, which is not a population this run gathered", r.ID, r.Subject)
 		}
+		if r.Only != "" {
+			files = onlyNamed(files, path.Join(site.OutputDir, r.Only))
+		}
 		var details []string
 		for _, f := range files {
 			for _, d := range r.decide(f.body) {
@@ -818,6 +862,11 @@ func Run(root string, log io.Writer) error {
 			for _, d := range details {
 				fmt.Fprintf(log, "    %s\n", d)
 			}
+			continue
+		}
+		if len(files) == 0 && r.Only != "" {
+			fmt.Fprintf(log, "  %s: the build wrote no %s, so this rule examined nothing\n",
+				r.ID, path.Join(site.OutputDir, r.Only))
 			continue
 		}
 		if len(files) == 0 {
@@ -1627,6 +1676,90 @@ func foreignHost(ref string) (string, bool) {
 		}
 	}
 	return host, true
+}
+
+// What the budget rows read. A style element is the only thing on these pages
+// that carries a stylesheet, and a font face is the declaration that fetches one.
+var (
+	styleElement = regexp.MustCompile(`(?is)<style\b[^>]*>(.*?)</style>`)
+	fontFace     = regexp.MustCompile(`(?is)@font-face\b[^{]*\{`)
+)
+
+// decideMarkupBudget refuses a produced page larger than the record allows.
+//
+// The measured number and the limit are both in the refusal, because a budget
+// failure that says only that the build failed makes the next person measure by
+// hand, and the number they would reach for is the one this already has.
+func decideMarkupBudget(body []byte) []string {
+	if len(body) < budget.HTMLBytes {
+		return nil
+	}
+	return []string{fmt.Sprintf(
+		"this page is %d bytes and the budget in %s puts a document under %d",
+		len(body), budget.Record, budget.HTMLBytes)}
+}
+
+// decideStylesheetBudget refuses a produced page carrying more inlined stylesheet
+// than the record allows. Every style element on the page is counted together,
+// because what the reader waits for is the document and a second element is not a
+// second budget.
+func decideStylesheetBudget(body []byte) []string {
+	total := 0
+	for _, m := range styleElement.FindAllSubmatchIndex(body, -1) {
+		total += m[3] - m[2]
+	}
+	if total < budget.InlineCSSBytes {
+		return nil
+	}
+	return []string{fmt.Sprintf(
+		"this page inlines %d bytes of stylesheet and the budget in %s puts it under %d",
+		total, budget.Record, budget.InlineCSSBytes)}
+}
+
+// countStylesheets says how many style elements the page carries, so a page with
+// none reports that rather than reporting ok against a limit it never approached.
+func countStylesheets(body []byte) int {
+	return len(styleElement.FindAllIndex(body, -1))
+}
+
+// decideWebFont refuses a produced page declaring a face that fetches a file.
+//
+// It reads the declaration rather than the address, which is what makes it
+// different from the row about a foreign domain: a face this site served itself
+// would satisfy that row and cost the reader exactly what the budget puts at zero.
+func decideWebFont(body []byte) []string {
+	var details []string
+	for _, m := range fontFace.FindAllIndex(body, -1) {
+		details = append(details, fmt.Sprintf(
+			"line %d declares a font face, and the budget in %s puts web font downloads at %d",
+			lineOf(body, m[0]), budget.Record, budget.WebFontDownloads))
+	}
+	return details
+}
+
+// decideLandingImages refuses the landing page for asking for more images than the
+// record allows. The document itself is the one request the record counts beside
+// them, and a page is one document by construction.
+func decideLandingImages(body []byte) []string {
+	found := imgElement.FindAllIndex(body, -1)
+	if len(found) <= budget.LandingImages {
+		return nil
+	}
+	return []string{fmt.Sprintf(
+		"this page asks for %d image(s) after its document and the budget in %s allows %d",
+		len(found), budget.Record, budget.LandingImages)}
+}
+
+// onlyNamed keeps the one file a narrowed row is about. A row naming a path the
+// build did not write is left with nothing, which the run reports rather than
+// passing over.
+func onlyNamed(files []file, name string) []file {
+	for _, f := range files {
+		if f.name == name {
+			return []file{f}
+		}
+	}
+	return nil
 }
 
 // decideLegalLink refuses a produced page that offers no way to the page saying
