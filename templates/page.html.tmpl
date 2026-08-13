@@ -13,6 +13,15 @@
       {{- range .Paragraphs }}
       <p>{{ . }}</p>
       {{- end }}
+      {{- if .Onward }}
+      <nav aria-label="Where to go from here">
+        <ul>
+          {{- range .Onward }}
+          <li><a href="{{ .Href }}">{{ .Text }}</a></li>
+          {{- end }}
+        </ul>
+      </nav>
+      {{- end }}
       {{- if .Claims }}
       <h2>What is checked, and by what</h2>
       <ul>
