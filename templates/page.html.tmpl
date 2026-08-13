@@ -29,6 +29,21 @@
         </ul>
       </nav>
       {{- end }}
+      {{- if .Notices }}
+      <dl>
+        {{- range .Notices }}
+        <dt>{{ .Asks }}</dt>
+        {{- if .Answer }}
+        <dd>{{ .Answer }}</dd>
+        {{- else }}
+        <dd>
+          Not decided yet. {{ .Waiting }} is where that answer is taken, and this
+          line says so rather than standing empty.
+        </dd>
+        {{- end }}
+        {{- end }}
+      </dl>
+      {{- end }}
       {{- if .Claims }}
       <h2>What is checked, and by what</h2>
       <ul>
@@ -59,6 +74,9 @@
         Flowfin is not affiliated with the Jellyfin project. Other projects are
         named here to say what this software works with, and nothing further is
         meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
       </p>
       <p>
         <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"

@@ -303,6 +303,13 @@ func Rules() []Rule {
 			decide:  decideDescription,
 		},
 		{
+			ID:      "page-links-the-legal-notice",
+			Subject: ProducedPages,
+			Reason:  "the page saying who publishes this site is worth what a reader can reach, and a link a page can ship without is a link that reaches the pages somebody remembered; it lives in the frame for the same reason the affiliation notice does",
+			Refuses: "a produced page carrying no link to the address the legal notice is published at",
+			decide:  decideLegalLink,
+		},
+		{
 			ID:      "page-references-everything-from-the-site-root",
 			Subject: ProducedPages,
 			Reason:  "the not-found document is served in answer to a request of any depth, so a reference a browser resolves against the current document points somewhere different on every request and is broken on most of them; the same reference on a page inside a directory address is broken for every reader one level further in, and both look correct from the page they were written on",
@@ -1620,6 +1627,34 @@ func foreignHost(ref string) (string, bool) {
 		}
 	}
 	return host, true
+}
+
+// decideLegalLink refuses a produced page that offers no way to the page saying
+// who publishes this site.
+//
+// The address is read from the package that writes that page rather than typed
+// here, so a page that moves does not leave this row refusing every page for
+// missing an address nothing answers at. What it looks for is a link a reader
+// follows: an element that fetches the address would satisfy the letter of this
+// and reach nobody.
+func decideLegalLink(body []byte) []string {
+	want := site.LegalAddress
+	for _, tag := range htmlTag.FindAllSubmatchIndex(body, -1) {
+		if !readerFollows[strings.ToLower(string(body[tag[2]:tag[3]]))] {
+			continue
+		}
+		attrs := body[tag[4]:tag[5]]
+		for _, a := range tagAttribute.FindAllSubmatchIndex(attrs, -1) {
+			if strings.ToLower(string(attrs[a[2]:a[3]])) != "href" {
+				continue
+			}
+			if strings.TrimSpace(attributeValue(attrs, a)) == want {
+				return nil
+			}
+		}
+	}
+	return []string{fmt.Sprintf(
+		"this page carries no link a reader can follow to %s, so whoever publishes this site is reachable from the pages that happened to keep the link", want)}
 }
 
 // descriptionMeta is the element a search result and a shared card read the
