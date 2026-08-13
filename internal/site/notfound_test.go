@@ -20,6 +20,8 @@ import (
 // one thing.
 const smallestNotFound = `This page is not here
 
+description: What this fixture not-found page is, in one sentence.
+
 onward: The page this site starts at [/]
 `
 
@@ -42,7 +44,7 @@ const onwardTemplate = `<title>{{ .Title }}</title>
 // whose not-found prose is the body given.
 func notFoundTree(t *testing.T, prose string) string {
 	t.Helper()
-	root := tree(t, "A title\n\nOne paragraph.\n")
+	root := tree(t, "A title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	write(t, filepath.Join(root, TemplatesDir, "page.html.tmpl"), onwardTemplate)
 	write(t, filepath.Join(root, ContentDir, "not-found.txt"), prose)
 	return root
@@ -72,6 +74,8 @@ func notFoundRefusal(t *testing.T, body string) string {
 
 func TestNotFoundReadsTheTitleTheProseAndTheWayOnward(t *testing.T) {
 	p, err := readNotFound(notFoundFile(t, `This page is not here
+
+description: What this fixture not-found page is, in one sentence.
 
 The address you asked for is not one this site answers at.
 
@@ -103,6 +107,8 @@ onward: The page this site starts at [/]
 func TestNotFoundRefusesAFileWithNoWayOnward(t *testing.T) {
 	got := notFoundRefusal(t, `This page is not here
 
+description: What this fixture not-found page is, in one sentence.
+
 The address you asked for is not one this site answers at.
 `)
 	if !strings.Contains(got, onwardKeyword) {
@@ -115,6 +121,8 @@ The address you asked for is not one this site answers at.
 // offer and cannot be followed.
 func TestNotFoundRefusesAWayOnwardWithNoAddress(t *testing.T) {
 	got := notFoundRefusal(t, `This page is not here
+
+description: What this fixture not-found page is, in one sentence.
 
 onward: The page this site starts at
 `)
@@ -129,6 +137,8 @@ onward: The page this site starts at
 func TestNotFoundRefusesEmptyBrackets(t *testing.T) {
 	got := notFoundRefusal(t, `This page is not here
 
+description: What this fixture not-found page is, in one sentence.
+
 onward: The page this site starts at []
 `)
 	if !strings.Contains(got, "empty brackets") {
@@ -140,6 +150,8 @@ onward: The page this site starts at []
 // and a keyboard reader lands on with nothing announced.
 func TestNotFoundRefusesAnAddressWithNothingToRead(t *testing.T) {
 	got := notFoundRefusal(t, `This page is not here
+
+description: What this fixture not-found page is, in one sentence.
 
 onward: [/]
 `)
@@ -153,6 +165,8 @@ onward: [/]
 // only thing lost is the link.
 func TestNotFoundRefusesAMisspelledKeyword(t *testing.T) {
 	got := notFoundRefusal(t, `This page is not here
+
+description: What this fixture not-found page is, in one sentence.
 
 onwards: The page this site starts at [/]
 
@@ -168,6 +182,8 @@ onward: The page this site starts at [/]
 // wrapped block on a sentence of its own.
 func TestNotFoundJoinsAWrappedWayOnward(t *testing.T) {
 	p, err := readNotFound(notFoundFile(t, `This page is not here
+
+description: What this fixture not-found page is, in one sentence.
 
 onward: The page this site starts at, which is where everything
   else is linked from
@@ -217,7 +233,7 @@ func TestBuildWritesTheNotFoundPageAtTheRoot(t *testing.T) {
 // assets walk and the privacy page report an absent source. A run that produced
 // no not-found page must not read like a run that had nothing to produce.
 func TestBuildSaysSoWhenThereIsNoNotFoundProse(t *testing.T) {
-	root := tree(t, "A title\n\nOne paragraph.\n")
+	root := tree(t, "A title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
 	var log strings.Builder
 	if _, err := Build(root, OutputDir, &log); err != nil {
 		t.Fatalf("the build refused a tree with no not-found prose: %v", err)
@@ -245,6 +261,8 @@ func TestBuildRefusesAnUnreadableNotFoundFile(t *testing.T) {
 // other page takes, so a bracket in a sentence cannot become markup.
 func TestNotFoundEscapesTheTextItRenders(t *testing.T) {
 	root := notFoundTree(t, `This page is not here
+
+description: What this fixture not-found page is, in one sentence.
 
 onward: The <b>page</b> this site starts at [/]
 `)

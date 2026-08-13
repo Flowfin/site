@@ -1,5 +1,8 @@
 Privacy
 
+description: What happens to a request for a page on this site, what is kept,
+  and which of those statements a check refuses a page for breaking.
+
 This site is a set of files that a build produced and a host serves as they
 are. There is no account, no form, no database and nothing of this project's
 running on a server, so there is nothing here that could hold anything about a

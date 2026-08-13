@@ -24,7 +24,6 @@
 package site
 
 import (
-	"bufio"
 	"fmt"
 	"html/template"
 	"io"
@@ -53,12 +52,6 @@ const (
 	residualKeyword = "residual:"
 )
 
-// keywordLine is what a statement's first line looks like before the keyword is
-// read. It exists so that a misspelled keyword is refused rather than read as
-// prose: a block that opens like a statement and is not one is the mistake that
-// silently empties a register, and the rendered page looks finished either way.
-var keywordLine = regexp.MustCompile(`^[a-z]+:\s`)
-
 // marker is what a statement carries at its end, in square brackets. One
 // expression reads both kinds because what separates them is what is inside,
 // and reading them apart would let a statement carrying neither shape through
@@ -75,7 +68,7 @@ var marker = regexp.MustCompile(`^(.*?)\s*\[([^\]]*)\]$`)
 // there and cannot be read is a refusal, because a privacy page rendered from
 // half a file is the one page where a missing statement reads as an absence of
 // the thing it was about.
-func writePrivacy(root, out, label string, tmpl *template.Template, log io.Writer) ([]string, error) {
+func writePrivacy(root, out, label string, tmpl *template.Template, said descriptions, log io.Writer) ([]string, error) {
 	source := filepath.Join(root, filepath.FromSlash(PrivacyFile))
 	if _, err := os.Stat(source); os.IsNotExist(err) {
 		fmt.Fprintf(log, "no %s in the tree, so no privacy page was written\n", PrivacyFile)
@@ -84,6 +77,10 @@ func writePrivacy(root, out, label string, tmpl *template.Template, log io.Write
 	p, err := readPrivacy(source)
 	if err != nil {
 		return nil, fmt.Errorf("reading the privacy prose: %w", err)
+	}
+	p.locate(PrivacyPath)
+	if err := said.add(PrivacyPath, p.Description); err != nil {
+		return nil, err
 	}
 	var rendered strings.Builder
 	if err := tmpl.Execute(&rendered, p); err != nil {
@@ -107,35 +104,12 @@ func writePrivacy(root, out, label string, tmpl *template.Template, log io.Write
 // three mistakes in it is three repairs and reporting one of them costs three
 // runs.
 func readPrivacy(name string) (page, error) {
-	f, err := os.Open(filepath.Clean(name))
+	read, err := blocks(name)
 	if err != nil {
 		return page{}, err
 	}
-	defer f.Close()
 
-	var blocks [][]string
-	var block []string
-	flush := func() {
-		if len(block) > 0 {
-			blocks = append(blocks, block)
-			block = nil
-		}
-	}
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		line := strings.TrimSpace(s.Text())
-		if line == "" {
-			flush()
-			continue
-		}
-		block = append(block, line)
-	}
-	if err := s.Err(); err != nil {
-		return page{}, err
-	}
-	flush()
-
-	p, reasons := readBlocks(blocks)
+	p, reasons := readBlocks(read)
 	if len(reasons) > 0 {
 		return page{}, fmt.Errorf("%s was refused, %d reason(s):\n  %s",
 			filepath.ToSlash(name), len(reasons), strings.Join(reasons, "\n  "))
@@ -154,6 +128,13 @@ func readBlocks(blocks [][]string) (page, []string) {
 		switch {
 		case i == 0:
 			p.Title = joined
+		case strings.HasPrefix(joined, descriptionKeyword):
+			text, reason := describe(joined)
+			if reason != "" {
+				reasons = append(reasons, reason)
+				continue
+			}
+			p.Description = text
 		case strings.HasPrefix(joined, checkedKeyword):
 			text, name, err := split(joined, checkedKeyword)
 			switch {
@@ -190,8 +171,8 @@ func readBlocks(blocks [][]string) (page, []string) {
 			p.Residuals = append(p.Residuals, text)
 		case keywordLine.MatchString(joined):
 			reasons = append(reasons, fmt.Sprintf(
-				"a block opens %q, which is not one of the three registers %s, %s and %s, and a block that opens like a statement and is read as a paragraph loses whatever stood behind it: %s",
-				strings.SplitN(joined, ":", 2)[0]+":", checkedKeyword, promisedKeyword, residualKeyword, short(joined)))
+				"a block opens %q, which is not %s and not one of the three registers %s, %s and %s, and a block that opens like a statement and is read as a paragraph loses whatever stood behind it: %s",
+				strings.SplitN(joined, ":", 2)[0]+":", descriptionKeyword, checkedKeyword, promisedKeyword, residualKeyword, short(joined)))
 		default:
 			p.Paragraphs = append(p.Paragraphs, joined)
 		}
@@ -199,6 +180,9 @@ func readBlocks(blocks [][]string) (page, []string) {
 
 	if p.Title == "" {
 		reasons = append(reasons, "the file carries no title line")
+	}
+	if p.Description == "" {
+		reasons = append(reasons, missingDescription())
 	}
 	if len(p.Claims) == 0 {
 		reasons = append(reasons, "the file carries no checked statement, and a privacy page with nothing checked on it is the promise this page exists in order not to be")

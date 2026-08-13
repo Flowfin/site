@@ -196,16 +196,17 @@ var markers = []string{
 }
 
 // allowedOrigins is the whole allowlist, and it is the project's own domain and
-// nothing else. The name is the one decisions/0008-the-url-shape.md gives the
-// site root rather than whichever spelling happens to answer on the day, so a
-// second host arrives here as a change somebody argues rather than as a
-// reference nobody noticed.
+// nothing else. The name is read from the package that puts an address on a page
+// rather than written again here: that package needs it in order to state a
+// page's own address, so a copy in this file would be a second definition of the
+// one name this whole rule turns on, and the two would part company silently the
+// day either moved.
 //
 // It is a list holding one entry rather than a constant, because the shape of
 // the rule is a comparison against a set, and record 0011 takes the position
 // that the set has one member rather than that the comparison is a special case.
 var allowedOrigins = []string{
-	"flowfin.dev",
+	site.Host,
 }
 
 // affiliationNotice is the sentence every produced page has to carry. It is
@@ -293,6 +294,13 @@ func Rules() []Rule {
 			Reason:  "a page that says a check refuses a violation of what it claims is worth the name it gives, and a row renamed or taken out leaves the sentence standing on the page reading as a property that nothing decides, which is the one defect on a privacy page that a reader cannot see",
 			Refuses: "a produced page citing a check this gate does not decide, or citing one with no name at all",
 			decide:  decideCitedChecks,
+		},
+		{
+			ID:      "page-carries-a-description",
+			Subject: ProducedPages,
+			Reason:  "most readers meet a page before they open it, as a line in a search result or a card in a chat window, and a page offering nothing there is shown its address instead, so a project whose site exists to explain what it is spends that first impression saying one word",
+			Refuses: "a produced page with no description element, or one whose content is missing or holds only whitespace",
+			decide:  decideDescription,
 		},
 		{
 			ID:      "page-references-everything-from-the-site-root",
@@ -1612,6 +1620,35 @@ func foreignHost(ref string) (string, bool) {
 		}
 	}
 	return host, true
+}
+
+// descriptionMeta is the element a search result and a shared card read the
+// sentence under the title out of.
+var descriptionMeta = regexp.MustCompile(`(?is)<meta\b[^>]*\bname\s*=\s*"description"[^>]*>`)
+
+// decideDescription refuses a produced page that says nothing about itself.
+//
+// The absence is invisible from the page, which is why it is a row rather than
+// something a reader of the page would catch: the document renders identically,
+// and what changes is a line in a search result and a card in a chat window,
+// neither of which anybody looks at while writing the page.
+//
+// An element that is present and empty is refused with an absent one. It is the
+// shape a description rendered from a value that did not arrive leaves behind,
+// and it is the one a reader of the markup is most likely to read as done.
+func decideDescription(body []byte) []string {
+	m := descriptionMeta.Find(body)
+	if m == nil {
+		return []string{"there is no description element on this page, so a search result for it carries its address instead of a sentence"}
+	}
+	c := contentAttr.FindSubmatch(m)
+	if c == nil {
+		return []string{"the description element carries no content attribute, so there is nothing for a result to show"}
+	}
+	if strings.TrimSpace(string(c[1])) == "" {
+		return []string{"the description element holds only whitespace, which reads in the markup as a description and is not one"}
+	}
+	return nil
 }
 
 // anchored is a reference a browser resolves against something other than the

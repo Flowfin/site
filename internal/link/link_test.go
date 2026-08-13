@@ -208,7 +208,7 @@ func buildable(t *testing.T, body string) string {
   </body>
 </html>
 `)
-	write("content/index.txt", "A title\n\nOne paragraph.\n")
+	write("content/index.txt", "A title\n\ndescription: What this fixture page is.\n\nOne paragraph.\n")
 	return root
 }
 

@@ -50,6 +50,7 @@ const cleanPage = `<!DOCTYPE html>
   <head>
     <meta name="color-scheme" content="light dark" />
     <title>A title</title>
+    <meta name="description" content="What this page is, in one sentence." />
   </head>
   <body>
     <a href="#content">Skip to the content</a>
@@ -133,6 +134,12 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// saying a check refuses this, and no check does.
 		"page-cites-only-checks-that-exist": []byte(strings.Replace(cleanPage, contentOpen,
 			contentOpen+`<ul><li data-refused-by="page-fetches-no-scripts">No page fetches a script.</li></ul>`, 1)),
+		// The element rendered from a value that did not arrive, which
+		// leaves the attribute in place and empty. The page renders
+		// identically and the row is the only thing between it and a
+		// search result showing its address.
+		"page-carries-a-description": []byte(strings.Replace(cleanPage,
+			`content="What this page is, in one sentence."`, `content=""`, 1)),
 		// The leading slash left off, which is how anybody writes a link
 		// to a sibling page and is correct from the page it was written
 		// on. From the not-found document, served in answer to an address
@@ -603,7 +610,8 @@ func tree(t *testing.T, template string) string {
 	mk("content")
 	mk(filepath.Dir(filepath.FromSlash(tokens.File)))
 	wr(filepath.Join("templates", "page.html.tmpl"), template)
-	wr(filepath.Join("content", "index.txt"), "A title\n\nOne paragraph.\n")
+	wr(filepath.Join("content", "index.txt"),
+		"A title\n\ndescription: What the first fixture page is.\n\nOne paragraph.\n")
 	// The second page, and it is here for the frame rather than for
 	// anything the privacy register decides. A property of the one file
 	// every page is rendered through is a statement about all of them, and a
@@ -613,7 +621,8 @@ func tree(t *testing.T, template string) string {
 	// answers to is refused, and a fixture holding the name would red this
 	// whole suite the day a row is renamed.
 	wr(filepath.FromSlash(site.PrivacyFile),
-		"A second title\n\nOne paragraph.\n\nchecked: One statement. ["+Rules()[0].ID+"]\n\n"+
+		"A second title\n\ndescription: What the second fixture page is.\n\nOne paragraph.\n\n"+
+			"checked: One statement. ["+Rules()[0].ID+"]\n\n"+
 			"residual: What a host sees is true whatever this site does.\n")
 	// The copy the build reads. It carries a colour, because the row about
 	// where a colour is read from is about there being one file that may
@@ -650,6 +659,7 @@ const goodTemplate = `<!DOCTYPE html>
     <meta charset="utf-8" />
     <meta name="color-scheme" content="light dark" />
     <title>{{ .Title }}</title>
+    <meta name="description" content="{{ .Description }}" />
   </head>
   <body>
     <a href="#content">Skip to the content</a>
@@ -1123,7 +1133,7 @@ func TestTheMotionRowNamesTheLineAndTheDeclaration(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("the row produced %d detail(s), want 1: %v", len(got), got)
 	}
-	for _, want := range []string{"line 7", "transition: color 120ms"} {
+	for _, want := range []string{"line 8", "transition: color 120ms"} {
 		if !strings.Contains(got[0], want) {
 			t.Errorf("the failure reads %q, which does not carry %q", got[0], want)
 		}
