@@ -295,6 +295,15 @@ func Rules() []Rule {
 			decide:  decideCitedChecks,
 		},
 		{
+			ID:      "page-references-everything-from-the-site-root",
+			Subject: ProducedPages,
+			Reason:  "the not-found document is served in answer to a request of any depth, so a reference a browser resolves against the current document points somewhere different on every request and is broken on most of them; the same reference on a page inside a directory address is broken for every reader one level further in, and both look correct from the page they were written on",
+			Refuses: "a produced page carrying a reference that a browser resolves against the document it sits on rather than against the site root, an empty one included",
+			Counted: "references",
+			decide:  decideRelativeReference,
+			counts:  countReferences,
+		},
+		{
 			ID:      "output-carries-no-unfinished-marker",
 			Subject: ProducedFiles,
 			Reason:  "a note to the author is a note to every reader once it is served, and it is the kind of thing nobody greps for after the fact",
@@ -1603,6 +1612,78 @@ func foreignHost(ref string) (string, bool) {
 		}
 	}
 	return host, true
+}
+
+// anchored is a reference a browser resolves against something other than the
+// document it was written in: one that names a scheme or an authority, one that
+// is absolute from the site root, and one that is a fragment of the current page
+// and so carries no path to resolve at all.
+var anchored = regexp.MustCompile(`^(?:[a-z][a-z0-9+.-]*:|//|/|#)`)
+
+// decideRelativeReference refuses a produced page carrying a reference that a
+// browser resolves against the document it sits on.
+//
+// It reads href wherever it appears rather than only where the page fetches it,
+// which is the one place this row is wider than the origin row above and is the
+// whole point of it: the reference this rule exists for is the link out of the
+// not-found page, which a reader follows rather than something the page fetches.
+//
+// An empty value is refused with the rest. It resolves to whatever URL the
+// request asked for, which on the not-found page is the address that was not
+// there, so it is the one relative reference that reads as deliberate.
+func decideRelativeReference(body []byte) []string {
+	var details []string
+	report := func(at int, attribute, ref string) {
+		details = append(details, fmt.Sprintf(
+			"line %d %s=%q is resolved against the document it sits on, and every reference in a produced page is absolute from the site root",
+			lineOf(body, at), attribute, ref))
+	}
+
+	for _, tag := range htmlTag.FindAllSubmatchIndex(body, -1) {
+		attrs := body[tag[4]:tag[5]]
+		for _, a := range tagAttribute.FindAllSubmatchIndex(attrs, -1) {
+			name := strings.ToLower(string(attrs[a[2]:a[3]]))
+			if name != "href" && !subresourceAttributes[name] {
+				continue
+			}
+			for _, ref := range references(name, attributeValue(attrs, a)) {
+				if !anchored.MatchString(strings.ToLower(strings.TrimSpace(ref))) {
+					report(tag[4]+a[0], name, ref)
+				}
+			}
+		}
+	}
+
+	for _, expression := range []*regexp.Regexp{cssURL, cssImport} {
+		for _, m := range expression.FindAllSubmatchIndex(body, -1) {
+			ref := string(body[m[2]:m[3]])
+			if !anchored.MatchString(strings.ToLower(strings.TrimSpace(ref))) {
+				report(m[0], "url", ref)
+			}
+		}
+	}
+
+	return details
+}
+
+// countReferences says how many references a page carries, so that a page
+// holding none reports that rather than reporting ok. A green mark over a page
+// with nothing to resolve reads as a page whose references were checked.
+func countReferences(body []byte) int {
+	n := 0
+	for _, tag := range htmlTag.FindAllSubmatchIndex(body, -1) {
+		attrs := body[tag[4]:tag[5]]
+		for _, a := range tagAttribute.FindAllSubmatchIndex(attrs, -1) {
+			name := strings.ToLower(string(attrs[a[2]:a[3]]))
+			if name != "href" && !subresourceAttributes[name] {
+				continue
+			}
+			n += len(references(name, attributeValue(attrs, a)))
+		}
+	}
+	n += len(cssURL.FindAllIndex(body, -1))
+	n += len(cssImport.FindAllIndex(body, -1))
+	return n
 }
 
 // decideCitedChecks refuses a page naming a check this gate does not decide.

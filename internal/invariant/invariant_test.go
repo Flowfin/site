@@ -133,6 +133,13 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// saying a check refuses this, and no check does.
 		"page-cites-only-checks-that-exist": []byte(strings.Replace(cleanPage, contentOpen,
 			contentOpen+`<ul><li data-refused-by="page-fetches-no-scripts">No page fetches a script.</li></ul>`, 1)),
+		// The leading slash left off, which is how anybody writes a link
+		// to a sibling page and is correct from the page it was written
+		// on. From the not-found document, served in answer to an address
+		// of any depth, it points at whatever directory the reader
+		// happened to ask for.
+		"page-references-everything-from-the-site-root": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+`<a href="privacy/">What happens to a request</a>`, 1)),
 		// A note to the author that reached the output.
 		"output-carries-no-unfinished-marker": []byte(strings.Replace(cleanPage, `<h1>A title</h1>`,
 			`<h1>A title</h1><!-- TODO: the real heading -->`, 1)),

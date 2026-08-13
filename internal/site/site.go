@@ -34,16 +34,26 @@ const (
 )
 
 // page is what a template is given. It is deliberately small: a field added
-// here before a page needs it is a guess about that page. The three lists below
-// are empty on every page but the privacy one, and the template renders nothing
-// for an empty one, so a page that has no statements to make does not carry the
-// headings for them.
+// here before a page needs it is a guess about that page. The lists below are
+// empty on every page but the one that needs them, and the template renders
+// nothing for an empty one, so a page that has no statements to make does not
+// carry the headings for them.
 type page struct {
 	Title      string
 	Paragraphs []string
+	Onward     []link
 	Claims     []claim
 	Promises   []promise
 	Residuals  []string
+}
+
+// link is somewhere a page offers to send a reader. It carries the address
+// rather than deriving it, because the page that needs this is the not-found
+// one, whose own address is whatever was asked for, so there is nothing on that
+// page to derive an address against.
+type link struct {
+	Text string
+	Href string
 }
 
 // claim is a statement a check refuses a page for breaking, and the name of
@@ -126,6 +136,12 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 		return nil, err
 	}
 	written = append(written, privacy...)
+
+	notFound, err := writeNotFound(root, out, label, tmpl, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, notFound...)
 
 	reported, err := writeSecurityTxt(root, out, label, log)
 	if err != nil {
