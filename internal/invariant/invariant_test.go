@@ -89,6 +89,13 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// the way the page happens to be drawn.
 		"page-declares-the-schemes-it-supports": []byte(strings.Replace(cleanPage,
 			`    <meta name="color-scheme" content="light dark" />`+"\n", "", 1)),
+		// A stylesheet written the way one is written, with the motion in
+		// the cascade and no query anywhere asking the reader whether
+		// they want it. Nothing about the page looks wrong to anybody
+		// who has not set the preference, which is why this is the
+		// version of the mistake that ships.
+		"page-motion-answers-the-reader": []byte(strings.Replace(cleanPage, `</head>`,
+			"  <style>a { transition: color 120ms }</style>\n  </head>", 1)),
 		// The footer dropped, which is what a second template or a page
 		// written by hand looks like. The sentence lives in one file so
 		// that no page can ship without it, and this is the row that
@@ -665,6 +672,71 @@ func TestRunNamesWhatItCouldNotDecide(t *testing.T) {
 	}
 }
 
+// A row that judges a thing a page may carry, over pages carrying none of it,
+// prints what it read rather than ok. Nothing this build writes moves, so the
+// motion row is the row in that state, and an ok beside it would read as a set
+// of pages that answer the reader when it is a set that never asks.
+func TestRunSaysARowFoundNothingToDecide(t *testing.T) {
+	var log bytes.Buffer
+	if err := Run(tree(t, goodTemplate), &log); err != nil {
+		t.Fatalf("Run refused a tree that breaks nothing: %v\n%s", err, log.String())
+	}
+	want := "page-motion-answers-the-reader: 2 file(s) of every page the build produced " +
+		"carried no declarations that move something, so this rule decided nothing"
+	if !strings.Contains(log.String(), want) {
+		t.Errorf("the run does not say the row decided nothing; it said:\n%s", log.String())
+	}
+	if strings.Contains(log.String(), "page-motion-answers-the-reader: ok") {
+		t.Errorf("the run reported the row as ok over pages carrying nothing it judges; it said:\n%s", log.String())
+	}
+}
+
+// The other side of the same line, which is what makes it a statement about the
+// pages rather than a sentence the row always prints. A frame that moves
+// something and answers for it reports the count it read.
+func TestRunCountsWhatAMovingPageCarried(t *testing.T) {
+	answered := strings.Replace(goodTemplate, "  </head>",
+		"    <style>\n"+
+			"      a { transition: color 120ms }\n"+
+			"      @media (prefers-reduced-motion: reduce) { a { transition: none } }\n"+
+			"    </style>\n  </head>", 1)
+
+	var log bytes.Buffer
+	if err := Run(tree(t, answered), &log); err != nil {
+		t.Fatalf("Run refused a tree whose motion is answered for: %v\n%s", err, log.String())
+	}
+	want := "page-motion-answers-the-reader: ok, 2 declarations that move something " +
+		"in 2 file(s) of every page the build produced"
+	if !strings.Contains(log.String(), want) {
+		t.Errorf("the run does not report what the row read; it said:\n%s", log.String())
+	}
+}
+
+// The mistake in the place it is actually made. The frame is one file and every
+// page is rendered through it, so a stylesheet written there with no query in it
+// takes the answer away from the reader on every page at once, and the run names
+// each of them rather than one.
+func TestRunRefusesAFrameThatMovesSomethingWithNothingAskingTheReader(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate, "  </head>",
+		"    <style>a { transition: color 120ms }</style>\n  </head>", 1))
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run passed a frame that moves something with nothing asking the reader:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"page-motion-answers-the-reader: REFUSED, 2 violation(s)",
+		"index.html: line",
+		filepath.ToSlash(filepath.Join("privacy", "index.html")) + ": line",
+		"no query asking the reader about motion switches transition off",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not carry %q; it said:\n%s", want, log.String())
+		}
+	}
+}
+
 // A tree whose build refuses has no output, and a rule about produced pages
 // cannot pass over nothing. The run says which of the two happened.
 func TestRunRefusesATreeItCannotBuild(t *testing.T) {
@@ -825,6 +897,110 @@ func TestAHeadWithNoSchemeRedsExactlyOneRow(t *testing.T) {
 // The colour row, at the level of the decision rather than through a whole run,
 // because what it has to get right is which bytes are a colour and which are an
 // address that looks like one.
+// The motion row against the shapes it has to tell apart. Two of them answer the
+// reader and are the two a stylesheet is actually written with, so a row
+// refusing either would be a row somebody takes out the first time a page moves.
+// The near miss is the last one: the query is there, the property is there, and
+// what the reader gets for asking for less motion is the motion.
+func TestTheMotionRowTellsTheQueryFromTheCascade(t *testing.T) {
+	for name, c := range map[string]struct {
+		style   string
+		refused bool
+		names   string
+	}{
+		"motion in the cascade, with nothing asking the reader": {
+			`a { transition: color 120ms }`, true, "no query asking the reader about motion switches transition off"},
+		"motion only for a reader who has not asked for less": {
+			`@media (prefers-reduced-motion: no-preference) { a { transition: color 120ms } }`, false, ""},
+		"motion in the cascade, switched off by the blanket override": {
+			`a { transition: color 120ms }
+			 @media (prefers-reduced-motion: reduce) { a { transition: none } }`, false, ""},
+		// The override written before the rule it answers for, which is
+		// where a stylesheet that resets first puts it.
+		"the override written above the motion it answers for": {
+			`@media (prefers-reduced-motion: reduce) { * { animation: none } }
+			 a { animation: pulse 1s infinite }`, false, ""},
+		// A second family is a second question. The override says
+		// nothing about the one it does not name.
+		"one family switched off and another left in the cascade": {
+			`a { transition: color 120ms; animation: pulse 1s infinite }
+			 @media (prefers-reduced-motion: reduce) { a { transition: none } }`, true,
+			"switches animation off"},
+		// The duration is what the override is written against as often
+		// as the shorthand, and it stops the same thing.
+		"the override written as a duration rather than as none": {
+			`a { transition: color 120ms }
+			 @media (prefers-reduced-motion: reduce) { a { transition-duration: 0s } }`, false, ""},
+		"the override that has to win over an author rule": {
+			`a { transition: color 120ms }
+			 @media (prefers-reduced-motion: reduce) { a { transition: none !important } }`, false, ""},
+		// A value with a duration in it moves something however short
+		// the duration is, so reading the first word would pass this.
+		"a value whose first word is a property and not a stopping word": {
+			`a { transition: color 0.01s }`, true, "declares transition: color 0.01s"},
+		"the query naming the feature with no answer": {
+			`a { transition: color 120ms }
+			 @media (prefers-reduced-motion) { a { transition: none } }`, false, ""},
+		// The near miss. It is one word away from the shape above it and
+		// it is the one a reader who set the preference actually meets.
+		"motion written inside the query asking for reduced motion": {
+			`@media (prefers-reduced-motion: reduce) { a { animation: shake 1s } }`, true,
+			"what a reader gets for asking is the motion"},
+		"scrolling that jumps rather than sliding": {
+			`html { scroll-behavior: auto }`, false, ""},
+		"scrolling that slides with nothing asking the reader": {
+			`html { scroll-behavior: smooth }`, true, "switches scroll-behavior off"},
+	} {
+		page := []byte(strings.Replace(cleanPage, `</head>`,
+			"  <style>"+c.style+"</style>\n  </head>", 1))
+		got := decideMotion(page)
+		if c.refused && len(got) == 0 {
+			t.Errorf("%s: the row passed it", name)
+			continue
+		}
+		if !c.refused && len(got) != 0 {
+			t.Errorf("%s: the row refused it: %v", name, got)
+			continue
+		}
+		if c.refused && !strings.Contains(strings.Join(got, "\n"), c.names) {
+			t.Errorf("%s: the failure reads %v, which does not say %q", name, got, c.names)
+		}
+	}
+}
+
+// The failure names the line and the declaration, because a message saying only
+// that the page moves something leaves the next person reading the whole
+// stylesheet to find out which rule it meant.
+func TestTheMotionRowNamesTheLineAndTheDeclaration(t *testing.T) {
+	page := []byte(strings.Replace(cleanPage, `</head>`,
+		"  <style>\n    a { transition: color 120ms }\n  </style>\n  </head>", 1))
+
+	got := decideMotion(page)
+	if len(got) != 1 {
+		t.Fatalf("the row produced %d detail(s), want 1: %v", len(got), got)
+	}
+	for _, want := range []string{"line 7", "transition: color 120ms"} {
+		if !strings.Contains(got[0], want) {
+			t.Errorf("the failure reads %q, which does not carry %q", got[0], want)
+		}
+	}
+}
+
+func TestMotionInTheCascadeRedsExactlyOneRow(t *testing.T) {
+	moving := []byte(strings.Replace(cleanPage, `</head>`,
+		"  <style>a { transition: color 120ms }</style>\n  </head>", 1))
+
+	var refused []string
+	for _, r := range Rules() {
+		if len(r.decide(moving)) > 0 {
+			refused = append(refused, r.ID)
+		}
+	}
+	if len(refused) != 1 || refused[0] != "page-motion-answers-the-reader" {
+		t.Errorf("motion in the cascade refused %v, want only page-motion-answers-the-reader", refused)
+	}
+}
+
 func TestTheColourRowRefusesATypedColourAndLeavesAFragmentAlone(t *testing.T) {
 	refused := map[string]string{
 		"a full hex value in a style attribute": `<p style="color: #ECECEF">Read this</p>`,
