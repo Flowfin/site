@@ -255,6 +255,22 @@ suite is a weaker record than a red check for the purpose this document serves,
 and it is a stronger one for keeping the pair true as the table changes, so both
 are named.
 
+One bound on that, because it is the shape a pair goes stale in without anybody
+editing it. The fixture map holds one violation per row, so what it proves is
+that the row refused something, never which branch of the operator behind it did
+the refusing. A row reading several shapes can lose one and stay green under it.
+The row about where a token value is read from is the one that has several: it
+reads a colour, a length, a font family and a font weight, and its entry in the
+map is a colour. What holds the other three is a pair of its own, one fixture per
+shape and one line per thing the row has to walk past:
+
+    go test ./internal/invariant -run 'TestTheTokenRow' -count=1
+
+The same goes for the two rows whose permitted values are tested separately, the
+loopback addresses a test may bind and the version-shaped numbers a workflow may
+carry. Where a row is named here with no such test beside it, one violation is
+the whole of what it has been shown to refuse.
+
 ## Reproducible build
 
 It refuses a source whose two builds do not produce the same bytes.
