@@ -18,10 +18,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Flowfin/site/internal/budget"
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/site"
 	"github.com/Flowfin/site/internal/tokens"
@@ -141,6 +143,28 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// search result showing its address.
 		"page-carries-a-description": []byte(strings.Replace(cleanPage,
 			`content="What this page is, in one sentence."`, `content=""`, 1)),
+		// A document grown past the limit, which is what a page does when
+		// its prose keeps arriving and nobody measures. The padding is a
+		// comment so that nothing else on the page changes with it, and it
+		// is assembled rather than written out because a test source
+		// carrying twenty kilobytes of anything is unreadable.
+		"page-fits-the-markup-budget": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+"<!--"+strings.Repeat("p", budget.HTMLBytes)+"-->", 1)),
+		// A stylesheet that outgrew what inlining bought, which is what
+		// happens to an inlined one: the request it replaced is cheap
+		// again and nobody is watching the size.
+		"page-fits-the-stylesheet-budget": []byte(strings.Replace(cleanPage, `</head>`,
+			"  <style>"+strings.Repeat("a{color:red}", budget.InlineCSSBytes/12+1)+"</style>\n  </head>", 1)),
+		// One face, of the shape a copied stylesheet arrives in, and
+		// served from this site so that the row about a foreign domain
+		// says nothing about it.
+		"page-downloads-no-web-font": []byte(strings.Replace(cleanPage, `</head>`,
+			"  <style>@font-face { font-family: Body; src: url(/body.woff2) }</style>\n  </head>", 1)),
+		// One image more than the landing page may ask for, each carrying
+		// everything else the page rows require, so this row is the only
+		// one the fixture trips.
+		"landing-page-asks-for-at-most-two-images": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+strings.Repeat(`<img src="/a.png" alt="A picture of something" width="8" height="8" />`, budget.LandingImages+1), 1)),
 		// The link taken out of the frame's footer, which is what
 		// tidying a footer looks like. Every page still renders, and
 		// whoever publishes the site is reachable from whichever pages
@@ -1279,5 +1303,90 @@ func TestRunRefusesATreeCarryingNoSourceForTheReportingRoute(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), security.File) {
 		t.Errorf("the refusal reads %q, which does not name the file that is missing", err)
+	}
+}
+
+// The measured number and the limit are both in the refusal. A budget failure
+// that says only that the build failed makes the next person measure by hand, and
+// the number they would reach for is the one the row already has.
+func TestTheBudgetRowsNameTheMeasurementAndTheLimit(t *testing.T) {
+	oversize := []byte(strings.Replace(cleanPage, contentOpen,
+		contentOpen+"<!--"+strings.Repeat("p", budget.HTMLBytes)+"-->", 1))
+	got := decideMarkupBudget(oversize)
+	if len(got) != 1 {
+		t.Fatalf("the row produced %d detail(s), want 1: %v", len(got), got)
+	}
+	for _, want := range []string{
+		strconv.Itoa(len(oversize)),
+		strconv.Itoa(budget.HTMLBytes),
+		budget.Record,
+	} {
+		if !strings.Contains(got[0], want) {
+			t.Errorf("the refusal reads %q, which does not carry %q", got[0], want)
+		}
+	}
+
+	heavy := []byte(strings.Replace(cleanPage, `</head>`,
+		"  <style>"+strings.Repeat("a{color:red}", budget.InlineCSSBytes/12+1)+"</style>\n  </head>", 1))
+	got = decideStylesheetBudget(heavy)
+	if len(got) != 1 {
+		t.Fatalf("the stylesheet row produced %d detail(s), want 1: %v", len(got), got)
+	}
+	for _, want := range []string{strconv.Itoa(budget.InlineCSSBytes), budget.Record} {
+		if !strings.Contains(got[0], want) {
+			t.Errorf("the refusal reads %q, which does not carry %q", got[0], want)
+		}
+	}
+}
+
+// A page exactly at the limit is refused and a page one byte under is not, because
+// the record writes each line as a limit rather than as a target and the byte at
+// the boundary is the one nobody tests.
+func TestTheMarkupBudgetRowRefusesTheBoundary(t *testing.T) {
+	at := make([]byte, budget.HTMLBytes)
+	if got := decideMarkupBudget(at); len(got) == 0 {
+		t.Errorf("the row passed a page of exactly %d bytes", budget.HTMLBytes)
+	}
+	under := make([]byte, budget.HTMLBytes-1)
+	if got := decideMarkupBudget(under); len(got) != 0 {
+		t.Errorf("the row refused a page one byte under the limit: %v", got)
+	}
+}
+
+// The image line is written for the landing page and says nothing about the
+// others, so a frame putting three images on every page reds this row once. A row
+// applying it everywhere would refuse more than the record does, which is a rule
+// nobody argued.
+func TestTheLandingImageRowReadsTheLandingPageAndNoOther(t *testing.T) {
+	images := strings.Repeat(`<img src="/a.png" alt="A picture of something" width="8" height="8" />`,
+		budget.LandingImages+1)
+	root := tree(t, strings.Replace(goodTemplate, `      <h1>{{ .Title }}</h1>`,
+		`      <h1>{{ .Title }}</h1>`+images, 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run accepted a frame asking for more images than the budget allows:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), "landing-page-asks-for-at-most-two-images: REFUSED, 1 violation(s)") {
+		t.Errorf("the run does not refuse exactly the landing page; it said:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), "dist/index.html: this page asks for 3 image(s)") {
+		t.Errorf("the run does not name the landing page and its count; it said:\n%s", log.String())
+	}
+	if strings.Contains(log.String(), "dist/privacy/index.html: this page asks for") {
+		t.Errorf("the run judged a page this row is not about; it said:\n%s", log.String())
+	}
+}
+
+// A narrowed row whose page the build did not write is left with nothing to read.
+// It reports that rather than passing, so a page renamed out from under one of
+// these does not leave a green row behind it.
+func TestANarrowedRowFindsNothingWhenThePageIsNotThere(t *testing.T) {
+	files := []file{{name: "dist/index.html", body: []byte("a")}}
+	if got := onlyNamed(files, "dist/index.html"); len(got) != 1 {
+		t.Errorf("the narrowing dropped the page it was asked for: %v", got)
+	}
+	if got := onlyNamed(files, "dist/install/index.html"); len(got) != 0 {
+		t.Errorf("the narrowing returned %d file(s) for a page the build did not write", len(got))
 	}
 }
