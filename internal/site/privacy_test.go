@@ -277,7 +277,7 @@ func TestBuildWritesThePrivacyPageAndSaysWhatIsOnIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the build refused: %v\n%s", err, log.String())
 	}
-	if len(written) != 2 || written[1] != "dist/privacy/index.html" {
+	if !wrote(written, "dist/privacy/index.html") {
 		t.Fatalf("the build wrote %q", written)
 	}
 	if !strings.Contains(log.String(), "1 checked, 0 promised, 1 residual") {
@@ -327,8 +327,8 @@ func TestBuildSaysWhenThereIsNoPrivacyProse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the build refused: %v\n%s", err, log.String())
 	}
-	if len(written) != 1 {
-		t.Fatalf("the build wrote %q", written)
+	if wrote(written, "dist/privacy/index.html") {
+		t.Fatalf("the build wrote a privacy page out of a tree that carries no prose for one: %q", written)
 	}
 	if !strings.Contains(log.String(), "no content/privacy.txt in the tree") {
 		t.Errorf("the run passed over the absence:\n%s", log.String())

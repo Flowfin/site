@@ -21,6 +21,7 @@ import (
 	"github.com/Flowfin/site/internal/invariant"
 	"github.com/Flowfin/site/internal/link"
 	"github.com/Flowfin/site/internal/site"
+	"github.com/Flowfin/site/internal/sitemap"
 )
 
 // A leg is one thing the gate decides. Its report is the sentence printed
@@ -38,6 +39,7 @@ func legs() []leg {
 		{"test", testLeg},
 		{"build", buildLeg},
 		{"links", linksLeg},
+		{"sitemap", sitemapLeg},
 		{"invariants", invariantsLeg},
 	}
 }
@@ -205,6 +207,24 @@ func linksLeg(root string) (string, error) {
 	// The last line the walk wrote is the one that says what it covered, and
 	// it is that line rather than a count assembled here, so a run that
 	// examined nothing says so in the walk's own words.
+	lines := strings.Split(strings.TrimRight(log.String(), "\n"), "\n")
+	return strings.TrimSpace(lines[len(lines)-1]), nil
+}
+
+// sitemapLeg refuses a sitemap that disagrees with the pages beside it. It sits
+// after the links leg because both walk what the build produced and the links
+// leg answers the more basic question: a site whose pages point at files nobody
+// wrote is broken for a reader, where a sitemap that has drifted is broken only
+// for a crawler.
+func sitemapLeg(root string) (string, error) {
+	var log strings.Builder
+	if err := sitemap.Run(root, &log); err != nil {
+		lines := strings.Split(strings.TrimRight(log.String(), "\n"), "\n")
+		return "", fmt.Errorf("%v:\n%s", err, indent(lines))
+	}
+	// The last line the comparison wrote is the one that says what it
+	// covered, in its own words, so a run that examined nothing says so here
+	// rather than reporting a count assembled in this file.
 	lines := strings.Split(strings.TrimRight(log.String(), "\n"), "\n")
 	return strings.TrimSpace(lines[len(lines)-1]), nil
 }

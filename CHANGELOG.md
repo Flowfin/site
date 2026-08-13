@@ -64,3 +64,10 @@ there is no earlier bundle to compare it against.
   it, packed so that two runs of one source produce one archive.
 - The bill of materials states the version of the thing it is about, so two
   archives are distinguishable by the document each one carries.
+- The build writes `robots.txt` and `sitemap.xml`. Both are asked for by clients
+  without any page linking them, and a bundle without them answers those
+  requests with the not-found page. The sitemap lists every page the build wrote
+  except the not-found one, at the address each is served at, and carries no
+  date, so two builds of one source still produce one set of bytes.
+- The gate refuses a bundle whose sitemap disagrees with the pages beside it, in
+  both directions: a page listed nowhere, and an address with no page behind it.
