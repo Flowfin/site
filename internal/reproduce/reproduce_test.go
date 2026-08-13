@@ -54,12 +54,18 @@ func write(t *testing.T, root, name, body string) {
 // The neighbour, and it is the real build rather than a stand-in: a tree whose
 // build reads only what is committed produces the same bytes twice, and the run
 // says how many files it compared rather than passing silently.
+//
+// The count is the page and the two files a crawler asks for. It is written out
+// rather than derived, because those two are the ones a build could most easily
+// make unreproducible: a sitemap may state when each page last changed, and one
+// carrying today's date would pass every other check in this tree and red only
+// here.
 func TestTwoBuildsOfTheRealGeneratorAgree(t *testing.T) {
 	var log bytes.Buffer
 	if err := Run(tree(t), &log); err != nil {
 		t.Fatalf("Run refused two builds of one source: %v\n%s", err, log.String())
 	}
-	if !strings.Contains(log.String(), "1 file(s), identical in both builds") {
+	if !strings.Contains(log.String(), "3 file(s), identical in both builds") {
 		t.Errorf("the run did not say what it compared; it said:\n%s", log.String())
 	}
 }

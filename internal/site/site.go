@@ -186,6 +186,24 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 	}
 	written = append(written, copied...)
 
+	// The two files nothing links are written last, after everything that can
+	// put a page into the output, because the sitemap is a list of what is
+	// above it and anything landing underneath it would be served and listed
+	// nowhere. That the ordering holds is not left to this comment: the leg
+	// over the output walks the directory afterwards and compares what the
+	// file lists against what is beside it.
+	sitemap, err := writeSitemap(out, label, written, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, sitemap...)
+
+	robots, err := writeRobots(out, label, sitemap, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, robots...)
+
 	fmt.Fprintf(log, "%d file(s) written into %s\n", len(written), label)
 	return written, nil
 }

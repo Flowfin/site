@@ -40,6 +40,19 @@ func tree(t *testing.T, prose string) string {
 	return root
 }
 
+// wrote answers whether the build reported a path. A case that asked instead
+// how many paths came back would be a case about the whole set of files the
+// build writes, which is a thing every new writer moves and no case here is
+// about.
+func wrote(written []string, want string) bool {
+	for _, w := range written {
+		if w == want {
+			return true
+		}
+	}
+	return false
+}
+
 func mkdir(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -74,8 +87,8 @@ func TestBuildJoinsAWrappedParagraphIntoOneSentence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	if len(written) != 1 || written[0] != "dist/index.html" {
-		t.Fatalf("Build reported %v, want [dist/index.html]", written)
+	if !wrote(written, "dist/index.html") {
+		t.Fatalf("Build reported %v, and none of it is dist/index.html", written)
 	}
 
 	got := read(t, filepath.Join(root, OutputDir, "index.html"))
@@ -146,8 +159,10 @@ func TestBuildWritesAnAbsoluteOutputDirectoryWhereItWasAsked(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, OutputDir)); !os.IsNotExist(err) {
 		t.Errorf("an absolute output directory still produced %s in the tree", filepath.Join(root, OutputDir))
 	}
-	if len(written) != 1 {
-		t.Errorf("Build reported %v, want one file", written)
+	for _, w := range written {
+		if !strings.HasPrefix(w, filepath.ToSlash(elsewhere)+"/") {
+			t.Errorf("Build reported %s, which is not under the directory it was asked for", w)
+		}
 	}
 }
 
@@ -207,8 +222,8 @@ func TestBuildCopiesAssetsByteForByte(t *testing.T) {
 	if got := read(t, copied); got != body {
 		t.Errorf("the asset came out as %q, want %q", got, body)
 	}
-	if len(written) != 2 || written[1] != "dist/nested/style.css" {
-		t.Errorf("Build reported %v, want the page and dist/nested/style.css", written)
+	if !wrote(written, "dist/nested/style.css") {
+		t.Errorf("Build reported %v, and none of it is the copied asset", written)
 	}
 }
 
