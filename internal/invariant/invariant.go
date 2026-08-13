@@ -17,6 +17,10 @@
 // that listed only the rows it could decide would read as a tree that satisfies
 // all of them. How many are owed is what the run prints, and a count written
 // here would drift against the table the run reads.
+//
+// A row in the table that found nothing of the kind it judges says the same
+// thing one step in. It prints what it read rather than ok, so a set of pages
+// carrying none of the thing yet cannot be read as one carrying it correctly.
 package invariant
 
 import (
@@ -88,8 +92,20 @@ type Rule struct {
 	Subject string
 	Reason  string
 	Refuses string
+	// Counted names what a row counts, where a row judges a thing a page may
+	// carry rather than the page itself. It is what the run prints, so it
+	// reads as a plural noun.
+	Counted string
 	// decide returns one detail per violation in body, or nothing.
 	decide func(body []byte) []string
+	// counts says how many things of the kind this row judges the body
+	// holds. A row that carries one and read none of them reports that
+	// rather than ok, because a green mark over a population that turned out
+	// to be empty reads as a tree the rule was exercised against, and what
+	// it says is that nobody has written the thing yet. A row judging the
+	// page itself carries none of this: every page is a subject, so its
+	// population is the file count the run already prints.
+	counts func(body []byte) int
 }
 
 // Owed is a rule this gate is meant to carry and cannot yet, because what it
@@ -140,6 +156,24 @@ var (
 	// and the name is also written where a reader sees it, both from one
 	// value, so a page cannot show a reader one name and this row another.
 	citedCheck = regexp.MustCompile(`(?is)\bdata-refused-by\s*=\s*"([^"]*)"`)
+	// The properties a page moves something with, the compound names before
+	// the shorthand so that one is not matched as the other with a suffix
+	// left over. What precedes the name is part of the pattern for the
+	// reason the colour scheme property carries one: a hyphen in front of it
+	// is a different property.
+	//
+	// The set is a floor rather than a guarantee. Motion written through a
+	// vendor-prefixed property, through an animation element inside an image
+	// or through anything none of these names is refused by nothing here.
+	motionProperty = regexp.MustCompile(`(?is)(^|[^-a-z])(transition-duration|transition-property|transition|animation-duration|animation-name|animation|scroll-behavior)\s*:\s*([^;{}"']*)`)
+	// An at-rule and its condition, up to the brace that opens it. Where the
+	// block ends is walked rather than matched, because nesting is counted
+	// and a regexp cannot count.
+	atRule = regexp.MustCompile(`(?is)@media\b([^{]*)\{`)
+	// The question a condition asks about motion, and the answer it asks
+	// for. The answer is optional because a condition may name the feature
+	// with no value, which asks whether the reader wants less of it.
+	motionPreference = regexp.MustCompile(`(?is)prefers-reduced-motion\s*(?::\s*([a-z-]+))?`)
 )
 
 // markers is the vocabulary the tool-marker rule refuses, lower-cased. It is a
@@ -201,6 +235,15 @@ func Rules() []Rule {
 			Reason:  "a browser picks the background it paints before any stylesheet arrives and the rendering of every form control from the same answer, so a page that says nothing is drawn light for a reader whose machine is set dark, and the served pages this generator replaces carry the declaration",
 			Refuses: "a produced page that declares no colour scheme, or one whose declaration names nothing a browser reads",
 			decide:  decideColourScheme,
+		},
+		{
+			ID:      "page-motion-answers-the-reader",
+			Subject: ProducedPages,
+			Reason:  "a reader who has told their system to reduce motion has told every page, and the answer belongs to them rather than to whoever wrote the page; the pages this generator replaces carry the query already, so the generator is the thing that would drop it",
+			Refuses: "a produced page carrying a declaration that moves something, where no query asking the reader about motion switches it off",
+			Counted: "declarations that move something",
+			decide:  decideMotion,
+			counts:  countMotion,
 		},
 		{
 			ID:      "page-carries-the-affiliation-notice",
@@ -736,6 +779,20 @@ func Run(root string, log io.Writer) error {
 			fmt.Fprintf(log, "  %s: %s held no file, so this rule examined nothing\n", r.ID, r.Subject)
 			continue
 		}
+		if r.counts != nil {
+			read := 0
+			for _, f := range files {
+				read += r.counts(f.body)
+			}
+			if read == 0 {
+				fmt.Fprintf(log, "  %s: %d file(s) of %s carried no %s, so this rule decided nothing\n",
+					r.ID, len(files), r.Subject, r.Counted)
+				continue
+			}
+			fmt.Fprintf(log, "  %s: ok, %d %s in %d file(s) of %s\n",
+				r.ID, read, r.Counted, len(files), r.Subject)
+			continue
+		}
 		fmt.Fprintf(log, "  %s: ok, %d file(s) of %s\n", r.ID, len(files), r.Subject)
 	}
 
@@ -976,6 +1033,211 @@ func schemeValue(value string, line int) []string {
 	return []string{fmt.Sprintf(
 		"line %d declares the colour scheme %q, and a browser reads none of light, dark or normal out of it",
 		line, trimmed)}
+}
+
+// decideMotion refuses a produced page that moves something without letting the
+// reader stop it.
+//
+// Two shapes answer the reader and both are in what this project publishes
+// today. A declaration inside a query asking for no preference exists only for
+// a reader who has not asked for less, so the answer decides whether it applies
+// at all. A declaration in the ordinary cascade is answered by a query asking
+// for reduce that switches the same property off, which is the blanket override
+// most stylesheets are written with; a row refusing that shape is a row somebody
+// takes out the first time they write one.
+//
+// What it cannot do is resolve a selector. A reduce query switching a property
+// off covers every declaration of that property as far as this row can see, so
+// a page that asks the question and misses one rule passes here and the headless
+// legs are where that is caught. What it refuses is the page that never asks,
+// which is the ordinary failure and the one a generator produces by rendering a
+// stylesheet somebody wrote without the query.
+//
+// The third case is the one worth the row on its own: motion written inside the
+// reduce query, which moves something for the only reader who said they did not
+// want it, and which reads at a glance like the repair.
+func decideMotion(body []byte) []string {
+	queries := motionQueries(body)
+	declarations := motionDeclarations(body)
+
+	// What a blanket override switched off, read before anything is judged,
+	// because the override is written after the declarations it answers for
+	// as often as before them.
+	stopped := map[string]bool{}
+	for _, d := range declarations {
+		if inside, reduce := enclosing(queries, d.at); inside && reduce && d.stopped {
+			stopped[d.family] = true
+		}
+	}
+
+	var details []string
+	for _, d := range declarations {
+		inside, reduce := enclosing(queries, d.at)
+		switch {
+		case d.stopped:
+			// A value that moves nothing is the repair wherever it
+			// is written, and a row reading the property name alone
+			// would refuse every repair.
+		case inside && !reduce:
+			// Motion that exists only for a reader who has not
+			// asked for less of it.
+		case inside && reduce:
+			details = append(details, fmt.Sprintf(
+				"line %d declares %s: %s inside the query asking for reduced motion, so what a reader gets for asking is the motion",
+				d.line, d.property, d.value))
+		case !stopped[d.family]:
+			details = append(details, fmt.Sprintf(
+				"line %d declares %s: %s, and no query asking the reader about motion switches %s off",
+				d.line, d.property, d.value, d.family))
+		}
+	}
+	return details
+}
+
+// countMotion is how many declarations that move something the page carried, so
+// a run over pages that move nothing says that rather than ok. A value that
+// stops motion is not one of them: a page whose only such declaration is the
+// repair moves nothing, and counting it would have the row report that it
+// decided a page it never had to judge.
+func countMotion(body []byte) int {
+	moving := 0
+	for _, d := range motionDeclarations(body) {
+		if !d.stopped {
+			moving++
+		}
+	}
+	return moving
+}
+
+// declaration is one motion-bearing property as it was written on a page.
+type declaration struct {
+	property string
+	family   string
+	value    string
+	at       int
+	line     int
+	stopped  bool
+}
+
+func motionDeclarations(body []byte) []declaration {
+	var out []declaration
+	for _, m := range motionProperty.FindAllSubmatchIndex(body, -1) {
+		property := strings.ToLower(string(body[m[4]:m[5]]))
+		value := strings.TrimSpace(string(body[m[6]:m[7]]))
+		out = append(out, declaration{
+			property: property,
+			family:   motionFamily(property),
+			value:    value,
+			at:       m[4],
+			line:     lineOf(body, m[4]),
+			stopped:  motionStopped(value),
+		})
+	}
+	return out
+}
+
+// motionFamily is the property a blanket override is written against. A reduce
+// query saying transition: none and one saying transition-duration: 0s stop the
+// same thing, so both answer for every transition on the page.
+func motionFamily(property string) string {
+	switch {
+	case strings.HasPrefix(property, "transition"):
+		return "transition"
+	case strings.HasPrefix(property, "animation"):
+		return "animation"
+	default:
+		return property
+	}
+}
+
+// motionStopped answers whether a value moves nothing. Every word of it has to
+// be one of the stopping words: a value naming a property to transition and a
+// duration to do it over moves something however short the duration is, and
+// reading only the first word would pass it.
+func motionStopped(value string) bool {
+	v := strings.ToLower(value)
+	// The priority marker is not part of the value, and the override that
+	// has to win over an author's own rule is the place it is written.
+	if i := strings.Index(v, "!"); i >= 0 {
+		v = v[:i]
+	}
+	fields := strings.Fields(v)
+	if len(fields) == 0 {
+		// A declaration written against a value that was not there.
+		// Nothing moves, and the row that refuses a template writing an
+		// empty value is the one about the scheme rather than this one.
+		return true
+	}
+	for _, f := range fields {
+		switch strings.TrimSuffix(f, ",") {
+		case "none", "auto", "0", "0s", "0ms", "initial", "unset", "revert":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// query is an at-rule that asks the reader about motion, and what it asks for.
+type query struct {
+	from   int
+	to     int
+	reduce bool
+}
+
+// motionQueries is every such at-rule on the page, with the extent of its block.
+//
+// The extent is walked brace by brace. That reads braces and nothing else, so a
+// brace inside a comment or inside a string in the block would move where the
+// block is thought to end; both are things a stylesheet can hold and neither is
+// something this build writes today.
+func motionQueries(body []byte) []query {
+	var out []query
+	for _, m := range atRule.FindAllSubmatchIndex(body, -1) {
+		condition := body[m[2]:m[3]]
+		asked := motionPreference.FindSubmatch(condition)
+		if asked == nil {
+			continue
+		}
+		// A condition naming the feature with no value asks whether the
+		// reader wants less motion, so it is the reduce side of the
+		// question rather than a third state.
+		answer := strings.ToLower(string(asked[1]))
+		open := m[1] - 1
+		out = append(out, query{
+			from:   open,
+			to:     blockEnd(body, open),
+			reduce: answer != "no-preference",
+		})
+	}
+	return out
+}
+
+// blockEnd walks from an opening brace to the brace that closes it, or to the
+// end of the page where nothing does.
+func blockEnd(body []byte, open int) int {
+	depth := 0
+	for i := open; i < len(body); i++ {
+		switch body[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return len(body)
+}
+
+func enclosing(queries []query, at int) (inside, reduce bool) {
+	for _, q := range queries {
+		if at > q.from && at < q.to {
+			return true, q.reduce
+		}
+	}
+	return false, false
 }
 
 func decideAffiliation(body []byte) []string {
