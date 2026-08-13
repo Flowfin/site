@@ -1,0 +1,27 @@
+Who publishes this site
+
+description: Who publishes this site, how to reach them, and which of those
+  answers has not been taken yet.
+
+A reader who wants to know who is behind a project should not have to read a
+commit history to find out. This page is where that answer lives, and it is one
+page rather than a paragraph on another, because somebody looking for it looks
+for a page with this name.
+
+Every answer below is read out of the tree rather than written into the page, so
+an answer that changes is a change to one value and not an edit to prose. Where
+an answer has not been taken, the line says so and says what it is waiting on,
+rather than leaving an empty space that reads as an answer of nothing.
+
+Publishing a site under a name of one's own carries a provider identification
+duty in some jurisdictions. Which one applies turns on where the publisher sits
+and on whether a site is read as private or as commercial, and none of that is
+decided by anything in the tree that produces these pages. Nothing here is legal
+advice.
+
+What happens to a request for a page on this site is a separate question, and it
+has its own page rather than a summary here. A summary would be a second copy of
+those statements, and a second copy is what goes quietly out of step with the
+first.
+
+onward: What happens to a request for a page here [/privacy/]

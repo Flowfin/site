@@ -60,6 +60,7 @@ const cleanPage = `<!DOCTYPE html>
         Flowfin is not affiliated with the Jellyfin project. Other projects are
         named here to say what this software works with.
       </p>
+      <p><a href="/legal/">Who publishes this site</a></p>
       <p><a href="https://example.invalid/notice">The intended-use notice</a></p>
     </footer>
   </body>
@@ -140,6 +141,12 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// search result showing its address.
 		"page-carries-a-description": []byte(strings.Replace(cleanPage,
 			`content="What this page is, in one sentence."`, `content=""`, 1)),
+		// The link taken out of the frame's footer, which is what
+		// tidying a footer looks like. Every page still renders, and
+		// whoever publishes the site is reachable from whichever pages
+		// happened to keep the link.
+		"page-links-the-legal-notice": []byte(strings.Replace(cleanPage,
+			`      <p><a href="/legal/">Who publishes this site</a></p>`+"\n", "", 1)),
 		// The leading slash left off, which is how anybody writes a link
 		// to a sibling page and is correct from the page it was written
 		// on. From the not-found document, served in answer to an address
@@ -435,6 +442,7 @@ func TestTheContentLinkRowNamesWhatAReaderReachesInstead(t *testing.T) {
 func TestTheContentLinkRowRefusesAPageWithNothingToFocus(t *testing.T) {
 	page := strings.Replace(cleanPage, `    <a href="#content">Skip to the content</a>`+"\n", "", 1)
 	page = strings.Replace(page, `<p><a href="https://example.invalid/notice">The intended-use notice</a></p>`, "", 1)
+	page = strings.Replace(page, `<p><a href="/legal/">Who publishes this site</a></p>`, "", 1)
 
 	got := decideContentFirst([]byte(page))
 	if len(got) == 0 {
@@ -674,6 +682,7 @@ const goodTemplate = `<!DOCTYPE html>
         Flowfin is not affiliated with the Jellyfin project. Other projects are
         named here to say what this software works with.
       </p>
+      <p><a href="/legal/">Who publishes this site</a></p>
     </footer>
   </body>
 </html>
@@ -777,8 +786,8 @@ func TestRunRefusesAFrameThatDroppedTheContentLinkOnEveryPageItProduced(t *testi
 	}
 	for _, want := range []string{
 		"page-reaches-the-content-first: REFUSED, 2 violation(s)",
-		"dist/index.html: this page offers a keyboard reader nothing to focus at all",
-		"dist/privacy/index.html: this page offers a keyboard reader nothing to focus at all",
+		"dist/index.html: line 19: the first thing a keyboard reader reaches is a link to /legal/",
+		"dist/privacy/index.html: line 19: the first thing a keyboard reader reaches is a link to /legal/",
 	} {
 		if !strings.Contains(log.String(), want) {
 			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())

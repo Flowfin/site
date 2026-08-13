@@ -57,6 +57,7 @@ type page struct {
 	SiteName   string
 	Paragraphs []string
 	Onward     []link
+	Notices    []notice
 	Claims     []claim
 	Promises   []promise
 	Residuals  []string
@@ -160,6 +161,12 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 		return nil, err
 	}
 	written = append(written, privacy...)
+
+	legal, err := writeLegal(root, out, label, tmpl, said, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, legal...)
 
 	notFound, err := writeNotFound(root, out, label, tmpl, said, log)
 	if err != nil {
