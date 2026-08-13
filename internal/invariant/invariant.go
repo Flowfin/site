@@ -33,6 +33,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -174,6 +175,12 @@ var (
 	// for. The answer is optional because a condition may name the feature
 	// with no value, which asks whether the reader wants less of it.
 	motionPreference = regexp.MustCompile(`(?is)prefers-reduced-motion\s*(?::\s*([a-z-]+))?`)
+	// The attribute that takes a control out of the focus order. It is
+	// ordinarily written with no value at all, which the attribute pattern
+	// does not match, and what precedes it is part of the pattern so that
+	// the same word inside another attribute's value is not read as the
+	// attribute itself.
+	disabledAttribute = regexp.MustCompile(`(?is)(^|\s)disabled(\s|=|$)`)
 )
 
 // markers is the vocabulary the tool-marker rule refuses, lower-cased. It is a
@@ -211,6 +218,13 @@ var allowedOrigins = []string{
 // It is compared with runs of whitespace collapsed, so the sentence may be
 // wrapped in the template without the row deciding on the line breaks.
 const affiliationNotice = "Flowfin is not affiliated with the Jellyfin project."
+
+// contentElement is where a page keeps the thing a reader came for, and it is
+// what the link at the top of the frame has to reach. It is the landmark the
+// standard already defines rather than a name this repository invented, so a
+// reader's own software knows what it is without being told, and a link that
+// reaches anything else is a link that skips less than it looks like it does.
+const contentElement = "main"
 
 // Rules is the table. The order is the order a run reports them in.
 func Rules() []Rule {
@@ -251,6 +265,13 @@ func Rules() []Rule {
 			Reason:  "this project uses another project's name on every page it produces and is not affiliated with it, and a notice a page can ship without is a notice that reaches the pages somebody remembered",
 			Refuses: "a produced page that does not carry the affiliation notice",
 			decide:  decideAffiliation,
+		},
+		{
+			ID:      "page-reaches-the-content-first",
+			Subject: ProducedPages,
+			Reason:  "a keyboard reader starts above the text and reaches it through everything in front of it, which is one key press per link once a page carries a navigation, and the link that skips them is one element in the frame rather than something every page has to remember",
+			Refuses: "a produced page whose first focusable element is not a link to that page's own content, including one pointing at an identifier no element on the page carries",
+			decide:  decideContentFirst,
 		},
 		{
 			ID:      "page-fetches-no-script",
@@ -1252,6 +1273,139 @@ func decideAffiliation(body []byte) []string {
 // on a single line.
 func collapseSpace(s string) string {
 	return strings.Join(strings.Fields(s), " ")
+}
+
+// decideContentFirst refuses a produced page that does not put a link to its own
+// content in front of everything else a keyboard reader can reach.
+//
+// The failure is invisible to everybody who reads with a pointer, and it gets
+// worse as the site grows: every link the frame puts above the text is one more
+// key press between a keyboard reader and the thing they came for. So the row is
+// about position rather than about the link existing, and it reads the page in
+// document order and judges the first element a tab key stops on.
+//
+// The address is judged as well as the position, because a link that skips
+// nothing is the shape this actually rots into. A fragment naming an element the
+// page does not carry moves nobody, looks correct in the markup, and is what a
+// frame produces the day the identifier on the content is renamed.
+func decideContentFirst(body []byte) []string {
+	elements := walk(body)
+
+	// Every identifier on the page and what carries it, read before the
+	// order is judged, because the link is written above the element it
+	// reaches. The first of a repeated identifier is the one kept, which is
+	// the same one a browser reaches, and the row about an identifier used
+	// twice is where that page is refused.
+	carries := map[string]string{}
+	for _, e := range elements {
+		if id, ok := e.attrs["id"]; ok {
+			if _, seen := carries[id]; !seen {
+				carries[id] = e.name
+			}
+		}
+	}
+
+	for _, e := range elements {
+		if !focusable(e) {
+			continue
+		}
+		if e.name != "a" {
+			return []string{fmt.Sprintf(
+				"line %d: the first thing a keyboard reader reaches is a %s element rather than a link to the content",
+				e.line, e.name)}
+		}
+		href := strings.TrimSpace(e.attrs["href"])
+		switch {
+		case href == "":
+			return []string{fmt.Sprintf(
+				"line %d: the first thing a keyboard reader reaches is a link with no address on it, which is what a frame writes from a value that was not there",
+				e.line)}
+		case !strings.HasPrefix(href, "#"):
+			return []string{fmt.Sprintf(
+				"line %d: the first thing a keyboard reader reaches is a link to %s, which leaves the content behind everything else this page carries",
+				e.line, href)}
+		}
+		named := strings.TrimPrefix(href, "#")
+		switch carrier, answered := carries[named]; {
+		case !answered:
+			return []string{fmt.Sprintf(
+				"line %d: the link jumps to %s and no element on this page answers to that identifier, so the key press moves nobody",
+				e.line, href)}
+		case carrier != contentElement:
+			return []string{fmt.Sprintf(
+				"line %d: the link jumps to %s, which is a %s element rather than the %s element this page keeps its content in",
+				e.line, href, carrier, contentElement)}
+		}
+		return nil
+	}
+
+	return []string{"this page offers a keyboard reader nothing to focus at all, so it carries no link to its content, and that link is written in the frame every page is rendered through rather than on the page"}
+}
+
+// element is one start tag as the walk met it. What a browser stops on is
+// decided from the name and the attributes together, so both are carried, and
+// the raw attributes come with them because an attribute written with no value
+// at all is a shape the attribute pattern does not match.
+type element struct {
+	name  string
+	attrs map[string]string
+	raw   string
+	line  int
+}
+
+// walk reads every start tag on the page in the order a reader meets them.
+//
+// It reads bytes rather than a parsed document, which is the floor every row
+// here reads at: a tag written inside a stylesheet or a comment is counted as an
+// element. What stands behind the assumption that the markup is well formed is
+// the row about the page parsing, which refuses the page this one would misread.
+func walk(body []byte) []element {
+	var out []element
+	for _, tag := range htmlTag.FindAllSubmatchIndex(body, -1) {
+		attrs := body[tag[4]:tag[5]]
+		e := element{
+			name:  strings.ToLower(string(body[tag[2]:tag[3]])),
+			attrs: map[string]string{},
+			raw:   string(attrs),
+			line:  lineOf(body, tag[0]),
+		}
+		for _, a := range tagAttribute.FindAllSubmatchIndex(attrs, -1) {
+			name := strings.ToLower(string(attrs[a[2]:a[3]]))
+			if _, seen := e.attrs[name]; !seen {
+				e.attrs[name] = attributeValue(attrs, a)
+			}
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
+// focusable answers whether a tab key stops on this element.
+//
+// It is a floor and it is stated as one. It holds the elements a browser puts in
+// the order by default and the attribute that overrides that answer in either
+// direction, which is the whole of what this build can produce today. An element
+// made focusable through something none of this reads is focusable to a reader
+// and invisible here, and the headless leg is where that is seen.
+func focusable(e element) bool {
+	if v, ok := e.attrs["tabindex"]; ok {
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			return n >= 0
+		}
+		// A value a browser cannot read is not an answer, so the element
+		// keeps whatever it would have been without the attribute.
+	}
+	switch e.name {
+	case "a", "area":
+		_, ok := e.attrs["href"]
+		return ok
+	case "button", "select", "textarea":
+		return !disabledAttribute.MatchString(e.raw)
+	case "input":
+		return !disabledAttribute.MatchString(e.raw) &&
+			!strings.EqualFold(strings.TrimSpace(e.attrs["type"]), "hidden")
+	}
+	return false
 }
 
 func decideScriptSrc(body []byte) []string {

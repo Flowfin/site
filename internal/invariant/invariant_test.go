@@ -38,6 +38,13 @@ func b64(t *testing.T, s string) []byte {
 	return b
 }
 
+// The opening tag of the content, written once because most fixtures below put
+// their markup next to it and a second spelling of it here would drift against
+// the page silently: the replacement would find nothing, the fixture would be
+// the clean page, and the row it exists for would report that nothing refused
+// it.
+const contentOpen = `<main id="content" tabindex="-1">`
+
 const cleanPage = `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -45,12 +52,14 @@ const cleanPage = `<!DOCTYPE html>
     <title>A title</title>
   </head>
   <body>
-    <main><h1>A title</h1></main>
+    <a href="#content">Skip to the content</a>
+    ` + contentOpen + `<h1>A title</h1></main>
     <footer>
       <p>
         Flowfin is not affiliated with the Jellyfin project. Other projects are
         named here to say what this software works with.
       </p>
+      <p><a href="https://example.invalid/notice">The intended-use notice</a></p>
     </footer>
   </body>
 </html>
@@ -102,6 +111,13 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// makes that a property of the pages rather than a habit.
 		"page-carries-the-affiliation-notice": []byte(strings.Replace(cleanPage,
 			"Flowfin is not affiliated with the Jellyfin project.", "", 1)),
+		// The one line deleted from the top of the frame, which is the
+		// whole of this mistake: the page looks identical, reads
+		// identically and is one key press further from its own text for
+		// every link the frame puts above it. What a reader reaches
+		// first afterwards is the footer, from the bottom of the frame.
+		"page-reaches-the-content-first": []byte(strings.Replace(cleanPage,
+			`    <a href="#content">Skip to the content</a>`+"\n", "", 1)),
 		// One element, of the shape a copied snippet arrives in.
 		"page-fetches-no-script": []byte(strings.Replace(cleanPage, `</head>`,
 			`  <script src="https://example.invalid/a.js"></script>`+"\n  </head>", 1)),
@@ -109,14 +125,14 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// and the alternative text and nothing about how much room it
 		// needs. It is the first thing anybody adds to a page and it is
 		// the whole of the layout shift the budget puts at zero.
-		"image-carries-its-own-dimensions": []byte(strings.Replace(cleanPage, `<main>`,
-			`<main><img src="/icon.png" alt="The mark" />`, 1)),
+		"image-carries-its-own-dimensions": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+`<img src="/icon.png" alt="The mark" />`, 1)),
 		// The name of a row with one letter more than the row has, which
 		// is what a page ends up citing after somebody renames a row and
 		// repairs the page from memory. The sentence beside it goes on
 		// saying a check refuses this, and no check does.
-		"page-cites-only-checks-that-exist": []byte(strings.Replace(cleanPage, "<main>",
-			`<main><ul><li data-refused-by="page-fetches-no-scripts">No page fetches a script.</li></ul>`, 1)),
+		"page-cites-only-checks-that-exist": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+`<ul><li data-refused-by="page-fetches-no-scripts">No page fetches a script.</li></ul>`, 1)),
 		// A note to the author that reached the output.
 		"output-carries-no-unfinished-marker": []byte(strings.Replace(cleanPage, `<h1>A title</h1>`,
 			`<h1>A title</h1><!-- TODO: the real heading -->`, 1)),
@@ -133,24 +149,24 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 			"Contact: https://example.invalid/report\nExpires: 2020-01-01T00:00:00Z\n"),
 		// One end tag left out, which is the mistake this row exists for
 		// and the one a browser hides.
-		"page-parses": []byte(strings.Replace(cleanPage, "<main><h1>A title</h1></main>",
-			"<main><h1>A title</h1></section></main>", 1)),
+		"page-parses": []byte(strings.Replace(cleanPage, contentOpen+"<h1>A title</h1></main>",
+			contentOpen+"<h1>A title</h1></section></main>", 1)),
 		// The same identifier on two elements, which is what a template
 		// rendering a name into an id does the moment two rows share one.
-		"page-uses-no-identifier-twice": []byte(strings.Replace(cleanPage, "<main>",
-			`<main><p id="sso">One</p><p id="sso">Two</p>`, 1)),
+		"page-uses-no-identifier-twice": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+`<p id="sso">One</p><p id="sso">Two</p>`, 1)),
 		// The level under a heading chosen because it looked right rather
 		// than because it was next.
 		"page-skips-no-heading-level": []byte(strings.Replace(cleanPage, "<h1>A title</h1>",
 			"<h1>A title</h1><h3>A section</h3>", 1)),
 		// An image written with its source and its size and nothing for
 		// anybody who cannot see it.
-		"page-image-carries-alternative-text": []byte(strings.Replace(cleanPage, "<main>",
-			`<main><img src="/icon.png" width="32" height="32" />`, 1)),
+		"page-image-carries-alternative-text": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+`<img src="/icon.png" width="32" height="32" />`, 1)),
 		// A field somebody is asked to fill in with nothing saying what
 		// goes in it.
-		"page-names-every-control": []byte(strings.Replace(cleanPage, "<main>",
-			`<main><input type="search" />`, 1)),
+		"page-names-every-control": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+`<input type="search" />`, 1)),
 		"tracked-text-names-no-tool": b64(t, "QSBub3RlIGFib3ZlLgpHZW5lcmF0ZWQgYnkgQ2hhdEdQVCBhbmQgbGVmdCBpbi4K"),
 		// The version put back where it is convenient, which is what
 		// somebody does who is adding a step and does not know the file
@@ -338,6 +354,103 @@ func TestTheNoticeRowReadsTheSentenceRatherThanTheLineBreaks(t *testing.T) {
 	}
 }
 
+// The four ways the link at the top of a frame stops doing its job, each named
+// with what the reader actually reaches. A message saying only that the order
+// was wrong leaves somebody reading a produced page tag by tag to work out
+// which of the four they have, and the repairs are different: one is a missing
+// element, one is a renamed identifier, one is an element written above the
+// link, and one is a link to somewhere else entirely.
+func TestTheContentLinkRowNamesWhatAReaderReachesInstead(t *testing.T) {
+	cases := map[string]struct {
+		page  string
+		names string
+	}{
+		// The identifier renamed on the content and not in the link,
+		// which is the shape this rots into: both halves are still
+		// there and the key press moves nobody.
+		"a link to an identifier nothing carries": {
+			page:  strings.Replace(cleanPage, contentOpen, `<main id="body" tabindex="-1">`, 1),
+			names: "no element on this page answers to that identifier",
+		},
+		// The link reaching a heading rather than the landmark, which
+		// is what somebody writes when the content has no identifier
+		// and the first thing inside it does.
+		"a link to something that is not the content": {
+			page: strings.Replace(cleanPage, `<a href="#content">`, `<a href="#a-title">`, 1) +
+				`<p id="a-title">A paragraph</p>`,
+			names: "rather than the main element",
+		},
+		// A link written above it, which is how the order is lost
+		// without anybody touching the link itself.
+		"a link in front of it": {
+			page:  strings.Replace(cleanPage, `<a href="#content">`, `<a href="/install">Install</a><a href="#content">`, 1),
+			names: "a link to /install",
+		},
+		// A control in front of it. It is not a link at all, so the
+		// message says what the element is rather than where it goes.
+		"a control in front of it": {
+			page:  strings.Replace(cleanPage, `<a href="#content">`, `<button>Search</button><a href="#content">`, 1),
+			names: "a button element rather than a link to the content",
+		},
+		// A control a page only calls disabled. The word is in the class
+		// rather than in the attribute, so a browser stops on it, and a
+		// row reading the word anywhere in the tag would agree with the
+		// class and disagree with the reader.
+		"a control the page only calls disabled": {
+			page:  strings.Replace(cleanPage, `<a href="#content">`, `<button class="disabled">Search</button><a href="#content">`, 1),
+			names: "a button element rather than a link to the content",
+		},
+	}
+
+	for name, c := range cases {
+		got := decideContentFirst([]byte(c.page))
+		if len(got) == 0 {
+			t.Errorf("%s was not refused", name)
+			continue
+		}
+		if !strings.Contains(got[0], c.names) {
+			t.Errorf("%s was refused without saying %q: %s", name, c.names, got[0])
+		}
+	}
+}
+
+// A page offering nothing to focus is the same failure one step further on, and
+// it is what the fixture in the table would produce if the frame carried no
+// footer link either. It is refused for its own reason rather than passing
+// because the walk found no first element to judge.
+func TestTheContentLinkRowRefusesAPageWithNothingToFocus(t *testing.T) {
+	page := strings.Replace(cleanPage, `    <a href="#content">Skip to the content</a>`+"\n", "", 1)
+	page = strings.Replace(page, `<p><a href="https://example.invalid/notice">The intended-use notice</a></p>`, "", 1)
+
+	got := decideContentFirst([]byte(page))
+	if len(got) == 0 {
+		t.Fatal("the row passed a page carrying nothing a keyboard reader can focus")
+	}
+	if !strings.Contains(got[0], "nothing to focus at all") {
+		t.Errorf("the refusal reads %q, which does not say what the page is missing", got[0])
+	}
+}
+
+// What is in front of the link and is not in the tab order. A row that refused
+// these would go red on the first page that hides a field or writes a landmark
+// a script can move focus to, and a row somebody has to switch off to do
+// ordinary work is a row that gets switched off.
+func TestTheContentLinkRowLeavesWhatIsOutOfTheOrderAlone(t *testing.T) {
+	ahead := map[string]string{
+		"an element taken out of the order": `<div tabindex="-1">A region</div>`,
+		"a hidden field":                    `<input type="hidden" name="page" value="2" />`,
+		"a control that cannot be used":     `<button disabled>Search</button>`,
+		"a link with no address":            `<a>Nowhere</a>`,
+	}
+
+	for name, markup := range ahead {
+		page := strings.Replace(cleanPage, `<a href="#content">`, markup+`<a href="#content">`, 1)
+		if got := decideContentFirst([]byte(page)); len(got) != 0 {
+			t.Errorf("the row refused a page with %s in front of the link: %v", name, got)
+		}
+	}
+}
+
 // What the citation row leaves alone, which is a page naming a row this gate
 // actually decides. A row that refused a correct citation would be a row
 // somebody removes, and removing it is how the names on the privacy page stop
@@ -345,8 +458,8 @@ func TestTheNoticeRowReadsTheSentenceRatherThanTheLineBreaks(t *testing.T) {
 // so this test cannot go on passing against a row that was renamed.
 func TestTheCitationRowLeavesARealCheckAlone(t *testing.T) {
 	real := Rules()[0].ID
-	page := []byte(strings.Replace(cleanPage, "<main>",
-		`<main><ul><li data-refused-by="`+real+`">A statement.</li></ul>`, 1))
+	page := []byte(strings.Replace(cleanPage, contentOpen,
+		contentOpen+`<ul><li data-refused-by="`+real+`">A statement.</li></ul>`, 1))
 	if got := decideCitedChecks(page); len(got) != 0 {
 		t.Errorf("the row refused a page citing %s, which it decides: %v", real, got)
 	}
@@ -356,8 +469,8 @@ func TestTheCitationRowLeavesARealCheckAlone(t *testing.T) {
 // supplied. It reads on the page as a name and is not one, so it is refused for
 // its own reason rather than falling through the comparison against the table.
 func TestTheCitationRowRefusesANameThatIsNotThere(t *testing.T) {
-	page := []byte(strings.Replace(cleanPage, "<main>",
-		`<main><ul><li data-refused-by="">A statement.</li></ul>`, 1))
+	page := []byte(strings.Replace(cleanPage, contentOpen,
+		contentOpen+`<ul><li data-refused-by="">A statement.</li></ul>`, 1))
 	got := decideCitedChecks(page)
 	if len(got) != 1 {
 		t.Fatalf("the row reported %d violation(s) for a citation naming nothing: %v", len(got), got)
@@ -376,8 +489,8 @@ func TestTheCitationRowRefusesAnOwedRow(t *testing.T) {
 	if len(owed) == 0 {
 		t.Skip("nothing is owed today, so there is no owed name to cite")
 	}
-	page := []byte(strings.Replace(cleanPage, "<main>",
-		`<main><ul><li data-refused-by="`+owed[0].ID+`">A statement.</li></ul>`, 1))
+	page := []byte(strings.Replace(cleanPage, contentOpen,
+		contentOpen+`<ul><li data-refused-by="`+owed[0].ID+`">A statement.</li></ul>`, 1))
 	if got := decideCitedChecks(page); len(got) == 0 {
 		t.Errorf("the row passed a page citing %s, which this gate does not decide", owed[0].ID)
 	}
@@ -425,7 +538,7 @@ func TestTheOriginRowNamesEveryForeignReferenceItRefuses(t *testing.T) {
 		"an imported stylesheet": {`<style>@import "https://cdn.example.invalid/b.css";</style>`,
 			"https://cdn.example.invalid/b.css"},
 	} {
-		body := []byte(strings.Replace(cleanPage, `<main>`, ref.markup+`<main>`, 1))
+		body := []byte(strings.Replace(cleanPage, contentOpen, ref.markup+contentOpen, 1))
 		got := decideForeignOrigin(body)
 		if len(got) == 0 {
 			t.Errorf("%s was not refused", name)
@@ -454,7 +567,7 @@ func TestTheOriginRowLeavesALinkAndTheSiteItselfAlone(t *testing.T) {
 		"an inline image":            `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="" width="1" height="1" />`,
 		"a fragment":                 `<p><a href="#content">Skip</a></p>`,
 	} {
-		body := []byte(strings.Replace(cleanPage, `<main>`, markup+`<main>`, 1))
+		body := []byte(strings.Replace(cleanPage, contentOpen, markup+contentOpen, 1))
 		if got := decideForeignOrigin(body); len(got) != 0 {
 			t.Errorf("the origin row refused %s: %v", name, got)
 		}
@@ -532,7 +645,8 @@ const goodTemplate = `<!DOCTYPE html>
     <title>{{ .Title }}</title>
   </head>
   <body>
-    <main>
+    <a href="#content">Skip to the content</a>
+    ` + contentOpen + `
       <h1>{{ .Title }}</h1>
       {{- range .Paragraphs }}
       <p>{{ . }}</p>
@@ -625,6 +739,29 @@ func TestRunRefusesAFrameThatDroppedTheAffiliationNoticeOnEveryPageItProduced(t 
 		"page-carries-the-affiliation-notice: REFUSED, 2 violation(s)",
 		"dist/index.html: this page carries no affiliation notice",
 		"dist/privacy/index.html: this page carries no affiliation notice",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
+		}
+	}
+}
+
+// The link to the content is the first thing in the frame, so the one line
+// deleted takes it off every page at once. The row over a page says that page
+// is wrong; this says the frame is, and the two are told apart by both produced
+// pages being named rather than the one somebody happened to open.
+func TestRunRefusesAFrameThatDroppedTheContentLinkOnEveryPageItProduced(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate,
+		`    <a href="#content">Skip to the content</a>`+"\n", "", 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run accepted a frame carrying no link to the content:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"page-reaches-the-content-first: REFUSED, 2 violation(s)",
+		"dist/index.html: this page offers a keyboard reader nothing to focus at all",
+		"dist/privacy/index.html: this page offers a keyboard reader nothing to focus at all",
 	} {
 		if !strings.Contains(log.String(), want) {
 			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
@@ -783,7 +920,7 @@ func TestTheImageRowReadsTheValueRatherThanTheAttributeName(t *testing.T) {
 		"an image with no source at all": {
 			`<img alt="The mark" />`, true, "with no source on it"},
 	} {
-		body := []byte(strings.Replace(cleanPage, `<main>`, `<main>`+c.markup, 1))
+		body := []byte(strings.Replace(cleanPage, contentOpen, contentOpen+c.markup, 1))
 		got := decideImageDimensions(body)
 		switch {
 		case c.refused && len(got) == 0:
@@ -800,8 +937,8 @@ func TestTheImageRowReadsTheValueRatherThanTheAttributeName(t *testing.T) {
 // that something about the markup was wrong leaves the next person opening every
 // produced page to find which image it meant.
 func TestTheImageRowNamesTheFileAndBothMissingAttributes(t *testing.T) {
-	body := []byte(strings.Replace(cleanPage, `<main>`,
-		`<main><img src="/assets/icon.png" alt="The mark" />`, 1))
+	body := []byte(strings.Replace(cleanPage, contentOpen,
+		contentOpen+`<img src="/assets/icon.png" alt="The mark" />`, 1))
 
 	got := strings.Join(decideImageDimensions(body), "\n")
 	for _, want := range []string{"/assets/icon.png", "no width attribute", "no height attribute"} {
@@ -814,8 +951,8 @@ func TestTheImageRowNamesTheFileAndBothMissingAttributes(t *testing.T) {
 // An image with nothing wrong but its dimensions reds this row and no other, so
 // a red run says which repair it wants rather than which area to look in.
 func TestAnImageWithoutItsDimensionsRedsExactlyOneRow(t *testing.T) {
-	body := []byte(strings.Replace(cleanPage, `<main>`,
-		`<main><img src="/icon.png" alt="The mark" />`, 1))
+	body := []byte(strings.Replace(cleanPage, contentOpen,
+		contentOpen+`<img src="/icon.png" alt="The mark" />`, 1))
 
 	var refused []string
 	for _, r := range Rules() {
