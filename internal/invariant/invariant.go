@@ -156,6 +156,25 @@ var (
 	// colour.
 	hexColour         = regexp.MustCompile(`(?i)#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})\b`)
 	fragmentReference = regexp.MustCompile(`(?is)\b(?:href|src)\s*=\s*"#[^"]*"`)
+	// A number carrying one of the units a length is written in on the web.
+	// The token file states its lengths as bare numbers of
+	// density-independent pixels and says so in its own how-to-read-this
+	// block, so what a page writes is that number with a unit stuck to it,
+	// and the unit is what tells a length in a stylesheet apart from a
+	// number in a sentence. The digits have to touch the unit: a prose
+	// sentence putting a space between a figure and a word is not a length,
+	// and a word ending in one of these letters carries no digits in front
+	// of it.
+	cssLength = regexp.MustCompile(`(?i)\b[0-9]+(?:\.[0-9]+)?(?:px|rem|em|ch|vh|vw|pt)\b`)
+	// The two declarations the file's font stacks and type weights are
+	// spelled as. The property rather than the value, because a stack is a
+	// list somebody shortens and a weight is three digits that look like
+	// nothing in particular, and neither is recognisable on its own the way
+	// a hex colour is. What precedes the name is part of the pattern for the
+	// reason the colour scheme property carries one: a hyphen in front of it
+	// is a different property.
+	fontFamilyProperty = regexp.MustCompile(`(?is)(^|[^-a-z])font-family\s*:`)
+	fontWeightProperty = regexp.MustCompile(`(?is)(^|[^-a-z])font-weight\s*:`)
 	// A run of digits separated by dots, which is every version-shaped thing
 	// in a line. The row compares each whole run against the one version
 	// this repository holds rather than searching for that version inside a
@@ -432,9 +451,9 @@ func Rules() []Rule {
 		{
 			ID:      "design-tokens-live-in-exactly-one-file",
 			Subject: BuildInputs,
-			Reason:  "a colour typed into a template is a second definition of a value published somewhere else, and the day the published one moves the page goes on rendering the old one perfectly, so nobody sees it",
-			Refuses: "a colour written into what the build reads, in any of the hex forms the published file uses, outside a fragment reference",
-			decide:  decideTypedColour,
+			Reason:  "a value typed into a template is a second definition of a value published somewhere else, and the day the published one moves the page goes on rendering the old one perfectly, so nobody sees it; the file carries lengths, weights and font stacks beside the colours, and a wrong length is the harder one to see because a wrong colour at least looks wrong",
+			Refuses: "a colour, a length, a font family or a font weight written into what the build reads, outside a fragment reference",
+			decide:  decideTypedTokenValue,
 		},
 		{
 			ID:      "version-lives-in-exactly-one-file",
@@ -776,7 +795,30 @@ func decideSecondVersion(body []byte) []string {
 	return details
 }
 
-func decideTypedColour(body []byte) []string {
+// decideTypedTokenValue refuses a value the token file is the authority for,
+// written into something the build reads.
+//
+// It reads a shape per group of values the file carries rather than the colours
+// alone. The row's name has always been about tokens and what it decided was
+// about colour, and the gap is easy to miss for the reason it exists: a colour
+// typed next to the thing it describes is visible to anybody who opens the page
+// afterwards with the published file beside it, and a type size, a corner radius
+// or a font stack typed the same way is not. The page that demonstrates the
+// design system is where all four get written next to what they describe, which
+// is why the shapes are here before that page rather than after it.
+//
+// The bound is the shape of the literal rather than its meaning, which is the
+// bound the version row declares for itself and for the same reason. A hex run
+// is a colour, digits touching a unit are a length, and the two font
+// declarations are named by their property because a stack and a three-digit
+// weight are not recognisable on their own. A value spelled any other way walks
+// through, so the file stays the authority for the set rather than this row.
+//
+// What it deliberately does not read is a fragment reference. An address ending
+// in a name of hex length is a link to a place on the page and not a colour, and
+// a row that could not tell the two apart would refuse the link the frame is
+// built around.
+func decideTypedTokenValue(body []byte) []string {
 	var details []string
 	for i, line := range strings.Split(string(body), "\n") {
 		text := fragmentReference.ReplaceAllString(line, "")
@@ -784,6 +826,21 @@ func decideTypedColour(body []byte) []string {
 			details = append(details, fmt.Sprintf(
 				"line %d writes the colour %s, and %s is the one file a colour is read from",
 				i+1, m, tokens.File))
+		}
+		for _, m := range cssLength.FindAllString(text, -1) {
+			details = append(details, fmt.Sprintf(
+				"line %d writes the length %s, and %s is the one file a length is read from",
+				i+1, m, tokens.File))
+		}
+		if fontFamilyProperty.MatchString(text) {
+			details = append(details, fmt.Sprintf(
+				"line %d declares a font family, and %s is the one file a font stack is read from",
+				i+1, tokens.File))
+		}
+		if fontWeightProperty.MatchString(text) {
+			details = append(details, fmt.Sprintf(
+				"line %d declares a font weight, and %s is the one file a weight is read from",
+				i+1, tokens.File))
 		}
 	}
 	return details
@@ -950,8 +1007,8 @@ func gather(root string) (map[string][]file, error) {
 		return nil, err
 	}
 
-	// The rule about where a colour is read from is a rule about there being
-	// exactly one such file, and a run that decided it against a tree
+	// The rule about where a token value is read from is a rule about there
+	// being exactly one such file, and a run that decided it against a tree
 	// carrying none would report that no second definition was found in a
 	// tree with no first one. So the copy being absent is refused here, by
 	// name, rather than passing as a row with nothing to compare.
@@ -959,7 +1016,7 @@ func gather(root string) (map[string][]file, error) {
 		return nil, fmt.Errorf("%s is not tracked in this tree, so the build wrote no %s and the row about an expired reporting route has nothing to read", security.File, security.Path)
 	}
 	if len(tracked.tokenCopies) == 0 {
-		return nil, fmt.Errorf("%s is not tracked in this tree, and the row about where a colour is read from is a row about there being exactly one such file", tokens.File)
+		return nil, fmt.Errorf("%s is not tracked in this tree, and the row about where a token value is read from is a row about there being exactly one such file", tokens.File)
 	}
 
 	return map[string][]file{

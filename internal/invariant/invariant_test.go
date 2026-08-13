@@ -359,6 +359,58 @@ func TestTheReleaseVersionRowTellsAnotherVersionApart(t *testing.T) {
 	}
 }
 
+// Every group of values the token file carries, in the shape it reaches a build
+// input in. The row is named for the file rather than for one of its groups, so
+// a group it walks past is a value somebody may type next to the thing it
+// describes with nothing to stop them, and the page that describes all four is
+// the page where that happens.
+//
+// Each fixture is one line of a stylesheet somebody writes while looking at the
+// published value, which is the whole of this mistake: it renders correctly, it
+// keeps rendering correctly after the published value moves, and the only party
+// who finds out is a client built from the file.
+func TestTheTokenRowRefusesEveryShapeTheFileCarries(t *testing.T) {
+	for name, fixture := range map[string]struct{ line, names string }{
+		"a colour out of the surface group": {`  <style>body { background: #121216 }</style>`, "#121216"},
+		"a type size":                       {`  <style>h1 { font-size: 56px }</style>`, "56px"},
+		"a corner radius":                   {`  <style>.tile { border-radius: 12px }</style>`, "12px"},
+		"the width a column stops at":       {`  <style>main { max-width: 1080px }</style>`, "1080px"},
+		"a font stack":                      {`  <style>body { font-family: ui-sans-serif, sans-serif }</style>`, "font stack"},
+		"a type weight":                     {`  <style>h1 { font-weight: 700 }</style>`, "weight"},
+	} {
+		got := decideTypedTokenValue([]byte(fixture.line + "\n"))
+		if len(got) == 0 {
+			t.Errorf("%s was not refused", name)
+			continue
+		}
+		if !strings.Contains(got[0], fixture.names) {
+			t.Errorf("%s was refused without naming %q: %v", name, fixture.names, got)
+		}
+		if !strings.Contains(got[0], tokens.File) {
+			t.Errorf("%s was refused without naming where the value is read from: %v", name, got)
+		}
+	}
+}
+
+// What the row leaves alone, and every line here is one this tree carries or
+// would carry. A row that refused one of them reds a clean build input for
+// something that is not a token, which is how a row gets taken back out.
+func TestTheTokenRowTellsAValueApartFromASentence(t *testing.T) {
+	for name, line := range map[string]string{
+		"the link the frame is built around":  `    <a href="#content">Skip to the content</a>`,
+		"a figure with its unit spelled out":  "The published page is read from 35 cm and a television from 3 m.",
+		"a word that ends in a unit":          "Nothing here is a problem anybody has to solve.",
+		"a number in a sentence":              "Twelve plugins, and 1080 of the lines below are prose.",
+		"a date":                              "Run 2026-08-13 against the default branch.",
+		"a property that only ends in one":    `  <style>.tile { scroll-padding: var(--r) }</style>`,
+		"a value taken from the token itself": `  <style>h1 { font-size: var(--display) }</style>`,
+	} {
+		if got := decideTypedTokenValue([]byte(line + "\n")); len(got) != 0 {
+			t.Errorf("the row refused %s: %v", name, got)
+		}
+	}
+}
+
 // The copy at the end of a sentence, which is how a document actually writes a
 // version, and the refusal has to say where the version belongs or the next
 // person deletes the sentence instead of reading it from the one file.
@@ -1196,7 +1248,7 @@ func TestTheColourRowRefusesATypedColourAndLeavesAFragmentAlone(t *testing.T) {
 		"a colour in the prose the build reads": `The accent is #5B9CFF on a dark ground.`,
 	}
 	for name, line := range refused {
-		got := decideTypedColour([]byte(line))
+		got := decideTypedTokenValue([]byte(line))
 		if len(got) != 1 {
 			t.Errorf("the colour row did not refuse %s: %v", name, got)
 			continue
@@ -1213,7 +1265,7 @@ func TestTheColourRowRefusesATypedColourAndLeavesAFragmentAlone(t *testing.T) {
 		"a run of digits that is five": `<p>Case #12345 is closed.</p>`,
 	}
 	for name, line := range spared {
-		if got := decideTypedColour([]byte(line)); len(got) != 0 {
+		if got := decideTypedTokenValue([]byte(line)); len(got) != 0 {
 			t.Errorf("the colour row refused %s: %v", name, got)
 		}
 	}
