@@ -68,6 +68,48 @@
       <p>{{ . }}</p>
       {{- end }}
       {{- end }}
+      {{- range .Shows }}
+      <h2>{{ .Shows }}</h2>
+      <p>{{ .Says }}</p>
+      <ul>
+        {{- range .Samples }}
+        <li><span style="{{ .Drawn }}">{{ .Text }}</span> {{ .Says }}</li>
+        {{- end }}
+      </ul>
+      {{- end }}
+      {{- range .Budgets }}
+      <h2>{{ .Whose }}</h2>
+      <p>{{ .Says }}</p>
+      <table>
+        <tr>
+          <th>Line</th>
+          <th>Limit</th>
+          <th>What it measures</th>
+        </tr>
+        {{- range .Rows }}
+        <tr>
+          <td>{{ .Name }}</td>
+          <td>{{ .Limit }}</td>
+          <td>{{ .Means }}</td>
+        </tr>
+        {{- end }}
+      </table>
+      {{- end }}
+      {{- if .Values }}
+      <h2>Every value the file carries</h2>
+      <p>{{ .Reading }}</p>
+      {{/* One line per value, and the indentation a reader of this template
+      expects is deliberately not written into the output: at this many values
+      it is a tenth of the document, against a budget the whole page is close
+      to, and nothing reads this list but a browser. It is a template comment
+      rather than a markup one so that the explanation costs the reader of the
+      page nothing. */}}
+      <dl>
+        {{- range .Values }}
+<dt>{{ .Path }}</dt><dd>{{ .Value }}{{ if .Drawn }} <span style="{{ .Drawn }}">{{ .Value }}</span>{{ end }}</dd>
+        {{- end }}
+      </dl>
+      {{- end }}
     </main>
     <footer>
       <p>

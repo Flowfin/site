@@ -71,3 +71,11 @@ there is no earlier bundle to compare it against.
   date, so two builds of one source still produce one set of bytes.
 - The gate refuses a bundle whose sitemap disagrees with the pages beside it, in
   both directions: a page listed nowhere, and an address with no page behind it.
+- The build produces the design system page at `/design-system.html`, the
+  address that already answers. It lists every value the pinned token copy
+  carries, draws the ones that can be drawn with that same value, and states the
+  budget a native client has to meet beside the budget this site holds itself
+  to, saying whose each one is. Which leaves are values and which are the file
+  writing about itself is
+  [decisions/0014-what-the-design-system-page-renders.md](decisions/0014-what-the-design-system-page-renders.md),
+  and the page prints the counts of both so the split can be read off the page.
