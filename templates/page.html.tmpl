@@ -68,6 +68,83 @@
       <p>{{ . }}</p>
       {{- end }}
       {{- end }}
+      {{/* Every drawing below writes its property here and hands the engine a
+      value, so each one is read in a value position and filtered rather than
+      being assembled into markup somewhere else and written out unread. The
+      weight is stated in words rather than drawn, because the property that
+      would draw it may not appear in what the build reads. */}}
+      {{- if .TypeScale }}
+      <h2>Type, at both viewing distances</h2>
+      <p>
+        Each role drawn at the size the file gives it, with its weight beside it.
+        The two distances are one scale read from two distances rather than two
+        scales.
+      </p>
+      <ul>
+        {{- range .TypeScale }}
+        <li><span style="font-size:{{ .Size }}px">{{ .Role }}</span> {{ .Distance }}, {{ .Size }} at weight {{ .Weight }}</li>
+        {{- end }}
+      </ul>
+      {{- end }}
+      {{- if .Corners }}
+      <h2>The corner a tile is drawn with</h2>
+      <p>
+        Each radius drawn as the corner it makes. The surface and the ink are the
+        light scheme's, so the corner is visible against the box rather than
+        against the page.
+      </p>
+      <ul>
+        {{- range .Corners }}
+        <li><span style="border-radius:{{ .Radius }}px;background:{{ .Ground }};color:{{ .Ink }}">{{ .Name }}</span> {{ .Radius }}</li>
+        {{- end }}
+      </ul>
+      {{- end }}
+      {{- if .Rings }}
+      <h2>The focus ring, one per colour vision preset</h2>
+      <p>
+        Each preset's accent drawn as the ring it makes, at the width that preset
+        asks for, in both schemes. What each preset is for is what a reader is
+        missing.
+      </p>
+      <ul>
+        {{- range .Rings }}
+        <li><span style="outline:{{ .Width }}px solid {{ .Accent }}">{{ .Preset }}</span> {{ .Scheme }}, missing {{ .Missing }}</li>
+        {{- end }}
+      </ul>
+      {{- end }}
+      {{- range .Budgets }}
+      <h2>{{ .Whose }}</h2>
+      <p>{{ .Says }}</p>
+      <table>
+        <tr>
+          <th>Line</th>
+          <th>Limit</th>
+          <th>What it measures</th>
+        </tr>
+        {{- range .Rows }}
+        <tr>
+          <td>{{ .Name }}</td>
+          <td>{{ .Limit }}</td>
+          <td>{{ .Means }}</td>
+        </tr>
+        {{- end }}
+      </table>
+      {{- end }}
+      {{- if .Values }}
+      <h2>Every value the file carries</h2>
+      <p>{{ .Reading }}</p>
+      {{/* One line per value, and the indentation a reader of this template
+      expects is deliberately not written into the output: at this many values
+      it is a tenth of the document, against a budget the whole page is close
+      to, and nothing reads this list but a browser. It is a template comment
+      rather than a markup one so that the explanation costs the reader of the
+      page nothing. */}}
+      <dl>
+        {{- range .Values }}
+<dt>{{ .Path }}</dt><dd>{{ .Value }}{{ if .Colour }} <span style="background:{{ .Colour }};color:{{ .Colour }}">{{ .Value }}</span>{{ end }}</dd>
+        {{- end }}
+      </dl>
+      {{- end }}
     </main>
     <footer>
       <p>
