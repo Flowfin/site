@@ -1,13 +1,17 @@
 Flowfin
 
-description: Flowfin is a set of Jellyfin plugins and native clients, and this
-  is the page that says what each of them is and what state it is in.
+description: Flowfin is a set of Jellyfin plugins, and this is the page that
+  says what each of them is and what state it is in.
 
-Flowfin is a set of Jellyfin plugins and native clients. This page is what the
-build produces before the real pages exist, so that the verb that produces it,
-the directory it lands in and the exit code it returns are all working and can
-be added to rather than invented later.
+Flowfin is a set of Jellyfin plugins for a server somebody else runs.
+
+This page is what the build produces before the real pages exist, so that the
+verb that produces it, the directory it lands in and the exit code it returns
+are all working and can be added to rather than invented later.
 
 The first line of this file is the title and the blocks below it are
 paragraphs. That is the placeholder's shape and not the site's; the pages
-replace it with something that knows about a roster.
+replace it with something that knows about a roster. What this file may not
+carry is a claim about whether something is available: that is a value the
+build reads, so the page cannot go on saying it after it has stopped being
+true.

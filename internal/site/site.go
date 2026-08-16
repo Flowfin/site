@@ -122,6 +122,28 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 		return nil, err
 	}
 
+	// What the page says about the clients, before anything is written, so a
+	// tree carrying a claim the build will not accept fails before it has
+	// produced half a site.
+	//
+	// An absent file is reported rather than passed over, the way every other
+	// source this build reads is, and the sentence is then simply not on the
+	// page. What refuses a tree that lost the file is the invariant over the
+	// tree, because a landing page that quietly stops saying what the clients
+	// are is a rule about this repository rather than about a fixture
+	// somebody built a page in.
+	clientsPath := filepath.Join(root, filepath.FromSlash(ClientsFile))
+	if _, err := os.Stat(clientsPath); os.IsNotExist(err) {
+		fmt.Fprintf(log, "no %s in the tree, so the page says nothing about the clients\n", ClientsFile)
+	} else {
+		c, err := readClients(clientsPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading what the clients are: %w", err)
+		}
+		p.Paragraphs = sayWhatTheClientsAre(p.Paragraphs, c.sentence())
+		fmt.Fprintf(log, "read %s (%s)\n", ClientsFile, c.Availability)
+	}
+
 	out := outDir
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
