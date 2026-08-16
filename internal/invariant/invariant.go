@@ -1018,6 +1018,17 @@ func gather(root string) (map[string][]file, error) {
 	if len(tracked.tokenCopies) == 0 {
 		return nil, fmt.Errorf("%s is not tracked in this tree, and the row about where a token value is read from is a row about there being exactly one such file", tokens.File)
 	}
+	// The claim about the clients is refused here for a different reason
+	// than the two above, and it is the reason the file exists. A tree that
+	// lost it still builds, and the landing page it produces is a page that
+	// leads with what this project is and says nothing about the clients at
+	// all. That is not a row deciding nothing; it is the page silently going
+	// back to the shape the value was introduced to end, and no reading of
+	// the produced bytes tells a sentence that was never composed from one
+	// that was never asked for.
+	if len(tracked.clientClaims) == 0 {
+		return nil, fmt.Errorf("%s is not tracked in this tree, so the landing page says nothing about the clients and reads as a page about a project that has none", site.ClientsFile)
+	}
 
 	return map[string][]file{
 		ProducedPages:                        pages,
@@ -1041,6 +1052,7 @@ type tracked struct {
 	buildInputs     []file
 	tokenCopies     []file
 	securitySources []file
+	clientClaims    []file
 }
 
 // workflowDir is where a workflow has to live for the server to run it, so it
@@ -1095,6 +1107,10 @@ func trackedText(root string) (tracked, error) {
 		}
 		if name == security.File {
 			found.securitySources = append(found.securitySources, f)
+			continue
+		}
+		if name == site.ClientsFile {
+			found.clientClaims = append(found.clientClaims, f)
 			continue
 		}
 		if strings.HasPrefix(name, site.TemplatesDir+"/") || strings.HasPrefix(name, site.ContentDir+"/") {

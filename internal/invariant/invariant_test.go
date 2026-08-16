@@ -694,8 +694,13 @@ func tree(t *testing.T, template string) string {
 	mk("content")
 	mk(filepath.Dir(filepath.FromSlash(tokens.File)))
 	wr(filepath.Join("templates", "page.html.tmpl"), template)
+	// The landing page's prose carries no paragraph of its own. The one
+	// paragraph on it is the sentence the build composes from the claim
+	// about the clients written below, so a fixture that lost that claim
+	// produces a landing page with nothing on it rather than one that merely
+	// says less.
 	wr(filepath.Join("content", "index.txt"),
-		"A title\n\ndescription: What the first fixture page is.\n\nOne paragraph.\n")
+		"A title\n\ndescription: What the first fixture page is.\n")
 	// The second page, and it is here for the frame rather than for
 	// anything the privacy register decides. A property of the one file
 	// every page is rendered through is a statement about all of them, and a
@@ -719,6 +724,11 @@ func tree(t *testing.T, template string) string {
 	// than on a change.
 	wr(filepath.FromSlash(security.File), `{"route":"https://example.invalid/report",
 		"policy":"https://example.invalid/policy","confirmed":"2099-01-01"}`)
+	// What the landing page says about the clients. It is a value rather
+	// than a paragraph, so a fixture with no such file is a fixture whose
+	// landing page has quietly stopped making the statement, which is what
+	// the refusal below is about.
+	wr(filepath.FromSlash(site.ClientsFile), `{"intent":"a client per platform","availability":"none-released"}`)
 
 	git(t, root, "init", "-q")
 	git(t, root, "add", "-A")
@@ -1440,5 +1450,32 @@ func TestANarrowedRowFindsNothingWhenThePageIsNotThere(t *testing.T) {
 	}
 	if got := onlyNamed(files, "dist/install/index.html"); len(got) != 0 {
 		t.Errorf("the narrowing returned %d file(s) for a page the build did not write", len(got))
+	}
+}
+
+// A tree that lost the claim about the clients is refused before any row is
+// decided, and the refusal names the file. The landing page still builds
+// without it, and what it builds is a page leading with what this project is
+// and saying nothing about the clients at all, which reads as a project that
+// has none. No reading of the produced bytes separates a sentence that was
+// never composed from one nobody ever asked for, so the absence is refused here
+// rather than left to a row over the output.
+func TestRunRefusesATreeThatLostTheClaimAboutTheClients(t *testing.T) {
+	root := tree(t, goodTemplate)
+	if err := os.Remove(filepath.Join(root, filepath.FromSlash(site.ClientsFile))); err != nil {
+		t.Fatalf("removing %s: %v", site.ClientsFile, err)
+	}
+	git(t, root, "rm", "-q", "--cached", filepath.FromSlash(site.ClientsFile))
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run accepted a tree with no claim about the clients:\n%s", log.String())
+	}
+	if !strings.Contains(err.Error(), site.ClientsFile) {
+		t.Errorf("the refusal reads %q, which does not name the file that was missing", err)
+	}
+	if !strings.Contains(err.Error(), "says nothing about the clients") {
+		t.Errorf("the refusal reads %q, which does not say what the tree lost", err)
 	}
 }
