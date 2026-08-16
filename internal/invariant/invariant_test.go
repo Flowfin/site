@@ -212,6 +212,17 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// goes in it.
 		"page-names-every-control": []byte(strings.Replace(cleanPage, contentOpen,
 			contentOpen+`<input type="search" />`, 1)),
+		// A cookie written as a meta element, which needs nothing running
+		// on the page: a host serves the document and a browser acts on it.
+		// It is the one way a site whose scripting budget is zero bytes
+		// still sets one.
+		"page-touches-no-browser-storage": []byte(strings.Replace(cleanPage, `</head>`,
+			`  <meta http-equiv="set-cookie" content="seen=1" />`+"\n  </head>", 1)),
+		// The handler that arrives with a control somebody added. It carries
+		// no source anywhere, so the row about a script element passes it,
+		// and it runs in a reader's browser all the same.
+		"page-carries-no-inline-handler": []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+`<button onclick="alert(1)">Somewhere</button>`, 1)),
 		"tracked-text-names-no-tool": b64(t, "QSBub3RlIGFib3ZlLgpHZW5lcmF0ZWQgYnkgQ2hhdEdQVCBhbmQgbGVmdCBpbi4K"),
 		// The version put back where it is convenient, which is what
 		// somebody does who is adding a step and does not know the file
@@ -1477,5 +1488,112 @@ func TestRunRefusesATreeThatLostTheClaimAboutTheClients(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "says nothing about the clients") {
 		t.Errorf("the refusal reads %q, which does not say what the tree lost", err)
+	}
+}
+
+// The mistake in the place it is actually made. A cookie written as a meta
+// element needs nothing running on the page: a host serves the document and the
+// browser acts on it, so it is the one way a site with a zero-byte scripting
+// budget still sets one. The frame is one file, so it reds every page at once
+// and the run names each of them.
+func TestRunRefusesAFrameThatSetsACookie(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate, "  </head>",
+		`    <meta http-equiv="set-cookie" content="seen=1" />`+"\n  </head>", 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run passed a frame that sets a cookie:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"page-touches-no-browser-storage: REFUSED, 2 violation(s)",
+		"carries a meta element that sets a cookie",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not carry %q; it said:\n%s", want, log.String())
+		}
+	}
+}
+
+// The other half of the same row, and it is a different repair. A name is code
+// that would have to run; the element above is a header the browser acts on with
+// nothing running. A refusal naming only one of the two sends the next person
+// looking in the wrong half of the page.
+//
+// The fixture is the near miss rather than a page with the word typed into a
+// sentence. A script element carrying its code inside the page has no src
+// attribute, so the row about a script element passes it, and what it does is
+// write into the storage area this site says it leaves alone.
+func TestRunRefusesAPageThatNamesAStorageInterface(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate, "      <h1>{{ .Title }}</h1>",
+		"      <h1>{{ .Title }}</h1>\n      <script>localStorage.setItem(\"seen\", \"1\")</script>", 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run passed a page naming a storage interface:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), "names localStorage") {
+		t.Errorf("the run does not name what it found; it said:\n%s", log.String())
+	}
+}
+
+// The one-character version of the mistake this row exists for. The row about a
+// script element reads the src attribute, so a page with no source anywhere and
+// one handler on one element runs code in a reader's browser and passes every
+// row this gate had before this one.
+func TestRunRefusesAPageCarryingAHandlerRatherThanAScriptSource(t *testing.T) {
+	handler := `<a href="/" onclick="alert(1)">Somewhere</a>`
+	root := tree(t, strings.Replace(goodTemplate, "      <h1>{{ .Title }}</h1>",
+		"      <h1>{{ .Title }}</h1>\n      "+handler, 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run passed a page carrying a handler:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), "page-fetches-no-script: ok") {
+		t.Errorf("the row about a script source judged this page rather than passing it; it said:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"page-carries-no-inline-handler: REFUSED, 2 violation(s)",
+		"the a element carries the handler attribute onclick",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not carry %q; it said:\n%s", want, log.String())
+		}
+	}
+}
+
+// An address whose scheme runs code rather than fetching anything. It carries no
+// attribute name a handler pattern would find, and the row that reads what a
+// page references reads the host, which an address of this shape does not have.
+func TestRunRefusesAnAddressWhoseSchemeIsAScript(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate, `<p><a href="/legal/">Who publishes this site</a></p>`,
+		`<p><a href="/legal/">Who publishes this site</a></p>`+
+			"\n      "+`<p><a href="javascript:alert(1)">Somewhere</a></p>`, 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run passed a page whose address is a script:\n%s", log.String())
+	}
+	if !strings.Contains(log.String(), "carries an address whose scheme is a script") {
+		t.Errorf("the run does not say what it found; it said:\n%s", log.String())
+	}
+}
+
+// The neighbour that has to stay green, because both rows read names over the
+// whole document rather than inside anything. A page carrying none of what
+// either judges is passed by both, so a red run over the cases above is about
+// what was put on the page and not about the pages themselves.
+func TestTheTwoBrowserRowsPassAPageThatCarriesNeither(t *testing.T) {
+	var log bytes.Buffer
+	if err := Run(tree(t, goodTemplate), &log); err != nil {
+		t.Fatalf("Run refused a tree carrying neither: %v\n%s", err, log.String())
+	}
+	for _, want := range []string{
+		"page-touches-no-browser-storage: ok",
+		"page-carries-no-inline-handler: ok",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not report %q; it said:\n%s", want, log.String())
+		}
 	}
 }

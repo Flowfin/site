@@ -311,6 +311,20 @@ func Rules() []Rule {
 			decide:  decideScriptSrc,
 		},
 		{
+			ID:      "page-touches-no-browser-storage",
+			Subject: ProducedPages,
+			Reason:  "the privacy page states that no cookie is set and that nothing is written into either browser storage area, and a reader can check none of that from the outside, so the statement is worth the check that refuses a page breaking it rather than the paragraph making it",
+			Refuses: "a produced page carrying a meta element that sets a cookie, or naming an interface that reads or writes a cookie, a browser storage area or a reporting beacon",
+			decide:  decideBrowserStorage,
+		},
+		{
+			ID:      "page-carries-no-inline-handler",
+			Subject: ProducedPages,
+			Reason:  "the row above about a script element reads the src attribute, so a page carrying no source and a handler written onto an element runs in a reader's browser and passes it, which is the shape a site with a zero-byte scripting budget stops noticing",
+			Refuses: "a produced page carrying an event handler attribute on an element, or an address whose scheme is a script",
+			decide:  decideInlineHandler,
+		},
+		{
 			ID:      "image-carries-its-own-dimensions",
 			Subject: ProducedPages,
 			Reason:  "the budget puts layout shift at exactly zero, and the usual cause of a page missing it is an image whose size the browser only learns once the bytes have arrived, so everything under it moves when they do",
@@ -2034,4 +2048,86 @@ func decideMarkers(body []byte) []string {
 // lineOf is one-based, so a detail reads like something a person can open.
 func lineOf(body []byte, at int) int {
 	return bytes.Count(body[:at], []byte("\n")) + 1
+}
+
+// What the two rows about a reader's browser read.
+//
+// The interface names are the vocabulary a page has to spell in order to reach
+// a cookie, either storage area or a reporting call. They are matched over the
+// produced bytes rather than inside a script element, because there is no
+// script element to look inside: what a page here could carry is a handler on
+// an element or a style declaration, and a name appearing anywhere in the
+// document is the thing being refused either way.
+//
+// The bound is that this reads names and not behaviour. A page reaching the
+// same interface through a value none of these spellings finds is refused by
+// nothing here, and the headless leg is where that is seen. It is also why a
+// produced page that merely mentions one of these words in a sentence is
+// refused: separating a name from a mention needs a reading of the document
+// that these rows do not make, and refusing the mention is the direction that
+// fails closed.
+var (
+	setCookieMeta = regexp.MustCompile(`(?is)<meta\b[^>]*\bhttp-equiv\s*=\s*["']?\s*set-cookie`)
+	storageName   = regexp.MustCompile(`(?i)\b(document\.cookie|localStorage|sessionStorage|indexedDB|openDatabase|navigator\.sendBeacon|navigator\.cookieEnabled)\b`)
+	// An address whose scheme runs code rather than fetching anything. The
+	// space is allowed because a browser reads one and a pattern that did
+	// not would miss the spelling somebody actually pastes.
+	scriptScheme = regexp.MustCompile(`(?is)\b(?:href|src|action|formaction)\s*=\s*["']?\s*javascript\s*:`)
+	// An event handler attribute. The name is the whole of what a browser
+	// needs to run it, so the pattern is the name rather than anything about
+	// the value.
+	handlerAttribute = regexp.MustCompile(`^on[a-z]+$`)
+)
+
+// decideBrowserStorage refuses a produced page that reaches for a cookie, a
+// browser storage area or a reporting call.
+//
+// A meta element setting a cookie is separated from the interface names because
+// the two fail differently and the repair is not the same. The element is a
+// header this site chose to write into the document, which a host serves
+// verbatim and a reader's browser acts on with no script involved at all; the
+// names are code that would have to run. A refusal naming only one of them
+// would send the next person looking in the wrong half of the page.
+func decideBrowserStorage(body []byte) []string {
+	var details []string
+	for _, loc := range setCookieMeta.FindAllIndex(body, -1) {
+		details = append(details, fmt.Sprintf(
+			"line %d carries a meta element that sets a cookie, which a browser acts on with nothing running on the page",
+			lineOf(body, loc[0])))
+	}
+	for _, loc := range storageName.FindAllIndex(body, -1) {
+		details = append(details, fmt.Sprintf(
+			"line %d names %s, which reads or writes something this site says it leaves alone",
+			lineOf(body, loc[0]), string(body[loc[0]:loc[1]])))
+	}
+	return details
+}
+
+// decideInlineHandler refuses a produced page carrying code written onto an
+// element or into an address.
+//
+// This is the near miss the row above it does not catch. The scripting budget
+// is zero bytes and the row that reads a script element reads its src
+// attribute, so a page with no source anywhere and one handler on one element
+// is a page that runs code in a reader's browser and passes every row this gate
+// had. It is also the mistake somebody actually makes: a template gains a
+// button, the button gains an onclick, and nothing about either looks like
+// fetching a script.
+func decideInlineHandler(body []byte) []string {
+	var details []string
+	for _, e := range walk(body) {
+		for name := range e.attrs {
+			if handlerAttribute.MatchString(name) {
+				details = append(details, fmt.Sprintf(
+					"line %d: the %s element carries the handler attribute %s, which runs in a reader's browser",
+					e.line, e.name, name))
+			}
+		}
+	}
+	for _, loc := range scriptScheme.FindAllIndex(body, -1) {
+		details = append(details, fmt.Sprintf(
+			"line %d carries an address whose scheme is a script rather than something to fetch",
+			lineOf(body, loc[0])))
+	}
+	return details
 }
