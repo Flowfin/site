@@ -24,15 +24,25 @@ checked: Nothing a page this site produces reaches for comes from a domain this
   and no embedded player is told that somebody opened a page here.
   [output-references-no-domain-outside-the-allowlist]
 
-promised: No cookie is set and nothing is written into either browser storage
-  area. [#50]
+checked: No cookie is set and nothing is written into either browser storage
+  area. [page-touches-no-browser-storage]
+
+checked: No page here carries a handler written onto an element, so nothing on
+  a page runs in answer to what a reader does with it.
+  [page-carries-no-inline-handler]
 
 promised: There is no form, no field and no other route by which a reader can
   send anything from a page here. [#50]
 
-promised: No page needs scripting to be read, which is a wider statement than
-  the first checked one: what is refused today is a page fetching a script, and
-  a handler written into the page itself is refused by nothing yet. [#50]
+promised: No page needs scripting to be read, which is wider than either of the
+  two checked statements about scripting above. What is refused today is a page
+  fetching a script and a handler written onto an element, and a script element
+  carrying its code inside the page is refused by nothing yet. [#50]
+
+promised: What the checks above read is the names a page would have to spell.
+  A page reaching the same interface through a value none of those spellings
+  finds is refused by nothing, and what would see it is a browser loading every
+  produced page and reporting what it did. [#50]
 
 residual: Whatever host answers for these files sees each request, which is the
   address it came from, what was asked for and when. Every host sees that much,
