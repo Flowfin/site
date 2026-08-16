@@ -245,12 +245,14 @@ func draw(value string) template.CSS {
 	if !colourValue.MatchString(value) {
 		return ""
 	}
-	// nosemgrep: tools.semgrep.template-escaping-bypassed
 	// The conversion is what puts a declaration into a style attribute at
-	// all, and what makes it safe is the line above: the value is a
+	// all, and what makes it safe is the guard above: the value is a
 	// hexadecimal colour anchored at both ends, so there is no character in
 	// it that could close the declaration or open another one. A value of
-	// any other shape leaves here undrawn.
+	// any other shape leaves here undrawn. The directive has to sit on the
+	// line before the conversion, so the reason is above it rather than
+	// beside it.
+	// nosemgrep: tools.semgrep.template-escaping-bypassed
 	return template.CSS("background:" + value + ";color:" + value)
 }
 
@@ -367,11 +369,11 @@ func typeScale(values tokens.Values) (demonstration, []string) {
 		if size == "" || weight == "" {
 			continue
 		}
-		// nosemgrep: tools.semgrep.template-escaping-bypassed
 		// Both values were read through numberAt above, so what the
 		// conversion is handed is digits and the property names this line
 		// writes. A value that is anything else never reaches here and is
 		// a reason the build prints instead.
+		// nosemgrep: tools.semgrep.template-escaping-bypassed
 		drawn := template.CSS(fmt.Sprintf("font-size:%spx;font-weight:%s", size, weight))
 		d.Samples = append(d.Samples, sample{
 			Text:  parts[len(parts)-2],
@@ -409,10 +411,10 @@ func corners(values tokens.Values) (demonstration, []string) {
 		if radius == "" {
 			continue
 		}
-		// nosemgrep: tools.semgrep.template-escaping-bypassed
 		// The radius came through numberAt and the two colours through
 		// colourAt, so the conversion is handed digits, two hexadecimal
 		// colours and the property names on this line.
+		// nosemgrep: tools.semgrep.template-escaping-bypassed
 		drawn := template.CSS(fmt.Sprintf("border-radius:%spx;background:%s;color:%s", radius, ground, ink))
 		d.Samples = append(d.Samples, sample{
 			Text:  strings.TrimSuffix(strings.TrimPrefix(at, "shape."), ".value"),
@@ -450,10 +452,10 @@ func focusRings(values tokens.Values) (demonstration, []string) {
 			if accent == "" {
 				continue
 			}
-			// nosemgrep: tools.semgrep.template-escaping-bypassed
 			// The width came through numberAt and the accent through
 			// colourAt, so the conversion is handed digits, one
 			// hexadecimal colour and the words on this line.
+			// nosemgrep: tools.semgrep.template-escaping-bypassed
 			drawn := template.CSS(fmt.Sprintf("outline:%spx solid %s", width, accent))
 			d.Samples = append(d.Samples, sample{
 				Text:  preset,
