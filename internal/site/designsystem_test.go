@@ -403,6 +403,46 @@ func TestThePageStatesBothBudgetsAndSaysWhichIsWhich(t *testing.T) {
 	}
 }
 
+// The budget line on the page and the number the copy carries are one value.
+// This is the same statement the case above makes about a token, and it is worth
+// making twice because the failure is not the same one: a colour rendered from
+// somewhere other than the copy looks wrong to anybody who opens the page, and a
+// latency ceiling rendered from somewhere else looks exactly like the right one.
+func TestABudgetNumberChangedInTheCopyChangesExactlyThatLineOnThePage(t *testing.T) {
+	before := designPage(t, designTokens)
+	after := designPage(t, strings.Replace(designTokens, `"limit": 80,`, `"limit": 95,`, 1))
+
+	if !strings.Contains(before, "<td>focus-change</td><td>under 80 ms</td>") {
+		t.Fatal("the page did not carry the limit the copy gives it")
+	}
+	if !strings.Contains(after, "<td>focus-change</td><td>under 95 ms</td>") {
+		t.Error("the limit moved in the copy and did not move on the page")
+	}
+	if strings.Contains(after, "80 ms") {
+		t.Error("the page still carries the limit the copy no longer has")
+	}
+	if rows(before) != rows(after) {
+		t.Errorf("changing one limit moved the table from %d row(s) to %d", rows(before), rows(after))
+	}
+}
+
+// How a limit is spelled follows the copy as well. The file carries the number
+// and the comparison apart, and a page that stated a ceiling and a required
+// value in the same words would be printing two opposite claims identically.
+func TestTheComparisonInTheCopyDecidesHowTheLimitIsStated(t *testing.T) {
+	page := designPage(t, strings.Replace(designTokens, `"comparison": "below",`, `"comparison": "equal",`, 1))
+
+	if !strings.Contains(page, "<td>focus-change</td><td>exactly 80 ms</td>") {
+		t.Error("the comparison moved in the copy and the page went on stating a ceiling")
+	}
+}
+
+// rows counts the budget lines the page carries, so a case about one number can
+// say that it moved nothing else.
+func rows(page string) int {
+	return strings.Count(page, "<tr><td>")
+}
+
 // A limit whose comparison the file does not carry is a number that states
 // nothing: a ceiling and a required value are opposite claims and the page would
 // print them in the same words.

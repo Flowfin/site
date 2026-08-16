@@ -79,3 +79,10 @@ there is no earlier bundle to compare it against.
   writing about itself is
   [decisions/0014-what-the-design-system-page-renders.md](decisions/0014-what-the-design-system-page-renders.md),
   and the page prints the counts of both so the split can be read off the page.
+- The gate refuses a limit a native client is held to, written into anything the
+  build reads to render a page. The five numbers are the pinned token copy's,
+  and the row is handed them rather than carrying them, so it follows the copy
+  the day one moves. It reads both spellings the same value arrives in, the
+  words the page states it in and the number with its unit alone, and a limit
+  written in any other unit walks through, which is the same bound the row about
+  a typed colour declares for itself.

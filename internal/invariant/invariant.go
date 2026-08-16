@@ -257,7 +257,18 @@ const affiliationNotice = "Flowfin is not affiliated with the Jellyfin project."
 const contentElement = "main"
 
 // Rules is the table. The order is the order a run reports them in.
-func Rules() []Rule {
+//
+// It is handed the numbers a client is held to, because one row compares against
+// values rather than against a shape, and there is no other way for a value to
+// reach a row: a row is given the bytes of one file and nothing else. Carrying
+// the numbers in this file instead would make it the second declaration of the
+// file the row exists to keep as the only one, which is the failure with the
+// name of the rule on it.
+//
+// What the table holds does not depend on what it is handed. Every row is here
+// on every call, and only what one of them compares against moves, so a caller
+// that wants the count rather than the decisions may hand it nothing.
+func Rules(numbers []tokens.Number) []Rule {
 	return []Rule{
 		{
 			ID:      "page-declares-its-language",
@@ -468,6 +479,13 @@ func Rules() []Rule {
 			Reason:  "a value typed into a template is a second definition of a value published somewhere else, and the day the published one moves the page goes on rendering the old one perfectly, so nobody sees it; the file carries lengths, weights and font stacks beside the colours, and a wrong length is the harder one to see because a wrong colour at least looks wrong",
 			Refuses: "a colour, a length, a font family or a font weight written into what the build reads, outside a fragment reference",
 			decide:  decideTypedTokenValue,
+		},
+		{
+			ID:      "client-budget-numbers-live-in-exactly-one-file",
+			Subject: BuildInputs,
+			Reason:  "a number a client is held to is the same class of fact as a spacing step, and it is the harder one to see when it goes stale: a wrong colour looks wrong on the page and a wrong millisecond looks like every other millisecond, so a second copy of one is a conformance target somebody meets while the published one says something else",
+			Refuses: "a limit a client is held to, written into what the build reads, in either the words the page states it in or the number and its unit alone",
+			decide:  decideTypedBudgetNumber(numbers),
 		},
 		{
 			ID:      "version-lives-in-exactly-one-file",
@@ -860,6 +878,49 @@ func decideTypedTokenValue(body []byte) []string {
 	return details
 }
 
+// decideTypedBudgetNumber refuses one of the numbers a client is held to,
+// written into something the build reads.
+//
+// It is the same rule as the one above with a different unit, and the unit is
+// what makes it a separate row rather than a fifth shape in that one. A colour,
+// a length, a font stack and a weight are recognisable from their own spelling,
+// so that row can be told what to look for once and never revisited. A latency
+// ceiling is digits and a word, indistinguishable from a transition duration or
+// from a figure in a sentence, so the only thing that separates a copy of the
+// budget from an unrelated number is the budget itself. That is why this one is
+// handed the values and the others are not.
+//
+// Two spellings per number, and the longer one first so that a line stating the
+// limit in the words the page uses is reported as that rather than as the bare
+// number inside it. What it compares is exact: a limit written in another unit
+// walks through, which is the same bound the row above declares for a colour
+// spelled in a form CSS does not read. The file stays the authority for the set,
+// and this row is what stops a second copy of one member of it.
+//
+// A run handed no numbers refuses nothing, which is why Run reads the copy
+// before it builds the table and refuses a tree whose copy carries none. A green
+// mark from this row over an empty set would say the tree holds no second copy
+// of a number, when what it means is that nobody told it what the numbers are.
+func decideTypedBudgetNumber(numbers []tokens.Number) func([]byte) []string {
+	return func(body []byte) []string {
+		var details []string
+		for i, line := range strings.Split(string(body), "\n") {
+			for _, n := range numbers {
+				for _, spelling := range []string{n.Stated(), n.Bare()} {
+					if !strings.Contains(line, spelling) {
+						continue
+					}
+					details = append(details, fmt.Sprintf(
+						"line %d writes %q, which is what %s says %s is, and %s is the one file it is read from",
+						i+1, spelling, tokens.File, n.Name, tokens.File))
+					break
+				}
+			}
+		}
+		return details
+	}
+}
+
 // decideImports refuses an import that is neither standard library nor inside
 // this module. A standard library path has no dot in its first element, which is
 // the rule the toolchain itself uses to tell the two apart.
@@ -893,12 +954,42 @@ func Owing() []Owed {
 	}
 }
 
+// budgetNumbers reads the numbers a client is held to out of the pinned copy, so
+// that the row about a second copy of one has something to compare against.
+//
+// It fails closed in both directions the row cannot survive, and each is refused
+// in its own words rather than collapsed into one. A copy that could not be read
+// is a tree the row was never decided against. A copy that carries no such
+// number is a row that would report ok having compared nothing, which reads as a
+// tree holding no second copy and means that nobody said what the numbers are.
+// That is the same position gather takes about the copy existing at all, one
+// step further in.
+func budgetNumbers(root string) ([]tokens.Number, error) {
+	values, err := tokens.Load(root)
+	if err != nil {
+		return nil, fmt.Errorf("the row about where a client budget number is read from cannot be decided: %w", err)
+	}
+	numbers, reasons := tokens.Numbers(values)
+	if len(reasons) > 0 {
+		return nil, fmt.Errorf("%s, %d reason(s):\n  %s", tokens.File, len(reasons), strings.Join(reasons, "\n  "))
+	}
+	if len(numbers) == 0 {
+		return nil, fmt.Errorf("%s carries no client budget number, and the row about where one is read from is a row about there being exactly one file that carries it", tokens.File)
+	}
+	return numbers, nil
+}
+
 // Run decides every rule against the tree at root and writes what it examined
 // to log. It builds the site into a directory it throws away, so what the page
 // rules read is what a build produces rather than whatever is sitting in the
 // output directory from an earlier one.
 func Run(root string, log io.Writer) error {
-	rules := Rules()
+	numbers, err := budgetNumbers(root)
+	if err != nil {
+		return err
+	}
+
+	rules := Rules(numbers)
 	ids := make([]string, len(rules))
 	for i, r := range rules {
 		ids[i] = r.ID
@@ -2010,8 +2101,12 @@ func decideCitedChecks(body []byte) []string {
 // decided answers whether a name is a row this gate decides. It reads the table
 // rather than a list written beside it, so a row added, renamed or removed
 // changes this answer without anybody remembering to.
+//
+// The table is asked for its names rather than for its decisions, so it is
+// handed nothing. What a row compares against does not change whether it is in
+// the table, which is the sentence Rules carries and the suite checks.
 func decided(name string) bool {
-	for _, r := range Rules() {
+	for _, r := range Rules(nil) {
 		if r.ID == name {
 			return true
 		}

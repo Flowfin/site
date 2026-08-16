@@ -14,6 +14,7 @@ package invariant
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -38,6 +39,18 @@ func b64(t *testing.T, s string) []byte {
 		t.Fatalf("decoding the fixture: %v", err)
 	}
 	return b
+}
+
+// What the table is handed where a case is about the rows rather than about a
+// tree. Two numbers rather than the five the real copy carries, and neither of
+// them one of those five: a case asserting against the published limits would
+// pass by reading the same file the row reads, which is the one thing this row
+// cannot be allowed to prove about itself. One is a ceiling and one is an exact
+// value, because the two are spelled differently and a fixture carrying only a
+// ceiling would leave the other spelling untried.
+var fixtureNumbers = []tokens.Number{
+	{Name: "first-frame", Limit: "37", Unit: "ms", Comparison: "below"},
+	{Name: "torn-frames", Limit: "4", Unit: "frames", Comparison: "equal"},
 }
 
 // The opening tag of the content, written once because most fixtures below put
@@ -237,6 +250,14 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// published one moves.
 		"design-tokens-live-in-exactly-one-file": []byte(strings.Replace(cleanPage, `<body>`,
 			`<body style="background: #121216">`, 1)),
+		// The limit quoted in a sentence, which is how a number a client
+		// is held to gets into prose: somebody explains what the software
+		// promises and writes the figure down beside it. It is the same
+		// second definition as the colour above and it looks like an
+		// ordinary sentence afterwards, which is why nobody finds it.
+		"client-budget-numbers-live-in-exactly-one-file": []byte(strings.Replace(cleanPage,
+			`<h1>A title</h1>`,
+			`<h1>A title</h1><p>A key press answers `+fixtureNumbers[0].Stated()+`.</p>`, 1)),
 		// The sentence a document gains the day somebody wants a reader to
 		// know which release they are looking at. It is assembled from the
 		// constant rather than written out, because a test source carrying
@@ -261,7 +282,7 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 	// wrong reason.
 	cleanTest := b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkib3MiCgkidGVzdGluZyIKKQoKZnVuYyBUZXN0U29tZXRoaW5nKHQgKnRlc3RpbmcuVCkgewoJaWYgb3MuR2V0ZW52KCJIT01FIikgPT0gIiIgewoJCXQuU2tpcCgibm8gaG9tZSIpCgl9Cn0K")
 
-	rules := Rules()
+	rules := Rules(fixtureNumbers)
 	if len(rules) != len(violations) {
 		t.Fatalf("the table holds %d row(s) and this test carries %d violation(s); a row without one proves nothing",
 			len(rules), len(violations))
@@ -566,7 +587,7 @@ func TestTheContentLinkRowLeavesWhatIsOutOfTheOrderAlone(t *testing.T) {
 // meaning anything. The name is taken out of the table rather than typed here,
 // so this test cannot go on passing against a row that was renamed.
 func TestTheCitationRowLeavesARealCheckAlone(t *testing.T) {
-	real := Rules()[0].ID
+	real := Rules(fixtureNumbers)[0].ID
 	page := []byte(strings.Replace(cleanPage, contentOpen,
 		contentOpen+`<ul><li data-refused-by="`+real+`">A statement.</li></ul>`, 1))
 	if got := decideCitedChecks(page); len(got) != 0 {
@@ -612,7 +633,7 @@ func TestAViolationRedsExactlyOneRow(t *testing.T) {
 	noLang := []byte(strings.Replace(cleanPage, `<html lang="en">`, `<html>`, 1))
 
 	var refused []string
-	for _, r := range Rules() {
+	for _, r := range Rules(fixtureNumbers) {
 		if len(r.decide(noLang)) > 0 {
 			refused = append(refused, r.ID)
 		}
@@ -722,13 +743,19 @@ func tree(t *testing.T, template string) string {
 	// whole suite the day a row is renamed.
 	wr(filepath.FromSlash(site.PrivacyFile),
 		"A second title\n\ndescription: What the second fixture page is.\n\nOne paragraph.\n\n"+
-			"checked: One statement. ["+Rules()[0].ID+"]\n\n"+
+			"checked: One statement. ["+Rules(fixtureNumbers)[0].ID+"]\n\n"+
 			"residual: What a host sees is true whatever this site does.\n")
 	// The copy the build reads. It carries a colour, because the row about
 	// where a colour is read from is about there being one file that may
 	// carry one, and a fixture whose copy held none would prove nothing
-	// about which file that is.
-	wr(filepath.FromSlash(tokens.File), `{"surface":{"ground":{"dark":{"srgb":"#121216","alpha":1}}}}`)
+	// about which file that is. It carries the client budget for the same
+	// reason one row further on, and the numbers are the ones the cases
+	// above are written against rather than a second set: what the run
+	// refuses and what a row refuses have to be the same values, or a case
+	// that passed here would say nothing about the run.
+	wr(filepath.FromSlash(tokens.File),
+		`{"surface":{"ground":{"dark":{"srgb":"#121216","alpha":1}}},"budget":{"numbers":{`+
+			strings.Join(asJSON(fixtureNumbers), ",")+`}}}`)
 	// The source of the produced reporting route. The day is far enough
 	// ahead that the fixture does not expire while nobody is looking at it,
 	// which is the one thing in this tree that would go red on a date rather
@@ -744,6 +771,18 @@ func tree(t *testing.T, template string) string {
 	git(t, root, "init", "-q")
 	git(t, root, "add", "-A")
 	return root
+}
+
+// asJSON writes the fixture numbers the way the token file carries them, so a
+// tree and the cases about a single row are held to one set of values rather
+// than to two that agree today.
+func asJSON(numbers []tokens.Number) []string {
+	var out []string
+	for _, n := range numbers {
+		out = append(out, fmt.Sprintf(`%q:{"limit":%s,"unit":%q,"comparison":%q}`,
+			n.Name, n.Limit, n.Unit, n.Comparison))
+	}
+	return out
 }
 
 func git(t *testing.T, dir string, args ...string) {
@@ -866,6 +905,91 @@ func TestRunRefusesAFrameThatDroppedTheAffiliationNoticeOnEveryPageItProduced(t 
 		if !strings.Contains(log.String(), want) {
 			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
 		}
+	}
+}
+
+// The whole run over a tree whose frame quotes a limit the copy is the
+// authority for. It is the shape somebody writes when they are explaining what
+// the software promises with the number in front of them, and the run names the
+// input it was typed into rather than the pages it came out on, because the
+// input is where the repair is.
+func TestRunRefusesALimitTypedIntoWhatTheBuildReads(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate, `      <h1>{{ .Title }}</h1>`,
+		"      <h1>{{ .Title }}</h1>\n      <p>A key press answers "+fixtureNumbers[0].Stated()+".</p>", 1))
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run accepted a build input quoting a client budget limit:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"client-budget-numbers-live-in-exactly-one-file: REFUSED, 1 violation(s)",
+		"templates/page.html.tmpl: line 13",
+		`"under 37 ms"`,
+		tokens.File,
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
+		}
+	}
+}
+
+// The same tree with the sentence taken back out. Without this the case above
+// would pass over a run that refuses every tree, which proves the opposite of
+// what it is for.
+func TestRunAcceptsAFrameThatQuotesNoLimit(t *testing.T) {
+	var log bytes.Buffer
+	if err := Run(tree(t, goodTemplate), &log); err != nil {
+		t.Fatalf("Run refused a tree quoting no limit: %v\n%s", err, log.String())
+	}
+	if !strings.Contains(log.String(), "client-budget-numbers-live-in-exactly-one-file: ok") {
+		t.Errorf("the run did not report the row as examined; it said:\n%s", log.String())
+	}
+}
+
+// A copy carrying no client budget number is refused rather than decided
+// against. The row would report ok having compared nothing, which reads as a
+// tree holding no second copy of a limit and means that nobody said what the
+// limits are.
+func TestRunRefusesACopyThatCarriesNoClientBudget(t *testing.T) {
+	root := tree(t, goodTemplate)
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(tokens.File)),
+		[]byte(`{"surface":{"ground":{"dark":{"srgb":"#121216","alpha":1}}}}`), 0o644); err != nil {
+		t.Fatalf("rewriting the copy: %v", err)
+	}
+	git(t, root, "add", "-A")
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run decided the table against a copy carrying no client budget:\n%s", log.String())
+	}
+	if !strings.Contains(err.Error(), "carries no client budget number") {
+		t.Errorf("the refusal reads %q, which does not say what was missing", err)
+	}
+	if strings.Contains(log.String(), "client-budget-numbers-live-in-exactly-one-file: ok") {
+		t.Errorf("the run reported the row as examined against a copy with nothing in it:\n%s", log.String())
+	}
+}
+
+// A number the copy carries with no unit beside it is refused before any row is
+// decided, and the refusal names the number rather than the file alone. A limit
+// with no unit states nothing, so a row comparing against it would be comparing
+// against a bare figure and would refuse every line that happened to carry it.
+func TestRunRefusesACopyWhoseLimitCarriesNoUnit(t *testing.T) {
+	root := tree(t, goodTemplate)
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(tokens.File)),
+		[]byte(`{"budget":{"numbers":{"first-frame":{"limit":37,"comparison":"below"}}}}`), 0o644); err != nil {
+		t.Fatalf("rewriting the copy: %v", err)
+	}
+	git(t, root, "add", "-A")
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run decided the table against a limit that states nothing:\n%s", log.String())
+	}
+	if !strings.Contains(err.Error(), "budget.numbers.first-frame") {
+		t.Errorf("the refusal reads %q, which does not name the number", err)
 	}
 }
 
@@ -1078,7 +1202,7 @@ func TestAnImageWithoutItsDimensionsRedsExactlyOneRow(t *testing.T) {
 		contentOpen+`<img src="/icon.png" alt="The mark" />`, 1))
 
 	var refused []string
-	for _, r := range Rules() {
+	for _, r := range Rules(fixtureNumbers) {
 		if len(r.decide(body)) > 0 {
 			refused = append(refused, r.ID)
 		}
@@ -1144,7 +1268,7 @@ func TestAHeadWithNoSchemeRedsExactlyOneRow(t *testing.T) {
 		`    <meta name="color-scheme" content="light dark" />`+"\n", "", 1))
 
 	var refused []string
-	for _, r := range Rules() {
+	for _, r := range Rules(fixtureNumbers) {
 		if len(r.decide(body)) > 0 {
 			refused = append(refused, r.ID)
 		}
@@ -1246,12 +1370,128 @@ func TestTheMotionRowNamesTheLineAndTheDeclaration(t *testing.T) {
 	}
 }
 
+// The two spellings one limit arrives in, and the longer one reported as itself
+// rather than as the bare number inside it. A failure naming "37 ms" where the
+// line says "under 37 ms" sends the next person looking for a string that is not
+// there.
+func TestTheBudgetRowRefusesBothSpellingsAndReportsTheLongerOne(t *testing.T) {
+	decide := decideTypedBudgetNumber(fixtureNumbers)
+
+	for _, c := range []struct{ line, want string }{
+		{"A key press answers " + fixtureNumbers[0].Stated() + ".", `"under 37 ms"`},
+		{"The ceiling is 37 ms and nothing may exceed it.", `"37 ms"`},
+		{"It drops exactly 4 frames on the worst row.", `"exactly 4 frames"`},
+	} {
+		got := decide([]byte("A first line.\n" + c.line + "\n"))
+		if len(got) != 1 {
+			t.Errorf("%q produced %d detail(s), want 1: %v", c.line, len(got), got)
+			continue
+		}
+		if !strings.Contains(got[0], c.want) {
+			t.Errorf("the failure for %q reads %q, which does not carry %s", c.line, got[0], c.want)
+		}
+		if !strings.Contains(got[0], "line 2") {
+			t.Errorf("the failure for %q reads %q, which does not name the line", c.line, got[0])
+		}
+		if !strings.Contains(got[0], tokens.File) {
+			t.Errorf("the failure for %q reads %q, which does not name the file it is read from", c.line, got[0])
+		}
+	}
+}
+
+// What the row leaves alone. It compares against the values it was handed rather
+// than against the shape of a number, so a figure that is not one of them walks
+// through, and a limit in another unit walks through as well. Both bounds are
+// deliberate: a row that refused every number with a time unit on it would
+// refuse a transition duration, and the file rather than this row is what the
+// set of budget numbers is decided by.
+func TestTheBudgetRowLeavesANumberThatIsNotABudgetNumberAlone(t *testing.T) {
+	decide := decideTypedBudgetNumber(fixtureNumbers)
+
+	for name, line := range map[string]string{
+		"a duration that is not a limit": "a { transition: color 120ms }",
+		"a neighbouring figure":          "It answers under 38 ms on the machine it was measured on.",
+		"the same limit in another unit": "It answers under 0.037 s.",
+		"the digits with no unit":        "Thirty seven is 37 and nothing follows it.",
+	} {
+		if got := decide([]byte(line + "\n")); len(got) != 0 {
+			t.Errorf("the row refused %s: %v", name, got)
+		}
+	}
+}
+
+// The row follows the copy rather than carrying the numbers. A row holding the
+// five values in its own source would be the second definition of the file it
+// exists to keep as the only one, and the way that shows is here: the same line
+// is refused or left alone depending on what the copy says, and nothing in this
+// package decides which.
+func TestTheBudgetRowFollowsTheCopyRatherThanCarryingTheNumbers(t *testing.T) {
+	line := []byte("A key press answers under 37 ms.\n")
+
+	if got := decideTypedBudgetNumber(fixtureNumbers)(line); len(got) != 1 {
+		t.Fatalf("the row produced %d detail(s) against the copy that carries that limit, want 1: %v", len(got), got)
+	}
+
+	moved := []tokens.Number{{Name: "first-frame", Limit: "24", Unit: "ms", Comparison: "below"}}
+	if got := decideTypedBudgetNumber(moved)(line); len(got) != 0 {
+		t.Errorf("the limit moved in the copy and the row went on refusing the old one: %v", got)
+	}
+	if got := decideTypedBudgetNumber(moved)([]byte("A key press answers under 24 ms.\n")); len(got) != 1 {
+		t.Errorf("the limit moved in the copy and the row did not refuse the new one: %v", got)
+	}
+}
+
+// A row handed nothing refuses nothing, which is why the run reads the copy
+// before it builds the table. This is that half stated where somebody changing
+// the table will meet it, and the run's own refusal is the case below.
+func TestTheBudgetRowHandedNothingRefusesNothing(t *testing.T) {
+	if got := decideTypedBudgetNumber(nil)([]byte("A key press answers under 37 ms.\n")); len(got) != 0 {
+		t.Errorf("a row that was told no numbers refused a line anyway: %v", got)
+	}
+}
+
+// The table is the same table however it is handed, which is what lets the count
+// printed by the gate be taken from a call that supplies nothing. A row that
+// appeared only when values arrived would make that count a different number
+// from the one the run decided.
+func TestTheTableHoldsTheSameRowsHoweverItIsHanded(t *testing.T) {
+	var with, without []string
+	for _, r := range Rules(fixtureNumbers) {
+		with = append(with, r.ID)
+	}
+	for _, r := range Rules(nil) {
+		without = append(without, r.ID)
+	}
+	if strings.Join(with, ",") != strings.Join(without, ",") {
+		t.Errorf("the table handed values holds %v and the table handed nothing holds %v", with, without)
+	}
+}
+
+// The limit typed into a page reds this row and no other, so a red run says
+// which repair it wants rather than which area to look in. The colour row is the
+// near neighbour: both are about a value that belongs in the copy, and a fixture
+// tripping the two of them would leave neither proved.
+func TestABudgetNumberTypedIntoAPageRedsExactlyOneRow(t *testing.T) {
+	body := []byte(strings.Replace(cleanPage, `<h1>A title</h1>`,
+		`<h1>A title</h1><p>A key press answers `+fixtureNumbers[0].Stated()+`.</p>`, 1))
+
+	var refused []string
+	for _, r := range Rules(fixtureNumbers) {
+		if len(r.decide(body)) > 0 {
+			refused = append(refused, r.ID)
+		}
+	}
+	if len(refused) != 1 || refused[0] != "client-budget-numbers-live-in-exactly-one-file" {
+		t.Errorf("the typed limit refused %v, want only client-budget-numbers-live-in-exactly-one-file", refused)
+	}
+}
+
 func TestMotionInTheCascadeRedsExactlyOneRow(t *testing.T) {
 	moving := []byte(strings.Replace(cleanPage, `</head>`,
 		"  <style>a { transition: color 120ms }</style>\n  </head>", 1))
 
 	var refused []string
-	for _, r := range Rules() {
+	for _, r := range Rules(fixtureNumbers) {
 		if len(r.decide(moving)) > 0 {
 			refused = append(refused, r.ID)
 		}
