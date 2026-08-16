@@ -44,6 +44,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -120,6 +121,95 @@ func Read(body []byte) (Values, error) {
 		return nil, errors.New("carries no value, and a token file with nothing in it is not a copy of one")
 	}
 	return values, nil
+}
+
+// budgetPrefix is where the numbers a client is held to sit in the file. It is
+// a prefix rather than a list of the five, because the set is the file's to
+// decide and a list here would be a second declaration of it.
+const budgetPrefix = "budget.numbers."
+
+// Number is one of the numbers a client has to meet, read out of the copy. It
+// carries the limit as the digits the file was written with rather than as an
+// integer, for the reason Read keeps them: a limit reported back in another
+// spelling is a difference a reader has to decode before they can see there is
+// none.
+type Number struct {
+	Name       string
+	Limit      string
+	Unit       string
+	Comparison string
+	// What and Why are the file's own sentences beside the number. They are
+	// prose about the value rather than the value, which is why nothing
+	// compares them and why a page prints them beside the limit.
+	What string
+	Why  string
+}
+
+// Stated is how the number is written where somebody reads it. The file carries
+// the limit and the comparison apart, and printing the number alone would state
+// a ceiling and a required value in the same words, which are opposite claims.
+//
+// This is the one place that mapping is made. The page states a number by asking
+// here, and the row that refuses a second copy of one asks here too, so a
+// spelling the page uses and a spelling the row looks for cannot part company.
+func (n Number) Stated() string {
+	switch n.Comparison {
+	case "below":
+		return "under " + n.Limit + " " + n.Unit
+	case "equal":
+		return "exactly " + n.Limit + " " + n.Unit
+	default:
+		return n.Comparison + " " + n.Limit + " " + n.Unit
+	}
+}
+
+// Bare is the number with its unit and nothing in front of it. It is the other
+// spelling the same value arrives in, and it is the one somebody types when they
+// are quoting a limit inside a sentence rather than stating it in a table.
+func (n Number) Bare() string {
+	return n.Limit + " " + n.Unit
+}
+
+// Numbers reads the client budget out of a file that has been flattened. It
+// returns one reason per number it could not make sense of rather than the
+// first, because a file with three broken numbers is three repairs.
+//
+// An empty result carries no reason. Whether a file with no such number is a
+// failure depends on what the caller was going to do with them, and the two
+// callers answer it differently: a page with no budget table and a rule with
+// nothing to compare against are refused in different words.
+func Numbers(values Values) ([]Number, []string) {
+	var at []string
+	for p := range values {
+		if strings.HasPrefix(p, budgetPrefix) && strings.HasSuffix(p, ".limit") {
+			at = append(at, strings.TrimSuffix(p, ".limit"))
+		}
+	}
+	sort.Strings(at)
+
+	var out []Number
+	var reasons []string
+	for _, a := range at {
+		unit, ok := values[a+".unit"]
+		if !ok {
+			reasons = append(reasons, fmt.Sprintf("%s carries a limit and no unit, so the number states nothing", a))
+			continue
+		}
+		comparison, ok := values[a+".comparison"]
+		if !ok {
+			reasons = append(reasons, fmt.Sprintf("%s carries a limit and no comparison, so whether it is a ceiling or a value is not stated", a))
+			continue
+		}
+		out = append(out, Number{
+			Name:       strings.TrimPrefix(a, budgetPrefix),
+			Limit:      values[a+".limit"],
+			Unit:       unit,
+			Comparison: comparison,
+			What:       values[a+".what"],
+			Why:        values[a+".why"],
+		})
+	}
+	return out, reasons
 }
 
 // flatten walks the document. An array is indexed rather than joined, because

@@ -491,6 +491,11 @@ func endingIn(values tokens.Values, segment string) []string {
 // number are prose about the file, which is exactly what a budget row needs
 // beside a limit, and they are the reason the rule above keeps them rather than
 // discarding them.
+//
+// How a limit is spelled is asked of the token package rather than decided here.
+// The invariant row that refuses a second copy of one of these numbers has to
+// look for the same strings this table prints, and a page and a row each
+// carrying their own spelling would part company on the day either moved.
 func clientBudget(values tokens.Values) (budgetTable, []string) {
 	t := budgetTable{
 		Whose: "What a native client has to meet",
@@ -498,47 +503,18 @@ func clientBudget(values tokens.Values) (budgetTable, []string) {
 			"with the values above because they are the same class of fact, and a client " +
 			"that has not been measured has not met one.",
 	}
-	var reasons []string
-	for _, limit := range endingIn(values, "limit") {
-		if !strings.HasPrefix(limit, "budget.numbers.") {
-			continue
-		}
-		at := strings.TrimSuffix(limit, ".limit")
-		name := strings.TrimPrefix(at, "budget.numbers.")
-		unit, ok := values[at+".unit"]
-		if !ok {
-			reasons = append(reasons, fmt.Sprintf("%s carries a limit and no unit, so the number states nothing", at))
-			continue
-		}
-		comparison, ok := values[at+".comparison"]
-		if !ok {
-			reasons = append(reasons, fmt.Sprintf("%s carries a limit and no comparison, so whether it is a ceiling or a value is not stated", at))
-			continue
-		}
+	numbers, reasons := tokens.Numbers(values)
+	for _, n := range numbers {
 		t.Rows = append(t.Rows, budgetRow{
-			Name:  name,
-			Limit: stated(comparison, values[limit], unit),
-			Means: strings.TrimSpace(values[at+".what"] + " " + values[at+".why"]),
+			Name:  n.Name,
+			Limit: n.Stated(),
+			Means: strings.TrimSpace(n.What + " " + n.Why),
 		})
 	}
 	if len(t.Rows) == 0 {
 		reasons = append(reasons, "nothing under budget.numbers carries a limit, so the client budget would be a table with no line in it")
 	}
 	return t, reasons
-}
-
-// stated turns a limit and its comparison into what the page says. The file
-// carries the two apart, and a page printing the number alone would state a
-// ceiling and a required value in the same words, which are opposite claims.
-func stated(comparison, limit, unit string) string {
-	switch comparison {
-	case "below":
-		return "under " + limit + " " + unit
-	case "equal":
-		return "exactly " + limit + " " + unit
-	default:
-		return comparison + " " + limit + " " + unit
-	}
 }
 
 // siteBudget is what this page itself has to fit inside, read from the constants

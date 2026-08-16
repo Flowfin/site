@@ -241,7 +241,9 @@ func invariantsLeg(root string) (string, error) {
 		lines := strings.Split(strings.TrimRight(log.String(), "\n"), "\n")
 		return "", fmt.Errorf("%v:\n%s", err, indent(lines))
 	}
-	rules, owed := len(invariant.Rules()), len(invariant.Owing())
+	// The count of rows rather than their decisions, which the run above has
+	// already taken, so the table is handed nothing.
+	rules, owed := len(invariant.Rules(nil)), len(invariant.Owing())
 	return fmt.Sprintf("ok, %d rule(s) decided, %d owed and not decided", rules, owed), nil
 }
 
