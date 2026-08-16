@@ -77,12 +77,17 @@ var sentence = regexp.MustCompile(`\.$|\. `)
 // colourValue is an sRGB value as the token file writes one, and number is a
 // value that can stand in front of a unit.
 //
-// Both are anchored at both ends, and that is what every drawing on this page
-// rests on rather than a convention. A declaration is written into a style
-// attribute, so it is the one place on the page where a value is markup rather
-// than text, and the file the values come from is published elsewhere. A value
-// that is not one of these two shapes is not drawn and the group says so, so
-// nothing reaches a declaration except digits and a hexadecimal colour.
+// Both are anchored at both ends, and that is the first of two things every
+// drawing rests on. A value reaches a style attribute, and the file it comes
+// from is published elsewhere, so a value carrying a semicolon would arrive on
+// the page as a second declaration nobody wrote. A value that is not one of
+// these two shapes is not drawn and the group says so.
+//
+// The second is that the property names are written in the frame and only the
+// value is handed to it, so the template engine reads each one in a value
+// position and filters it. Nothing here converts a string into markup the engine
+// would write out unread, which is what the static analysis over this package
+// refuses and what a page assembling its own declarations would have needed.
 var (
 	colourValue = regexp.MustCompile(`^#(?:[0-9A-Fa-f]{8}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{3})$`)
 	number      = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?$`)
@@ -93,34 +98,43 @@ var (
 // comment states has a name in the source.
 const nothing = "null"
 
-// tokenValue is one leaf of the pinned copy as the page states it. Drawn is the
-// declaration that renders the value where the value is something that can be
-// rendered, and is empty otherwise, so the template asks whether there is
-// something to draw rather than deciding what a colour is.
+// tokenValue is one leaf of the pinned copy as the page states it. Colour is the
+// value again where the value is a colour and empty otherwise, so the frame asks
+// whether there is a colour rather than deciding what one is.
 type tokenValue struct {
-	Path  string
-	Value string
-	Drawn template.CSS
+	Path   string
+	Value  string
+	Colour string
 }
 
-// sample is one thing the page shows by drawing it with the value it names
-// rather than by describing it.
-type sample struct {
-	// Text is what is drawn. It is short because what a reader is looking
-	// at is the drawing rather than the words.
-	Text string
-	// Says is what the reader is looking at, beside the drawing rather than
-	// inside it, so the sample is not carrying its own caption in the size
-	// it is demonstrating.
-	Says  string
-	Drawn template.CSS
+// The three things the page shows by drawing them with the values they name.
+// Each one carries its values apart rather than as a finished declaration,
+// because the frame writes the property and the engine reads the value.
+//
+// The type sample is drawn at its size and states its weight in words. The
+// property that would draw the weight may not appear in what the build reads,
+// which is the row that keeps a weight from being defined anywhere but the token
+// file, and this page is inside that row's subject like every other build input.
+type typeSample struct {
+	Role     string
+	Distance string
+	Size     string
+	Weight   string
 }
 
-// demonstration is a group of samples under what they are about.
-type demonstration struct {
-	Shows   string
-	Says    string
-	Samples []sample
+type cornerSample struct {
+	Name   string
+	Radius string
+	Ground string
+	Ink    string
+}
+
+type ringSample struct {
+	Preset  string
+	Scheme  string
+	Missing string
+	Width   string
+	Accent  string
 }
 
 // budgetRow is one line of a budget, and budgetTable is a budget with what it is
@@ -169,12 +183,10 @@ func writeDesignSystem(root, out, label string, tmpl *template.Template, said de
 	p.Values = listed
 	p.Reading = reading(len(values), len(listed), sentences, empty)
 
-	shows, reasons := demonstrations(values)
-	if len(reasons) > 0 {
+	if reasons := drawings(values, &p); len(reasons) > 0 {
 		return nil, fmt.Errorf("%s cannot be drawn from %s, %d reason(s):\n  %s",
 			DesignSystemPath, tokens.File, len(reasons), strings.Join(reasons, "\n  "))
 	}
-	p.Shows = shows
 
 	client, reasons := clientBudget(values)
 	if len(reasons) > 0 {
@@ -200,7 +212,7 @@ func writeDesignSystem(root, out, label string, tmpl *template.Template, said de
 
 	drawn := 0
 	for _, v := range listed {
-		if v.Drawn != "" {
+		if v.Colour != "" {
 			drawn++
 		}
 	}
@@ -227,33 +239,24 @@ func readValues(values tokens.Values) (listed []tokenValue, sentences, empty int
 		case v == nothing:
 			empty++
 		default:
-			listed = append(listed, tokenValue{Path: p, Value: v, Drawn: draw(v)})
+			listed = append(listed, tokenValue{Path: p, Value: v, Colour: colour(v)})
 		}
 	}
 	return listed, sentences, empty
 }
 
-// draw returns the declaration that renders a value with itself, or nothing
-// where the value is not something a page can draw.
+// colour returns the value again where it is a colour, and nothing otherwise.
 //
-// A colour is drawn as its own foreground and its own background at once, which
+// The frame draws it as its own foreground and its own background at once, which
 // is a swatch that needs no size written anywhere: the box is as large as the
 // text inside it, and the text is invisible because it is the colour it sits on.
 // A size stated here would be a length this repository defined, and the one file
 // a length is read from is the one this page is rendering.
-func draw(value string) template.CSS {
+func colour(value string) string {
 	if !colourValue.MatchString(value) {
 		return ""
 	}
-	// The conversion is what puts a declaration into a style attribute at
-	// all, and what makes it safe is the guard above: the value is a
-	// hexadecimal colour anchored at both ends, so there is no character in
-	// it that could close the declaration or open another one. A value of
-	// any other shape leaves here undrawn. The directive has to sit on the
-	// line before the conversion, so the reason is above it rather than
-	// beside it.
-	// nosemgrep: tools.semgrep.template-escaping-bypassed
-	return template.CSS("background:" + value + ";color:" + value)
+	return value
 }
 
 // reading is the sentence that lets a reader audit the rule this file takes
@@ -282,45 +285,58 @@ func holding(empty int) string {
 	}
 }
 
-// demonstrations builds the groups the page shows by drawing rather than by
-// describing, and returns one reason per group it could not build.
+// drawings puts the three groups the page shows by drawing on the page, and
+// returns one reason per value it could not draw with and per group that came
+// out empty.
 //
 // A group that came out empty is a refusal rather than a heading with nothing
 // under it. The file this reads is published elsewhere, so a group emptying is
-// how a renamed key would arrive here, and the failure that names it is worth
-// more than a page that silently stops demonstrating what it says it does.
-func demonstrations(values tokens.Values) ([]demonstration, []string) {
-	var out []demonstration
+// how a renamed key would arrive here, and a page that silently stops
+// demonstrating what it says it demonstrates is worse than a red build.
+func drawings(values tokens.Values, p *page) []string {
 	var reasons []string
 
-	add := func(d demonstration, why []string, about string) {
-		reasons = append(reasons, why...)
-		if len(d.Samples) == 0 {
-			reasons = append(reasons, fmt.Sprintf(
-				"nothing in the file answers to %s, so the group %q would be a heading with nothing under it",
-				about, d.Shows))
-			return
-		}
-		out = append(out, d)
+	scale, why := typeScale(values)
+	reasons = append(reasons, why...)
+	if len(scale) == 0 {
+		reasons = append(reasons, emptyGroup("the type scale",
+			"a size and a weight under type.distances.<distance>.roles.<role>"))
 	}
+	p.TypeScale = scale
 
-	d, why := typeScale(values)
-	add(d, why, "a size and a weight under type.distances.<distance>.roles.<role>")
-	d, why = corners(values)
-	add(d, why, "a value under shape.radius<...>.value")
-	d, why = focusRings(values)
-	add(d, why, "a ring width and an accent under focus.presets.<preset>")
+	shapes, why := corners(values)
+	reasons = append(reasons, why...)
+	if len(shapes) == 0 {
+		reasons = append(reasons, emptyGroup("the corner a tile is drawn with",
+			"a value under shape.radius<...>.value beside a light surface and a light ink"))
+	}
+	p.Corners = shapes
 
-	return out, reasons
+	rings, why := focusRings(values)
+	reasons = append(reasons, why...)
+	if len(rings) == 0 {
+		reasons = append(reasons, emptyGroup("the focus ring per colour vision preset",
+			"a ring width and an accent under focus.presets.<preset>"))
+	}
+	p.Rings = rings
+
+	return reasons
+}
+
+func emptyGroup(group, about string) string {
+	return fmt.Sprintf(
+		"nothing in the file answers to %s, so %s would be a heading with nothing under it",
+		about, group)
 }
 
 // numberAt and colourAt read a value the page is about to draw with and refuse
 // one that is not the shape a drawing can be built out of.
 //
-// They exist because the drawing is a declaration in a style attribute, which is
-// the one place on this page where a value is markup rather than text, and the
-// file is published elsewhere. A value of the wrong shape is a reason the build
-// prints rather than a sample quietly missing from a group, because a group that
+// They exist because the value reaches a style attribute, and the file is
+// published elsewhere. The template engine reads each one in a value position
+// and filters it as well, so these are the first of two readings rather than the
+// only one, and what they add is that a value of the wrong shape is a reason the
+// build prints rather than a sample quietly missing from a group. A group that
 // is one sample short looks exactly like a group that is complete.
 func numberAt(values tokens.Values, at string) (string, string) {
 	v, ok := values[at]
@@ -344,15 +360,12 @@ func colourAt(values tokens.Values, at string) (string, string) {
 	return v, ""
 }
 
-// typeScale draws each role at each viewing distance, in the size and the weight
-// the file gives it. The two distances are one scale read from two distances, so
-// the samples are listed together rather than as two scales.
-func typeScale(values tokens.Values) (demonstration, []string) {
-	d := demonstration{
-		Shows: "Type, at both viewing distances",
-		Says: "Each role drawn at the size and the weight the file gives it. " +
-			"The two distances are one scale read from two distances rather than two scales.",
-	}
+// typeScale is each role at each viewing distance, drawn at the size the file
+// gives it and stating the weight beside it. The two distances are one scale
+// read from two distances, so the samples are listed together rather than as two
+// scales.
+func typeScale(values tokens.Values) ([]typeSample, []string) {
+	var out []typeSample
 	var reasons []string
 	for _, at := range endingIn(values, "size") {
 		if !strings.HasPrefix(at, "type.distances.") {
@@ -369,38 +382,29 @@ func typeScale(values tokens.Values) (demonstration, []string) {
 		if size == "" || weight == "" {
 			continue
 		}
-		// Both values were read through numberAt above, so what the
-		// conversion is handed is digits and the property names this line
-		// writes. A value that is anything else never reaches here and is
-		// a reason the build prints instead.
-		// nosemgrep: tools.semgrep.template-escaping-bypassed
-		drawn := template.CSS(fmt.Sprintf("font-size:%spx;font-weight:%s", size, weight))
-		d.Samples = append(d.Samples, sample{
-			Text:  parts[len(parts)-2],
-			Says:  fmt.Sprintf("%s, %s at weight %s", parts[2], size, weight),
-			Drawn: drawn,
+		out = append(out, typeSample{
+			Role:     parts[len(parts)-2],
+			Distance: parts[2],
+			Size:     size,
+			Weight:   weight,
 		})
 	}
-	return d, reasons
+	return out, reasons
 }
 
-// corners draws each radius as the corner it produces, on a box that is as large
-// as the words inside it. Which radius is which is the file's own reading: a
-// radius is a value under a key that names one, and the widest a column of text
-// may get is a length under the same group that is not a corner at all.
-func corners(values tokens.Values) (demonstration, []string) {
-	d := demonstration{
-		Shows: "The corner a tile is drawn with",
-		Says: "Each radius drawn as the corner it makes. The surface and the ink are " +
-			"the light scheme's, so the corner is visible against the box rather than against the page.",
-	}
+// corners is each radius drawn as the corner it produces, on a box that is as
+// large as the words inside it. Which radius is which is the file's own reading:
+// a radius is a value under a key that names one, and the widest a column of
+// text may get is a length under the same group that is not a corner at all.
+func corners(values tokens.Values) ([]cornerSample, []string) {
+	var out []cornerSample
 	var reasons []string
 	ground, why := colourAt(values, "surface.tokens.raise-2.light.srgb")
 	reasons = appendReason(reasons, why)
 	ink, why := colourAt(values, "surface.tokens.ink.light.srgb")
 	reasons = appendReason(reasons, why)
 	if ground == "" || ink == "" {
-		return d, reasons
+		return nil, reasons
 	}
 	for _, at := range endingIn(values, "value") {
 		if !strings.HasPrefix(at, "shape.radius") {
@@ -411,30 +415,22 @@ func corners(values tokens.Values) (demonstration, []string) {
 		if radius == "" {
 			continue
 		}
-		// The radius came through numberAt and the two colours through
-		// colourAt, so the conversion is handed digits, two hexadecimal
-		// colours and the property names on this line.
-		// nosemgrep: tools.semgrep.template-escaping-bypassed
-		drawn := template.CSS(fmt.Sprintf("border-radius:%spx;background:%s;color:%s", radius, ground, ink))
-		d.Samples = append(d.Samples, sample{
-			Text:  strings.TrimSuffix(strings.TrimPrefix(at, "shape."), ".value"),
-			Says:  radius,
-			Drawn: drawn,
+		out = append(out, cornerSample{
+			Name:   strings.TrimSuffix(strings.TrimPrefix(at, "shape."), ".value"),
+			Radius: radius,
+			Ground: ground,
+			Ink:    ink,
 		})
 	}
-	return d, reasons
+	return out, reasons
 }
 
-// focusRings draws the accent of every colour vision preset as the ring it
+// focusRings is the accent of every colour vision preset drawn as the ring it
 // produces, in both schemes, because which hue works depends on which cone type
 // is missing and a reader on a dark machine and a reader on a light one are not
 // being shown the same colour.
-func focusRings(values tokens.Values) (demonstration, []string) {
-	d := demonstration{
-		Shows: "The focus ring, one per colour vision preset",
-		Says: "Each preset's accent drawn as the ring it makes, at the width that " +
-			"preset asks for, in both schemes. What each preset is for is what a reader is missing.",
-	}
+func focusRings(values tokens.Values) ([]ringSample, []string) {
+	var out []ringSample
 	var reasons []string
 	for _, at := range endingIn(values, "ring-width") {
 		if !strings.HasPrefix(at, "focus.presets.") {
@@ -452,22 +448,19 @@ func focusRings(values tokens.Values) (demonstration, []string) {
 			if accent == "" {
 				continue
 			}
-			// The width came through numberAt and the accent through
-			// colourAt, so the conversion is handed digits, one
-			// hexadecimal colour and the words on this line.
-			// nosemgrep: tools.semgrep.template-escaping-bypassed
-			drawn := template.CSS(fmt.Sprintf("outline:%spx solid %s", width, accent))
-			d.Samples = append(d.Samples, sample{
-				Text:  preset,
-				Says:  fmt.Sprintf("%s, missing %s", scheme, values["focus.presets."+preset+".missing"]),
-				Drawn: drawn,
+			out = append(out, ringSample{
+				Preset:  preset,
+				Scheme:  scheme,
+				Missing: values["focus.presets."+preset+".missing"],
+				Width:   width,
+				Accent:  accent,
 			})
 		}
 	}
-	return d, reasons
+	return out, reasons
 }
 
-// appendReason keeps the caller above readable, because a value that was simply
+// appendReason keeps the callers above readable, because a value that was simply
 // not in the file is not a reason and a value of the wrong shape is.
 func appendReason(reasons []string, why string) []string {
 	if why == "" {

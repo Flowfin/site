@@ -35,7 +35,7 @@ One `weight` is a sentence and another is a number:
 The page that comes out of the decision below, against the line the budget fixes:
 
     go run . build | grep design-system
-    wrote dist/design-system.html (19194 bytes, 154 value(s) listed, 36 drawn, 52 sentence(s) not listed)
+    wrote dist/design-system.html (19173 bytes, 154 value(s) listed, 36 drawn, 52 sentence(s) not listed)
     grep -n 'HTMLBytes = ' internal/budget/budget.go
     27:	HTMLBytes = 20 * 1024
 
@@ -55,10 +55,23 @@ holds, so a reader can audit the split without reading the source that takes it.
 
 Where a value can be drawn, the page draws it with that same value rather than
 with a copy: a colour is its own background and its own foreground at once, a
-radius is the corner it makes, a type role is drawn at the size and weight it is
-given, and each colour vision preset's accent is drawn as the ring it makes in
-both schemes. Nothing on the page states a size, a colour or a weight that this
-repository chose.
+radius is the corner it makes, a type role is drawn at the size it is given, and
+each colour vision preset's accent is drawn as the ring it makes in both schemes.
+Nothing on the page states a size, a colour or a weight that this repository
+chose.
+
+The frame writes the property and hands the engine the value, so every value is
+read in a value position and filtered there. Nothing converts a string into
+markup the engine writes out unread, which is what a page assembling its own
+declarations would have needed and what the static analysis over the generator
+refuses.
+
+One consequence is worth stating rather than leaving to be found. A type role is
+drawn at its size and states its weight in words, because the property that would
+draw a weight may not appear in what the build reads at all. That is the row
+keeping a weight from being defined anywhere but the token file, and this page is
+inside its subject like every other build input, so the alternative is a page
+that weakens that row rather than a page that draws one more thing.
 
 A group that can no longer be drawn reds the build and names itself. The file is
 published elsewhere, so a renamed key is how that arrives, and a page that
@@ -111,7 +124,7 @@ When the published file grows past what is left under the document line. The
 headroom is small and it is worth stating as a number rather than as a feeling:
 
     python -c "s=open('dist/design-system.html',encoding='utf-8').read();a=s.index('<dl>');b=s.index('</dl>')+5;d=s[a:b];print(20480-len(s), round(len(d)/d.count('<dt>'),1))"
-    1286 70.7
+    1307 70.7
 
 Run 2026-08-17. So about eighteen more values fit before the row that refuses a
 page over the line refuses this one, and it will name this page when it does. The

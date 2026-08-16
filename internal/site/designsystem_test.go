@@ -33,11 +33,14 @@ const designTemplate = `<title>{{ .Title }}</title>
 {{- range .Paragraphs }}
 <p>{{ . }}</p>
 {{- end }}
-{{- range .Shows }}
-<h2>{{ .Shows }}</h2>
-{{- range .Samples }}
-<li><span style="{{ .Drawn }}">{{ .Text }}</span> {{ .Says }}</li>
+{{- range .TypeScale }}
+<li><span style="font-size:{{ .Size }}px">{{ .Role }}</span> {{ .Distance }}, {{ .Size }} at weight {{ .Weight }}</li>
 {{- end }}
+{{- range .Corners }}
+<li><span style="border-radius:{{ .Radius }}px;background:{{ .Ground }};color:{{ .Ink }}">{{ .Name }}</span> {{ .Radius }}</li>
+{{- end }}
+{{- range .Rings }}
+<li><span style="outline:{{ .Width }}px solid {{ .Accent }}">{{ .Preset }}</span> {{ .Scheme }}, missing {{ .Missing }}</li>
 {{- end }}
 {{- range .Budgets }}
 <h2>{{ .Whose }}</h2>
@@ -48,7 +51,7 @@ const designTemplate = `<title>{{ .Title }}</title>
 {{- if .Values }}
 <p>{{ .Reading }}</p>
 {{- range .Values }}
-<dt>{{ .Path }}</dt><dd>{{ .Value }}{{ if .Drawn }} <span style="{{ .Drawn }}">{{ .Value }}</span>{{ end }}</dd>
+<dt>{{ .Path }}</dt><dd>{{ .Value }}{{ if .Colour }} <span style="background:{{ .Colour }};color:{{ .Colour }}">{{ .Value }}</span>{{ end }}</dd>
 {{- end }}
 {{- end }}
 `
@@ -313,7 +316,8 @@ func TestEveryGroupIsDrawnOutOfTheValueItNames(t *testing.T) {
 	page := designPage(t, designTokens)
 
 	for _, want := range []string{
-		`<span style="font-size:14px;font-weight:540">tile</span>`,
+		`<span style="font-size:14px">tile</span>`,
+		`telephone, 14 at weight 540`,
 		`<span style="border-radius:12px;background:#F0F0F2;color:#0E0E11">radius</span>`,
 		`<span style="outline:3px solid #5B9CFF">standard</span>`,
 		`<span style="outline:3px solid #0A6CE8">standard</span>`,
@@ -334,9 +338,9 @@ func TestAGroupThatCanNoLongerBeDrawnRedsTheBuild(t *testing.T) {
 		renamed string
 		says    string
 	}{
-		{"the ring width", `"ring-width"`, "The focus ring, one per colour vision preset"},
-		{"the radius", `"shape": { "radius"`, "The corner a tile is drawn with"},
-		{"the role size", `"size"`, "Type, at both viewing distances"},
+		{"the ring width", `"ring-width"`, "the focus ring per colour vision preset"},
+		{"the radius", `"shape": { "radius"`, "the corner a tile is drawn with"},
+		{"the role size", `"size"`, "the type scale"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

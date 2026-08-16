@@ -61,15 +61,19 @@ type page struct {
 	Claims     []claim
 	Promises   []promise
 	Residuals  []string
-	// Shows, Budgets, Values and Reading are the design system page, which is
-	// the one page that renders a file rather than prose. Reading is the
-	// sentence saying how much of that file is listed and how much of it is
-	// the file's own prose, so a reader can audit the split without reading
-	// the source that takes it.
-	Shows   []demonstration
-	Budgets []budgetTable
-	Values  []tokenValue
-	Reading string
+	// The six below are the design system page, which is the one page that
+	// renders a file rather than prose. The three sample lists carry their
+	// values apart rather than as finished declarations, because the frame
+	// writes the property and hands the engine a value. Reading is the
+	// sentence saying how much of the file is listed and how much of it is the
+	// file's own prose, so a reader can audit the split without reading the
+	// source that takes it.
+	TypeScale []typeSample
+	Corners   []cornerSample
+	Rings     []ringSample
+	Budgets   []budgetTable
+	Values    []tokenValue
+	Reading   string
 }
 
 // link is somewhere a page offers to send a reader. It carries the address
