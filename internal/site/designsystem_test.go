@@ -349,6 +349,34 @@ func TestAGroupThatCanNoLongerBeDrawnRedsTheBuild(t *testing.T) {
 	}
 }
 
+// A drawing is a declaration in a style attribute, which is the one place on this
+// page where a value is markup rather than text, and the file is published
+// elsewhere. A value that is not the shape a drawing is built out of is a reason
+// the build prints rather than a sample quietly missing from a group.
+func TestAValueThatIsNotTheShapeADrawingNeedsIsRefused(t *testing.T) {
+	cases := []struct {
+		name  string
+		was   string
+		now   string
+		names string
+	}{
+		{"a ring width carrying more than a number", `"ring-width": 3,`,
+			`"ring-width": "3px;background:red",`, "focus.presets.standard.ring-width"},
+		{"an accent that is not a colour", `"accent": { "srgb": "#5B9CFF" }`,
+			`"accent": { "srgb": "red;outline:0" }`, "focus.presets.standard.dark.accent.srgb"},
+		{"a radius carrying a unit of its own", `"radius": { "value": 12 }`,
+			`"radius": { "value": "12em" }`, "shape.radius.value"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			said := designRefusal(t, strings.Replace(designTokens, c.was, c.now, 1))
+			if !strings.Contains(said, c.names) {
+				t.Errorf("the refusal does not name the value it could not draw with, it said: %s", said)
+			}
+		})
+	}
+}
+
 // The two budgets are about different things, and the page says whose each one
 // is rather than heading both of them "budget" and leaving a reader to tell them
 // apart.
