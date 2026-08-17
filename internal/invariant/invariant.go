@@ -182,6 +182,23 @@ var (
 	// and a version at the end of a sentence is still found with the full
 	// stop after it.
 	versionShaped = regexp.MustCompile(`[0-9]+(?:\.[0-9]+)+`)
+	// The two spellings a server generation arrives in, each recognised by
+	// what stands beside the number rather than by the number itself. A run
+	// of digits and dots on its own is a line height, a release of somebody
+	// else's tool or an address, and a row that read the shape alone would
+	// refuse all three and be switched off within the week.
+	//
+	// The first is how a page states it, which is the server's name and then
+	// the generation, with room for the few words a sentence puts between
+	// them. The second is how a build manifest declares it, which is the key
+	// the published metadata carries, and it is the spelling a roster
+	// vendored into this tree would arrive in.
+	//
+	// Both are bounded to one line, and the vocabulary is a floor rather
+	// than a guarantee: a generation written with neither the server's name
+	// nor the manifest's key beside it is refused by nothing here.
+	statedGeneration   = regexp.MustCompile(`(?i)jellyfin[^0-9\n]{0,24}([0-9]+(?:\.[0-9]+)+)`)
+	declaredGeneration = regexp.MustCompile(`(?i)\btarget[_-]?abi\b[^0-9\n]{0,8}([0-9]+(?:\.[0-9]+)+)`)
 	// What a page cites a check by. The attribute is what a machine reads
 	// and the name is also written where a reader sees it, both from one
 	// value, so a page cannot show a reader one name and this row another.
@@ -493,6 +510,13 @@ func Rules(numbers []tokens.Number) []Rule {
 			Reason:  "a version written a second time is right on the day it is typed, and the copy that goes stale is the one a reader takes the version from rather than the one the release run reads, so the tree announces a release nobody tagged and nothing about the tag says otherwise",
 			Refuses: "the version this repository releases under, written into a tracked file outside the register that holds it",
 			decide:  decideSecondVersion,
+		},
+		{
+			ID:      "build-input-carries-no-server-generation",
+			Subject: BuildInputs,
+			Reason:  "which server generation a build is for is a fact about what was published rather than an opinion anybody records, and a generation typed here is right on the day it is typed; the release that moves to the next one leaves the page stating the old one, looking exactly as correct as it did before, and the reader it is wrong for is the one deciding what to install",
+			Refuses: "a server generation written into what the build reads, in either the spelling a page states it in or the key a build manifest declares it under",
+			decide:  decideTypedServerGeneration,
 		},
 		{
 			ID:      "test-opens-no-window",
@@ -822,6 +846,43 @@ func decideSecondVersion(body []byte) []string {
 			details = append(details, fmt.Sprintf(
 				"line %d writes the version %s, and %s is the one file it is read from",
 				i+1, version.Number, version.SourceFile))
+		}
+	}
+	return details
+}
+
+// decideTypedServerGeneration refuses a server generation written into what the
+// build reads.
+//
+// The value belongs to the release that was published, and nothing else can say
+// it: a source file says what somebody intends to publish and only a release
+// says what somebody can install. So there is no register here for this row to
+// point a repair at, and the message names what says it instead of naming a
+// file that would have to be invented to receive the copy.
+//
+// It reads the words beside the number rather than the number, which is the
+// opposite of the version row above and is the reason the two are separate rows.
+// That one knows the exact string it is looking for and can compare whole runs
+// against it. This one is looking for a value nobody in this tree holds, so the
+// only thing that distinguishes a generation from a line height is what somebody
+// wrote next to it.
+//
+// The population is what the build reads, which is where a wrong value reaches a
+// page. It is also where a vendored roster lands, so the roster is a subject of
+// this row on the day it arrives rather than on the day somebody remembers to
+// widen the population.
+func decideTypedServerGeneration(body []byte) []string {
+	var details []string
+	for i, line := range strings.Split(string(body), "\n") {
+		for _, m := range statedGeneration.FindAllStringSubmatch(line, -1) {
+			details = append(details, fmt.Sprintf(
+				"line %d states the server generation %s, and only a published release says which generation a build is for",
+				i+1, m[1]))
+		}
+		for _, m := range declaredGeneration.FindAllStringSubmatch(line, -1) {
+			details = append(details, fmt.Sprintf(
+				"line %d declares the server generation %s under the key a build manifest carries, and what a build manifest intends is not what a release published",
+				i+1, m[1]))
 		}
 	}
 	return details

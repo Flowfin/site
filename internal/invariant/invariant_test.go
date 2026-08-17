@@ -265,6 +265,13 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		// would fail the tree it judges.
 		"version-lives-in-exactly-one-file": []byte(
 			"The bundle to take is " + version.Number + ", and it is the one this page describes.\n"),
+		// The sentence somebody writes the day a reader asks which server
+		// the plugin needs. It is one clause in ordinary prose, it is
+		// true when it is typed, and it goes on reading as true after the
+		// release it was copied from has moved to the next generation.
+		"build-input-carries-no-server-generation": []byte(strings.Replace(cleanPage,
+			`<h1>A title</h1>`,
+			`<h1>A title</h1><p>It needs Jellyfin 10.11 or newer.</p>`, 1)),
 		// The six shapes the headless rule refuses, each in the smallest
 		// test somebody would actually write. Base64 for the same reason
 		// the marker fixture is: a test source carrying these literally is
@@ -456,6 +463,75 @@ func TestTheReleaseVersionRowNamesWhereTheVersionBelongs(t *testing.T) {
 	}
 	if !strings.Contains(got[0], version.SourceFile) {
 		t.Errorf("the refusal reads %q and does not name the file the version is read from", got[0])
+	}
+}
+
+// Both spellings a generation arrives in, and the refusal names the number so
+// that a reader repairs the clause rather than deleting the paragraph around it.
+func TestTheGenerationRowRefusesBothSpellingsAndNamesTheNumber(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{"stated in a sentence", "Install it on Jellyfin 10.11 or later.\n", "10.11"},
+		{"stated with words between", "It runs on a Jellyfin server of 12.0 and up.\n", "12.0"},
+		{"declared under the manifest key", "  \"targetAbi\": \"10.11.0.0\",\n", "10.11.0.0"},
+		{"declared with the key hyphenated", "target-abi: 12.0.0.0\n", "12.0.0.0"},
+	} {
+		got := decideTypedServerGeneration([]byte(c.body))
+		if len(got) != 1 {
+			t.Errorf("%s: the row reported %d violation(s): %v", c.name, len(got), got)
+			continue
+		}
+		if !strings.Contains(got[0], c.want) {
+			t.Errorf("%s: the refusal reads %q and does not name %s", c.name, got[0], c.want)
+		}
+		if !strings.Contains(got[0], "line 1") {
+			t.Errorf("%s: the refusal reads %q and does not name the line", c.name, got[0])
+		}
+	}
+}
+
+// What the row has to walk past, and each of these is in the tree today. The
+// notice names the server with no number anywhere near it, the token file states
+// lengths as bare decimals, and a number that belongs to something else is not a
+// generation because it is shaped like one. A row that refused any of the three
+// would be a row somebody switches off, and then the clause it exists for is
+// unguarded rather than loosened.
+func TestTheGenerationRowLeavesANumberThatIsNotAGenerationAlone(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		body string
+	}{
+		{"the server named with no number", affiliationNotice + "\n"},
+		{"a line height", `  "line-height": 1.5,` + "\n"},
+		{"a version of something else", "Formatted with prettier 3.9.6.\n"},
+		{"the number on the line above the name", "10.11\nJellyfin\n"},
+		{"a whole clean page", cleanPage},
+	} {
+		if got := decideTypedServerGeneration([]byte(c.body)); len(got) != 0 {
+			t.Errorf("%s: the row refused it: %v", c.name, got)
+		}
+	}
+}
+
+// The sentence reds this row and no other. A clause that also tripped the
+// version row or the budget row would send the next reader to the wrong repair,
+// and the repair here is to take the value from what was published rather than
+// to move it to another file.
+func TestATypedServerGenerationRedsExactlyOneRow(t *testing.T) {
+	page := []byte(strings.Replace(cleanPage, `<h1>A title</h1>`,
+		`<h1>A title</h1><p>It needs Jellyfin 10.11 or newer.</p>`, 1))
+
+	var refused []string
+	for _, r := range Rules(fixtureNumbers) {
+		if len(r.decide(page)) > 0 {
+			refused = append(refused, r.ID)
+		}
+	}
+	if len(refused) != 1 || refused[0] != "build-input-carries-no-server-generation" {
+		t.Errorf("the typed generation refused %v, want only build-input-carries-no-server-generation", refused)
 	}
 }
 
