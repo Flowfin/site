@@ -59,3 +59,9 @@ and the licence is not chosen. Nothing follows from that absence except the
 default, which is that nobody may copy the pages, the generator or the prose.
 Entry 1 of issue #7 is the choice, and issue #18 is what lands the file and
 the identifier once that answer comes back.
+
+## License
+
+AGPL-3.0, copyright 2026 Nils Lehnen.
+
+The full text is in [LICENSE](LICENSE).
