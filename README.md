@@ -54,11 +54,14 @@ architecture, with the reasons that were current when it was taken.
 This repository has no code of conduct. Issue #62 is where one is added, and
 until it lands there is nothing here to link.
 
-There is no licence file either, so this repository states no SPDX identifier
-and the licence is not chosen. Nothing follows from that absence except the
-default, which is that nobody may copy the pages, the generator or the prose.
-Entry 1 of issue #7 is the choice, and issue #18 is what lands the file and
-the identifier once that answer comes back.
+The licence is AGPL-3.0 and its text is at [LICENSE](LICENSE). What this
+repository still states nowhere is an SPDX identifier for it. The bare form is
+deprecated on the published list, and the two that are current, `AGPL-3.0-only`
+and `AGPL-3.0-or-later`, differ on whether a later version of the licence may be
+used, which is a choice rather than a spelling. Entry 1 of issue #7 is where
+that is settled, and issue #18 is what writes the identifier here and adds the
+rule refusing a source file that carries no header. No source file carries one
+today.
 
 ## License
 
