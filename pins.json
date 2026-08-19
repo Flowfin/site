@@ -23,7 +23,7 @@
     "id": "semgrep",
     "registry": "pypi",
     "name": "semgrep",
-    "version": "1.172.0",
+    "version": "1.173.0",
     "checksum": "",
     "reads": [".github/workflows/semgrep.yml"],
     "repeats": [],
@@ -34,7 +34,7 @@
     "registry": "docker-hub",
     "name": "library/golang",
     "version": "1.26.5-bookworm",
-    "checksum": "sha256:6c5605ab3a9a9fb3c4eafe5b3d63cdbf3881caf113262b67862547b54a9db599",
+    "checksum": "sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd",
     "reads": [],
     "repeats": ["Dockerfile"],
     "why": "The container builds the site from this image, and the digest is what makes that build the same one twice. It is repeated rather than read because a FROM instruction takes no indirection, so the reference is derived from the fields here and the file is refused when it carries a different one. What the run compares is the digest the tag resolves to today, because a tag rebuilt under the same name is exactly the drift a version string would not see."
