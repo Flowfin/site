@@ -1,0 +1,74 @@
+# The reading of this board's own tracker that says whether an issue declaring
+# itself blocked still points at anything.
+#
+# It runs on a schedule rather than on a pull request, for the reason the two
+# comparisons beside it do: what it reads is the tracker, so its verdict moves
+# when somebody edits an issue rather than when this tree changes, and a merge
+# blocked by that is a gate punishing the wrong change. There is no half of
+# this that needs no network, because the subject is the tracker and nothing
+# else.
+#
+# The half that matters is the second one. An issue whose dependencies have all
+# closed is available work that reads as unavailable, and nothing else on this
+# board can tell: the label is correct on the day it goes on and there is no
+# moment afterwards at which anything looks again. Four issues were in that
+# state when this was written, two of them for a fortnight.
+#
+# It reports and does not edit. What it finds is repaired by somebody deciding
+# what an issue waits for, and a run that stripped a label on its own would be
+# taking that decision from a regular expression. The last step is what holds
+# it to that.
+name: Blockers
+
+on:
+  schedule:
+    # Daily rather than the weekly cadence the two comparisons of a pinned copy
+    # use. What those read moves when somebody else publishes; what this reads
+    # moves when work on this board closes, which is the thing that happens
+    # every day, and a week of an issue reading as unavailable is the cost this
+    # exists to stop paying.
+    - cron: "11 6 * * *"
+  workflow_dispatch:
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+jobs:
+  blockers:
+    name: Read every blocked issue and resolve what it names
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+      issues: read # the subject of the run, read and never edited
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Resolve what every blocked issue names
+        env:
+          # The listing is public and the run works without this. What the
+          # credential buys is the rate limit, which an anonymous run of this
+          # size spends most of, and the scope granted above is read only.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: go run . blockers
+
+      - name: Prove the run wrote nothing
+        # After the reading whether it passed or failed, because a run that
+        # edited an issue on its way to a red verdict is the failure this step
+        # exists for and a red verdict is exactly when it would be missed.
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain=v1
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
