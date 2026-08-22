@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/Flowfin/site/internal/blockers"
 	"github.com/Flowfin/site/internal/bom"
 	"github.com/Flowfin/site/internal/changelog"
 	"github.com/Flowfin/site/internal/gate"
@@ -119,6 +120,17 @@ func run(args []string, out, errOut io.Writer) error {
 		// the description is owed, and it runs this before it creates
 		// anything.
 		return changelog.Run(".", out)
+	case "blockers":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("blockers takes no argument")
+		}
+		// Deliberately not a leg of the gate, for the reason the two verbs
+		// above are not legs: what it reads is the tracker over the
+		// network, so its verdict moves when somebody edits an issue
+		// rather than when this tree changes, and a merge blocked by that
+		// would punish the wrong change.
+		return blockers.Run(blockers.Tracker, out)
 	case "hygiene":
 		return hygiene.Run(args[1:], out)
 	default:
@@ -147,6 +159,9 @@ func usage(w io.Writer) {
   go run . changelog
                    refuse a version that `+changelog.File+` does not describe,
                    which is what the release run asks before it creates a tag
+  go run . blockers
+                   read the tracker and refuse an issue that says it is blocked
+                   and names no issue, or whose named issues have all closed
   go run . hygiene [-origin=internal|external] <base> <head>
                    judge the commit messages in a range
 `)
