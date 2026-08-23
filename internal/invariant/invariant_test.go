@@ -719,6 +719,80 @@ func TestAViolationRedsExactlyOneRow(t *testing.T) {
 	}
 }
 
+// The other half of the same row, and the half a presence check misses. The
+// attribute is there, it holds a real tag, and it is the wrong one, which is
+// what a page left behind in the language this site used to be written in looks
+// like. The refusal has to carry the value, because a message saying only that
+// something about the language was wrong sends the next reader back to the page
+// to find out which of the three things it was.
+func TestTheLanguageRowRefusesALanguageTheSiteDoesNotPublishIn(t *testing.T) {
+	page := []byte(strings.Replace(cleanPage, `<html lang="en">`, `<html lang="de">`, 1))
+
+	got := decideLang(page)
+	if len(got) != 1 {
+		t.Fatalf("the row reported %d violation(s) for a page declaring de: %v", len(got), got)
+	}
+	if !strings.Contains(got[0], `"de"`) {
+		t.Errorf("the refusal reads %q, which does not name the value it found", got[0])
+	}
+	for _, l := range publishedLanguages {
+		if !strings.Contains(got[0], l) {
+			t.Errorf("the refusal reads %q, which does not say the site publishes in %s", got[0], l)
+		}
+	}
+}
+
+// What the row leaves alone, and it is the direction that costs a reader if it
+// is wrong. A tag more specific about the same language is a page in that
+// language, and a row refusing it would be a row somebody satisfies by writing
+// the vaguest tag available. The case is spelled out of the declared set rather
+// than typed, so a set that later publishes a second language does not leave
+// this case passing against a language nobody publishes in.
+func TestTheLanguageRowLeavesAMoreSpecificTagAlone(t *testing.T) {
+	for _, l := range publishedLanguages {
+		for name, tag := range map[string]string{
+			"the tag itself":          l,
+			"a region of it":          l + "-GB",
+			"the tag in capitals":     strings.ToUpper(l),
+			"a region of it, spaced ": " " + l + "-419 ",
+		} {
+			page := []byte(strings.Replace(cleanPage, `<html lang="en">`,
+				`<html lang="`+tag+`">`, 1))
+			if got := decideLang(page); len(got) != 0 {
+				t.Errorf("the row refused %s (%q): %v", name, tag, got)
+			}
+		}
+	}
+}
+
+// The wrong language reds this row and moves no other, in either direction. A
+// page that is otherwise clean carries every other row's subject, so a fixture
+// that tripped a second row would mean a red run naming a repair the page does
+// not need.
+func TestALanguageTheSiteDoesNotPublishInRedsExactlyOneRow(t *testing.T) {
+	page := []byte(strings.Replace(cleanPage, `<html lang="en">`, `<html lang="de">`, 1))
+
+	var refused []string
+	for _, r := range Rules(fixtureNumbers) {
+		if len(r.decide(page)) > 0 {
+			refused = append(refused, r.ID)
+		}
+	}
+	if len(refused) != 1 || refused[0] != "page-declares-its-language" {
+		t.Errorf("a page declaring de refused %v, want only page-declares-its-language", refused)
+	}
+
+	// The same page with the published tag back, so this case says the row
+	// moved on the value rather than on anything else the replacement did.
+	clean := []byte(strings.Replace(cleanPage, `<html lang="en">`,
+		`<html lang="`+publishedLanguages[0]+`">`, 1))
+	for _, r := range Rules(fixtureNumbers) {
+		if got := r.decide(clean); len(got) > 0 {
+			t.Errorf("%s refused the same page carrying %s: %v", r.ID, publishedLanguages[0], got)
+		}
+	}
+}
+
 // The four shapes a reference to somebody else's domain arrives in, each named
 // in #37 and each refused with the address written out. A message that said only
 // that the page reached another origin would leave the next person grepping the
@@ -925,6 +999,34 @@ func TestRunRefusesATemplateThatDroppedTheLanguage(t *testing.T) {
 	for _, want := range []string{
 		"page-declares-its-language: REFUSED",
 		"dist/index.html: the html element carries no lang attribute",
+		"it refuses",
+		"because",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
+		}
+	}
+	if !strings.Contains(err.Error(), "1 rule(s) refused") {
+		t.Errorf("the error reads %q, which does not say how many rules refused", err)
+	}
+}
+
+// The same mistake made in the value rather than in the attribute, which is the
+// shape a page left behind in another language arrives in. It is put in the
+// template because that is where a page property is lost, and every page the
+// build produced is named rather than the one somebody happened to open.
+func TestRunRefusesATemplateDeclaringALanguageTheSiteDoesNotPublishIn(t *testing.T) {
+	root := tree(t, strings.Replace(goodTemplate, `<html lang="en">`, `<html lang="de">`, 1))
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run accepted a template declaring a language this site does not publish in:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"page-declares-its-language: REFUSED, 2 violation(s)",
+		`dist/index.html: the html element declares lang="de"`,
+		`dist/privacy/index.html: the html element declares lang="de"`,
 		"it refuses",
 		"because",
 	} {
