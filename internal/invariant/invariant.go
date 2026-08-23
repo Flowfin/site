@@ -273,6 +273,28 @@ const affiliationNotice = "Flowfin is not affiliated with the Jellyfin project."
 // reaches anything else is a link that skips less than it looks like it does.
 const contentElement = "main"
 
+// publishedLanguages is what this site publishes in, held as the primary subtag
+// of a language tag. A page announcing anything else is a page in the wrong
+// language, and the row below is where that is decided.
+//
+// It is a second copy of an answer taken elsewhere. The record is
+// decisions/site-language.md in Flowfin/hub, which decided that the published
+// pages are English and stated the same three-part obligation this row carries.
+// Nothing here compares the two: no leg of the gate reaches the network, and the
+// two verbs that do are outside it for that reason. So the day that record moves
+// is a day this line is wrong and no run says so, and it is moved by hand with
+// the record.
+//
+// A set rather than a single value, so an answer that later publishes a second
+// language is a change to what this holds rather than to the row that reads it.
+//
+// The comparison is on the primary subtag, which is the record's own reading: a
+// tag that is more specific about the same language is a page in that language,
+// so en-GB passes. Refusing it would push whoever writes the next page towards
+// the least specific tag available, which is the wrong direction for a rule that
+// exists so a reader's software picks the right voice.
+var publishedLanguages = []string{"en"}
+
 // Rules is the table. The order is the order a run reports them in.
 //
 // It is handed the numbers a client is held to, because one row compares against
@@ -290,8 +312,8 @@ func Rules(numbers []tokens.Number) []Rule {
 		{
 			ID:      "page-declares-its-language",
 			Subject: ProducedPages,
-			Reason:  "a page with no language is read aloud in whichever one the reader's software guessed, and the guess is wrong for exactly the readers who depend on it",
-			Refuses: "a produced page with no html element, or one whose lang attribute is missing or empty",
+			Reason:  "a page with no language is read aloud in whichever one the reader's software guessed, and the guess is wrong for exactly the readers who depend on it; a page declaring a language this site does not publish in stops the guessing and sends the same reader to the wrong answer with nothing on the page to signal it",
+			Refuses: "a produced page with no html element, one whose lang attribute is missing or empty, or one whose lang names a language this site does not publish in",
 			decide:  decideLang,
 		},
 		{
@@ -1295,10 +1317,28 @@ func decideLang(body []byte) []string {
 	if m == nil {
 		return []string{"the html element carries no lang attribute"}
 	}
-	if strings.TrimSpace(string(m[1])) == "" {
+	tag := strings.TrimSpace(string(m[1]))
+	if tag == "" {
 		return []string{"the lang attribute on the html element is empty"}
 	}
+	if !published(tag) {
+		return []string{fmt.Sprintf("the html element declares lang=%q, and this site publishes in %s",
+			tag, strings.Join(publishedLanguages, ", "))}
+	}
 	return nil
+}
+
+// published says whether a language tag names one of the languages this site
+// publishes in. It reads the primary subtag and folds case, because a tag is
+// case-insensitive and a page written EN is the same page as one written en.
+func published(tag string) bool {
+	primary, _, _ := strings.Cut(tag, "-")
+	for _, l := range publishedLanguages {
+		if strings.EqualFold(primary, l) {
+			return true
+		}
+	}
+	return false
 }
 
 func decideTitle(body []byte) []string {
