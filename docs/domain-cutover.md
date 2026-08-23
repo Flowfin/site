@@ -76,6 +76,17 @@ What answers, and with what:
     https://flowfin.dev/design-tokens.json   200
     https://flowfin.dev/manifest.json        404
 
+One line of that reading has been overtaken, and it stays as it was printed
+because this section exists so that rolling back restores a state rather than
+guessing at one. The catalogue address answers now:
+
+    curl -sS -o /dev/null -w '%{http_code}\n' https://flowfin.dev/manifest.json
+    200
+
+Run 2026-08-23. So a rollback restores an origin that serves that path, which is
+what step 9 reads for, and the reading above is the state on 2026-08-11 rather
+than the state to expect on the day.
+
 A request over plain http is answered with a redirect rather than served:
 
     curl -sS -o /dev/null -w 'http->%{http_code} %{redirect_url}\n' http://flowfin.dev/
@@ -258,9 +269,11 @@ nothing reports it broken. Read it deliberately, with the token file beside it:
     done
 
 What each of those should answer at that moment depends on what step 4 carried.
-A `404` on the catalogue address is the state before anything is published
-upstream and is what it answers today; it is not evidence that the move went
-well.
+Both answer `200` today, so on the day of the move a `404` at either of them is
+the move having dropped a file rather than a state to read past. A `404` on the
+catalogue address is also the state before anything is published upstream, and
+that is what it meant until 2026-08-23; it has stopped meaning that, and neither
+reading is evidence that the move went well.
 
 ### 10. Record what the move produced, from outside
 
@@ -290,7 +303,8 @@ not become a dead link.
 `/install/`, `/plugins/<id>/`, `/privacy/`, `/legal/` and `/404.html` are new.
 Nothing links to them today, so nothing breaks by their arriving.
 
-`/manifest.json` does not answer today and is the commitment record 0006 holds.
+`/manifest.json` answers today with a `200`, carrying a catalogue this
+repository does not author, and it is the commitment record 0006 holds.
 It is the reason #67 refuses a publish rather than completing one.
 
 `/design-tokens.json` answers today with a `200`, is authored in the repository
