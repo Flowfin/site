@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the invariant table.
 //
 // Every row is proved twice: the smallest violation somebody would actually
@@ -25,6 +27,7 @@ import (
 	"time"
 
 	"github.com/Flowfin/site/internal/budget"
+	"github.com/Flowfin/site/internal/licence"
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/site"
 	"github.com/Flowfin/site/internal/tokens"
@@ -282,6 +285,12 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 		"test-writes-no-certificate-store":         b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkib3MvZXhlYyIKCSJ0ZXN0aW5nIgopCgpmdW5jIFRlc3RUcnVzdCh0ICp0ZXN0aW5nLlQpIHsgXyA9IGV4ZWMuQ29tbWFuZCgiY2VydHV0aWwiLCAiLWFkZHN0b3JlIiwgInJvb3QiLCAiYS5jZXIiKSB9Cg=="),
 		"test-asks-for-no-elevation":               b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkib3MvZXhlYyIKCSJ0ZXN0aW5nIgopCgpmdW5jIFRlc3RCaW5kKHQgKnRlc3RpbmcuVCkgeyBfID0gZXhlYy5Db21tYW5kKCJzdWRvIiwgInRydWUiKSB9Cg=="),
 		"test-needs-nothing-outside-the-toolchain": b64(t, "cGFja2FnZSBzYW1wbGUKCmltcG9ydCAoCgkidGVzdGluZyIKCgkiZ2l0aHViLmNvbS9zdHJldGNoci90ZXN0aWZ5L3JlcXVpcmUiCikKCmZ1bmMgVGVzdEFzc2VydCh0ICp0ZXN0aW5nLlQpIHsgcmVxdWlyZS5UcnVlKHQsIHRydWUpIH0K"),
+		// The file somebody adds. It opens with the paragraph saying what
+		// it is for, which is what a reader of this tree learns to write,
+		// and nothing about it looks unfinished afterwards. The header is
+		// the one line a new file does not get by copying the shape of
+		// the ones beside it.
+		"source-carries-its-licence-header": []byte(sourceWithNoHeader),
 	}
 
 	// The neighbour a row is given is of the population it reads. A page rule
@@ -310,9 +319,103 @@ func TestEveryRowRefusesItsOwnViolationAndPassesTheNeighbour(t *testing.T) {
 			neighbour = cleanTest
 		case Workflows:
 			neighbour = []byte(cleanWorkflow)
+		case SourceFiles:
+			neighbour = []byte(cleanSource)
 		}
 		if got := r.decide(neighbour); len(got) != 0 {
 			t.Errorf("row %s refused a %s that breaks nothing: %v", r.ID, r.Subject, got)
+		}
+	}
+}
+
+// The two source fixtures the licence row is judged against. They are ordinary
+// literals rather than base64: what makes a fixture base64 in this suite is
+// that the tree's own rows would refuse the source carrying it, and a header
+// this repository wants on every file is the opposite case. The header is
+// assembled from the constants rather than written out, so a repository that
+// later publishes under something else does not leave a case here passing
+// against the identifier it used to carry.
+const (
+	sourceWithNoHeader = "// What this file is for, in the paragraph a reader of this tree learns to write." + "\n" +
+		"package sample\n\nfunc Do() {}\n"
+	cleanSource = "// " + licence.Header + "\n" + "\n" +
+		"// What this file is for, in the paragraph a reader of this tree learns to write." + "\n" +
+		"package sample\n\nfunc Do() {}\n"
+)
+
+// The other half of the licence row, and the half a presence check misses. The
+// header is there, it names a real identifier, and it is the wrong one: the
+// bare form the platform reports and the deprecated one on the published list,
+// and the `only` spelling, which is a different permission rather than a
+// different way of writing the same one. The refusal has to carry what it
+// found, because a message saying only that the header was wrong sends the next
+// reader back to the file to see which of the three it was.
+func TestTheLicenceRowRefusesAnIdentifierThisRepositoryDoesNotPublishUnder(t *testing.T) {
+	for _, wrong := range []string{"AGPL-3.0", "AGPL-3.0-only", "MIT"} {
+		body := []byte(strings.Replace(cleanSource, licence.Header, licence.Tag+" "+wrong, 1))
+		got := decideLicenceHeader(body)
+		if len(got) != 1 {
+			t.Fatalf("the row reported %d violation(s) for a file declaring %s: %v", len(got), wrong, got)
+		}
+		if !strings.Contains(got[0], wrong) {
+			t.Errorf("the refusal reads %q, which does not name the identifier it found", got[0])
+		}
+		if !strings.Contains(got[0], licence.Identifier) {
+			t.Errorf("the refusal reads %q, which does not say what this repository publishes under", got[0])
+		}
+	}
+}
+
+// What the row leaves alone, and it is the direction that costs a reader if it
+// is wrong. A row that refused a body of another kind would refuse every page
+// the build wrote and every copy the tree carries, which is a row somebody
+// switches off rather than repairs.
+func TestTheLicenceRowLeavesWhatIsNotSourceAlone(t *testing.T) {
+	for name, body := range map[string]string{
+		"a produced page":   cleanPage,
+		"a workflow":        cleanWorkflow,
+		"a copy of a value": `{"surface":{"ground":{"dark":{"srgb":"#121216","alpha":1}}}}`,
+		"a document":        "# A heading\n\nA paragraph carrying no header.\n",
+	} {
+		if got := decideLicenceHeader([]byte(body)); len(got) != 0 {
+			t.Errorf("the row refused %s: %v", name, got)
+		}
+	}
+}
+
+// What this case can claim and what it cannot. Inside the population the row
+// reads, a source file with no header reds this row and no other, and putting
+// the header back clears it.
+//
+// The table-wide form the page fixtures above use is not available here, and
+// the reason is worth stating rather than working around. Several rows refuse
+// the absence of something every produced page carries, and a Go file carries
+// none of it, so a source body reds them whatever its header says. That is a
+// statement about applying a page row to a body that is not a page, which the
+// run never does, rather than about this row. What keeps this row out of the
+// opposite mistake - refusing bodies that are not source - is the case above,
+// and that is the direction the run could actually reach.
+func TestTheLicenceRowMovesOnTheHeaderAndNothingElse(t *testing.T) {
+	var refused []string
+	for _, r := range Rules(fixtureNumbers) {
+		if r.Subject != SourceFiles {
+			continue
+		}
+		if len(r.decide([]byte(sourceWithNoHeader))) > 0 {
+			refused = append(refused, r.ID)
+		}
+	}
+	if len(refused) != 1 || refused[0] != "source-carries-its-licence-header" {
+		t.Errorf("the file with no header refused %v of the rows reading %s, want only source-carries-its-licence-header",
+			refused, SourceFiles)
+	}
+
+	for _, r := range Rules(fixtureNumbers) {
+		if r.Subject != SourceFiles {
+			continue
+		}
+		if got := r.decide([]byte(cleanSource)); len(got) > 0 {
+			t.Errorf("%s refused the same file carrying the header: %v", r.ID, got)
 		}
 	}
 }

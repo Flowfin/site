@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package security produces the file a person who found a problem in the
 // published pages goes looking for.
 //

@@ -73,16 +73,20 @@ implicitly or in bulk.
 The number is one. One person holds every role above, and there is no second
 person to carry any of them.
 
-What that costs today is larger here than in the repositories that already ship,
-because the usual answer to a bus factor of one is that anybody may fork and
-continue, and here nobody may:
+The usual answer to a bus factor of one is that anybody may fork and continue,
+and that route is open here. This paragraph said the opposite until the licence
+landed, on a reading taken while the file did not exist. Re-taken:
 
-    gh api repos/Flowfin/site/contents/LICENSE
-    gh: Not Found (HTTP 404)
+    gh api repos/Flowfin/site/contents/LICENSE --jq '.name, .size'
+    LICENSE
+    34548
+    gh api repos/Flowfin/site --jq .license.spdx_id
+    AGPL-3.0
 
-Run 2026-08-08. With no licence file the default is all rights reserved, so the
-fork route is not available until one is chosen. That choice is open on the
-tracker.
+Both run 2026-08-25. The identifier this repository publishes under is
+`AGPL-3.0-or-later`, which the platform reports in its deprecated bare form, and
+[README.md](README.md) says what the two differ on. So a fork carries the terms
+with it, and every source file carries them on itself.
 
 The pages this repository is being built to produce are not served from it
 today, so nothing a reader depends on stops if this repository does. What is

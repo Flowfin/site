@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the build verb.
 //
 // Every case builds a tree it wrote itself in a temporary directory rather than

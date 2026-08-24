@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // What the landing page says about the clients, and why it is a value rather
 // than a paragraph.
 //

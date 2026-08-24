@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # A required status check is a string. What satisfies it is a check run whose
 # name is that same string, and nothing connects the two ends. Rename a job, add

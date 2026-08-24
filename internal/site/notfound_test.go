@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the file the not-found page is made of.
 //
 // What it proves is the way onward. The page is served in answer to an address

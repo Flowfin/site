@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The privacy page is prose with a register attached to every statement on it,
 // and this file is what reads that.
 //

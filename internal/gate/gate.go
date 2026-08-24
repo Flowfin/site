@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package gate is the whole of `go run . ci`.
 //
 // The legs run in the order they are declared and the run stops at the first

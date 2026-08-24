@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over what the landing page says about the clients.
 //
 // The case that matters most is the first one below, and it is written the way

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The needs-network set: what can only be read from outside, run deliberately.
 //
 // This program is the one thing in this repository that leaves the machine on

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The fuzz target over the door the site's content comes through.
 //
 // The suite beside this file covers the malformed rosters somebody thought of.

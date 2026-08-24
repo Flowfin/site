@@ -54,17 +54,20 @@ architecture, with the reasons that were current when it was taken.
 This repository has no code of conduct. Issue #62 is where one is added, and
 until it lands there is nothing here to link.
 
-The licence is AGPL-3.0 and its text is at [LICENSE](LICENSE). What this
-repository still states nowhere is an SPDX identifier for it. The bare form is
-deprecated on the published list, and the two that are current, `AGPL-3.0-only`
-and `AGPL-3.0-or-later`, differ on whether a later version of the licence may be
-used, which is a choice rather than a spelling. Entry 1 of issue #7 is where
-that is settled, and issue #18 is what writes the identifier here and adds the
-rule refusing a source file that carries no header. No source file carries one
-today.
+The licence is the GNU Affero General Public License version 3 or any later
+version, its SPDX identifier is `AGPL-3.0-or-later`, and its text is at
+[LICENSE](LICENSE). The bare `AGPL-3.0` the platform reports is deprecated on
+the published list, and `AGPL-3.0-only` is a different permission rather than a
+different spelling: the identifier here says a later version of the licence may
+be used.
+
+Every source file this repository carries opens with that identifier, and the
+invariant gate refuses one that does not or one that names something else. The
+row is `source-carries-its-licence-header`, and what it reads is printed by the
+gate rather than listed here.
 
 ## License
 
-AGPL-3.0, copyright 2026 Nils Lehnen.
+`AGPL-3.0-or-later`, copyright 2026 Nils Lehnen.
 
 The full text is in [LICENSE](LICENSE).

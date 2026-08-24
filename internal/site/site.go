@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package site renders the site out of the tree and into the output directory.
 //
 // The places the build knows about are named here rather than passed around,

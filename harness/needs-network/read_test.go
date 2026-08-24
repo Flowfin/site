@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The readings are covered against servers on loopback and nothing else.
 //
 // The program these tests cover is the one thing in this repository that

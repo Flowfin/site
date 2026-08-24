@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the design system page.
 //
 // The page renders a file this repository does not author, so the cases below

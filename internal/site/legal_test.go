@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the legal notice.
 //
 // The page's whole difficulty is that most of what it exists to say is not

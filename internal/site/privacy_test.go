@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the file the privacy page is made of.
 //
 // What it proves is the register. Every case below is a statement that would

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package budget holds the numbers decisions/0005-the-speed-budget.md fixes, and
 // is the one place they are written.
 //

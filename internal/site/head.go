@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // What every page says about itself before a reader opens it, and the one place
 // the site's own name is written.
 //

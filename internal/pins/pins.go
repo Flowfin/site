@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package pins holds the versions this repository fixes that no updater
 // watches, and the run that says which of them has fallen behind.
 //

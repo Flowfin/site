@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package sitemap refuses a sitemap that disagrees with the pages the build
 // wrote.
 //

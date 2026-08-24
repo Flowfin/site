@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The fuzz target over the only place content becomes markup.
 //
 // A generator's whole attack surface is the door the data comes through and the

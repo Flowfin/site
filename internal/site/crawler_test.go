@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the two files a crawler asks for.
 //
 // The cases about which addresses belong in a sitemap drive the rule directly

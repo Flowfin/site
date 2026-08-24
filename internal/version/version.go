@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package version holds the version this repository releases under, and it is
 // the only place in the tree that holds it.
 //
