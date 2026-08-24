@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // What a run leaves behind.
 //
 // The record is the whole output of this set. It carries the moment, the

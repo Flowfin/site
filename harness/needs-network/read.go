@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The readings this set takes, and the shape that keeps them honest.
 //
 // Every reading carries the request that produced it, written as something a

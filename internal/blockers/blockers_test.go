@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the reference reader and the run.
 //
 // Every state the run keeps apart is produced by a reader that returns that

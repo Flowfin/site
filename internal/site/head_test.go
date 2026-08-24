@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over what a page says about itself before a reader opens it.
 //
 // None of this is visible on the page. A description that is missing, empty or

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package roster reads the file everything this site says about the plugins
 // comes out of, and refuses one it does not understand.
 //

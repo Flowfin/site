@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package hygiene judges the commit messages in a pull request.
 //
 // Two things about a commit cannot be repaired after it lands, only rewritten

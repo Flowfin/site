@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The files a crawler asks for without any page linking them, and what the
 // build writes into them.
 //

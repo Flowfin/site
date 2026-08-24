@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the link walk.
 //
 // Every case is a pair: the reference that has to be refused, and the reference

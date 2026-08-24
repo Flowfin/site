@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The design system as a page: every value the pinned token copy carries,
 // stated and drawn with itself.
 //

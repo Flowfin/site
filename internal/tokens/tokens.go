@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package tokens holds the pinned copy of the design token file this
 // repository reads, and the run that says when the copy has fallen behind the
 // published one.

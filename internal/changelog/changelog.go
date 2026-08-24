@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package changelog decides whether the version this repository is about to
 // release has been described.
 //

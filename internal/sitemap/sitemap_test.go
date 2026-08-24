@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the comparison between a sitemap and the output beside it.
 //
 // The two directions are driven through the decision rather than through a

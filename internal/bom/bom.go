@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package bom writes the bill of materials for what goes into producing the
 // published bytes.
 //

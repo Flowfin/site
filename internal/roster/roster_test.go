@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the door the site's content comes through.
 //
 // Every refusal is tripped by a fixture that trips exactly it, because a

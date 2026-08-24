@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // What the gate says about itself.
 //
 // The legs are supplied by each test rather than taken from the tree, because a

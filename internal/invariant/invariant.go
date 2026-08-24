@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package invariant holds the rules about this repository that a machine can
 // decide by reading bytes, and refuses a tree that breaks one.
 //
@@ -39,6 +41,7 @@ import (
 
 	"github.com/Flowfin/site/internal/budget"
 	"github.com/Flowfin/site/internal/changelog"
+	"github.com/Flowfin/site/internal/licence"
 	"github.com/Flowfin/site/internal/markup"
 	"github.com/Flowfin/site/internal/pins"
 	"github.com/Flowfin/site/internal/security"
@@ -63,6 +66,10 @@ const (
 	// TestSources is every tracked test source. The headless rule is a rule
 	// about what the suite does, so it reads the suite.
 	TestSources = "every tracked test source"
+	// SourceFiles is every tracked source this repository authors, cut by
+	// extension. The rule about a licence header is a rule about the files
+	// somebody copies out of here, and what gets copied is source.
+	SourceFiles = "every tracked source file"
 	// Workflows is every tracked workflow file. A rule about what a step
 	// pins reads the steps.
 	Workflows = "every tracked workflow file"
@@ -582,6 +589,13 @@ func Rules(numbers []tokens.Number) []Rule {
 			Refuses: "an import in a test source that is neither standard library nor inside this module",
 			decide:  decideImports,
 		},
+		{
+			ID:      "source-carries-its-licence-header",
+			Subject: SourceFiles,
+			Reason:  "the licence at the root says what this repository is under and travels with nothing, so a file lifted out of here into another tree arrives carrying no terms and looks like something anybody may do anything with; the header is what makes the terms a property of the file rather than of the place it was found, and a file whose header names a different identifier is worse than one carrying none, because it is read rather than looked up",
+			Refuses: "a tracked source file whose opening comment declares no licence identifier, and one declaring an identifier this repository does not publish under",
+			decide:  decideLicenceHeader,
+		},
 	}
 }
 
@@ -1026,6 +1040,35 @@ func decideImports(body []byte) []string {
 	return details
 }
 
+// decideLicenceHeader refuses a source file that does not open under the
+// identifier this repository publishes under.
+//
+// It passes a body that is not a source file rather than refusing it, and that
+// is the difference between this row and every other row in the table. The
+// others refuse the presence of something, so a body of the wrong kind carries
+// none of it and passes without being asked. This one refuses an absence, and
+// an absence is what a produced page, a copy of the design tokens and a
+// document all have. The population the run hands it is already cut to source,
+// so the reading here is the second of two rather than the only one; what it
+// buys is that the row can be exercised beside the others against one body, and
+// what it costs is a file of a language nobody has taught it to recognise.
+// `internal/licence` carries that bound and the case that reports it.
+func decideLicenceHeader(body []byte) []string {
+	if !licence.IsSource(body) {
+		return nil
+	}
+	declared, carried := licence.Declared(body)
+	if !carried {
+		return []string{fmt.Sprintf("the comment this file opens with declares no %s, and this repository publishes under %s",
+			licence.Tag, licence.Identifier)}
+	}
+	if declared != licence.Identifier {
+		return []string{fmt.Sprintf("the comment this file opens with declares %s %s, and this repository publishes under %s",
+			licence.Tag, declared, licence.Identifier)}
+	}
+	return nil
+}
+
 // Owing is what this gate is meant to refuse and cannot decide yet. Each entry
 // names what has to exist first. Printed by every run, passing or not.
 func Owing() []Owed {
@@ -1223,6 +1266,7 @@ func gather(root string) (map[string][]file, error) {
 		ProducedFiles:                        produced,
 		TrackedText:                          tracked.text,
 		TestSources:                          tracked.tests,
+		SourceFiles:                          tracked.sources,
 		Workflows:                            tracked.workflows,
 		BuildInputs:                          tracked.buildInputs,
 		TrackedTextOutsideTheVersionRegister: tracked.outsideVersion,
@@ -1236,6 +1280,7 @@ type tracked struct {
 	text            []file
 	outsideVersion  []file
 	tests           []file
+	sources         []file
 	workflows       []file
 	buildInputs     []file
 	tokenCopies     []file
@@ -1279,6 +1324,9 @@ func trackedText(root string) (tracked, error) {
 		f := file{name: name, body: b}
 		if strings.HasSuffix(name, "_test.go") {
 			found.tests = append(found.tests, f)
+		}
+		if strings.HasSuffix(name, ".go") || strings.HasSuffix(name, ".sh") {
+			found.sources = append(found.sources, f)
 		}
 		if strings.HasPrefix(name, workflowDir) {
 			found.workflows = append(found.workflows, f)

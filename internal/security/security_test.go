@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the file a person who found a problem goes looking for.
 //
 // One case serves what the build wrote and asks for the path over the network,

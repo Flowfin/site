@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the two-build comparison.
 //
 // The real build reads only what is committed, so it will not produce a

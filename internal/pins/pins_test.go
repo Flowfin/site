@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the pins file, the consumer check and the run.
 //
 // Every refusal is proved by a fixture that trips exactly it, and every state

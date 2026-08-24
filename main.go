@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The two verbs this repository is driven by, and no script beside them. The
 // workflow runs the same verb a contributor runs, so there is one procedure
 // rather than two, and a leg added to the gate is added in one place and

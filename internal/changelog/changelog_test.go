@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the refusal that stands between a version and a tag.
 //
 // Nothing here writes the version out as a literal. A test source carrying it a

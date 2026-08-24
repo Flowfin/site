@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The not-found page is the one page this site produces that is served in
 // answer to an address it does not have, and this file is what reads it.
 //

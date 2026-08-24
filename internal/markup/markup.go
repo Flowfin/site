@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package markup reads a produced page strictly and says what is wrong with it.
 //
 // A browser recovers from broken markup. That is the problem this package is

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The suite over the strict read of a produced page.
 //
 // Every case is a page of the shape this repository actually produces, because

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Package blockers reads this board's own tracker and says whether an issue
 // declaring itself blocked still points at anything.
 //
