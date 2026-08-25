@@ -23,6 +23,7 @@ package roster
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -67,6 +68,18 @@ func (r *Refusal) Error() string {
 }
 
 var fields = map[string]bool{"id": true, "repository": true, "summary": true, "state": true}
+
+// identifier is the shape an identifier may have, and it is narrow on purpose.
+//
+// The schema says the identifier matches the suffix of the repository name
+// after the prefix, and every one of them is lower case words joined by
+// hyphens. What that shape buys beyond tidiness is that the identifier becomes
+// one path segment by construction: the build joins it into the address of a
+// page and into the path that page is written to, so a row could otherwise
+// decide where the build writes. `..` is the case that costs, because it is a
+// legal repository name suffix, survives every other rule here, and resolves
+// out of the container the pages go in.
+var identifier = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // Parse reads the file and returns its rows, or every reason it would not.
 //
@@ -140,6 +153,9 @@ func Parse(body []byte, exists Exists) ([]Entry, error) {
 			if _, ok := row["summary"]; ok {
 				refuse("carries an empty sentence, and a plugin the site cannot say anything about is a page nobody can read")
 			}
+		}
+		if e.ID != "" && !identifier.MatchString(e.ID) {
+			refuse("declares the identifier %q, and an identifier here is lower case words joined by hyphens, which is what makes it one segment of an address rather than a value that decides where a page is written", e.ID)
 		}
 		if e.ID != "" {
 			if first, ok := seen[e.ID]; ok {

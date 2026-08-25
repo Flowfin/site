@@ -105,14 +105,21 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 		if err != nil {
 			return nil, "", fmt.Errorf("%s, row %s: %w", RosterFile, e.ID, err)
 		}
+		// The identifier reduced to one segment before it reaches a path.
+		// The parser already refuses an identifier that is not one, so this
+		// is the second of two readings rather than the only one, and it is
+		// here because the line that joins a value out of a data file into a
+		// path is where a reader decides whether a row can choose where the
+		// build writes.
+		segment := filepath.Base(e.ID)
 		rows = append(rows, plugin{
 			ID:         e.ID,
-			Href:       "/" + path.Join(PluginsDir, e.ID) + "/",
+			Href:       "/" + path.Join(PluginsDir, segment) + "/",
 			Repository: e.Repository,
 			Summary:    e.Summary,
 			State:      said,
 			Means:      means,
-			Produced:   path.Join(PluginsDir, e.ID, indexDocument),
+			Produced:   path.Join(PluginsDir, segment, indexDocument),
 		})
 	}
 
