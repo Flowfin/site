@@ -59,8 +59,7 @@ type repositoryRecord struct {
 // that are all there, and a row naming a repository the record does not carry is
 // refused rather than rendered with a link to nothing.
 func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
-	rosterPath := filepath.Join(root, filepath.FromSlash(RosterFile))
-	body, err := os.ReadFile(rosterPath)
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(RosterFile)))
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Fprintf(log, "no %s in the tree, so the page carries no plugin row\n", RosterFile)
@@ -107,8 +106,7 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 // reasons that are all one reason, and the message a reader gets has to be that
 // one rather than the twelve.
 func readRepositories(root string) (map[string]bool, string, error) {
-	p := filepath.Join(root, filepath.FromSlash(RepositoriesFile))
-	body, err := os.ReadFile(p)
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(RepositoriesFile)))
 	if err != nil {
 		return nil, "", fmt.Errorf("reading %s, which is what answers whether a roster row's repository is there: %w", RepositoriesFile, err)
 	}
