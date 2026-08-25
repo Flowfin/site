@@ -1,0 +1,5 @@
+{
+  "route": "https://github.com/Flowfin/site/security/advisories/new",
+  "policy": "https://github.com/Flowfin/site/blob/main/SECURITY.md",
+  "confirmed": "2026-08-11"
+}

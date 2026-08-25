@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Privacy</title>
+    <meta name="description" content="What happens to a request for a page on this site, what is kept, and which of those statements a check refuses a page for breaking." />
+    <link rel="canonical" href="https://flowfin.dev/privacy/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="Privacy" />
+    <meta property="og:description" content="What happens to a request for a page on this site, what is kept, and which of those statements a check refuses a page for breaking." />
+    <meta property="og:url" content="https://flowfin.dev/privacy/" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>Privacy</h1>
+      <p>This site is a set of files that a build produced and a host serves as they are. There is no account, no form, no database and nothing of this project&#39;s running on a server, so there is nothing here that could hold anything about a reader.</p>
+      <p>A page saying that is worth what a reader can check, and a reader can check none of it from the outside. So every statement below carries what stands behind it. A statement in the first list names the check that refuses a page breaking it, and a name that no check answers to reds the gate rather than staying here. A statement in the second list is a promise and says so, with the issue that would turn it into the first kind. The last list is what is true anyway and is not promised at all.</p>
+      <h2>What is checked, and by what</h2>
+      <ul>
+        <li data-refused-by="page-fetches-no-script">
+          No page this site produces asks a reader&#39;s browser to fetch a script. Refused by <code>page-fetches-no-script</code>.
+        </li>
+        <li data-refused-by="output-references-no-domain-outside-the-allowlist">
+          Nothing a page this site produces reaches for comes from a domain this project does not control, so no font service, no icon service, no analytics and no embedded player is told that somebody opened a page here. Refused by <code>output-references-no-domain-outside-the-allowlist</code>.
+        </li>
+        <li data-refused-by="page-touches-no-browser-storage">
+          No cookie is set and nothing is written into either browser storage area. Refused by <code>page-touches-no-browser-storage</code>.
+        </li>
+        <li data-refused-by="page-carries-no-inline-handler">
+          No page here carries a handler written onto an element, so nothing on a page runs in answer to what a reader does with it. Refused by <code>page-carries-no-inline-handler</code>.
+        </li>
+      </ul>
+      <h2>What is promised and not yet checked</h2>
+      <ul>
+        <li>There is no form, no field and no other route by which a reader can send anything from a page here. Nothing refuses this yet, and #50 is where the check that would is held.</li>
+        <li>No page needs scripting to be read, which is wider than either of the two checked statements about scripting above. What is refused today is a page fetching a script and a handler written onto an element, and a script element carrying its code inside the page is refused by nothing yet. Nothing refuses this yet, and #50 is where the check that would is held.</li>
+        <li>What the checks above read is the names a page would have to spell. A page reaching the same interface through a value none of those spellings finds is refused by nothing, and what would see it is a browser loading every produced page and reporting what it did. Nothing refuses this yet, and #50 is where the check that would is held.</li>
+      </ul>
+      <h2>What this page does not claim</h2>
+      <p>Whatever host answers for these files sees each request, which is the address it came from, what was asked for and when. Every host sees that much, this project does not decide what the host keeps, and this page does not say otherwise.</p>
+      <p>Every checked statement above is about the bytes this build produced. What a reader&#39;s browser loads is whatever answers at the address, which can include something served beside these files that this repository never wrote, and nothing here reads that.</p>
+      
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

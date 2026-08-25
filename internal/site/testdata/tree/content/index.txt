@@ -1,0 +1,20 @@
+Flowfin
+
+description: Flowfin is a set of Jellyfin plugins, and this is the page that
+  says what each of them is and what state it is in.
+
+Flowfin is a set of Jellyfin plugins for a server somebody else runs.
+
+The table below is the whole list, and it is rendered from the roster rather
+than written here. Adding a plugin is a row in that file; nothing on this page
+has to be edited for it to appear, and nothing here can say a different thing
+about a plugin from what the roster says.
+
+What a state word declares is what is true before anything is published. It is
+the floor rather than the answer, because whether a plugin ships is a fact about
+published releases and not an opinion a row may hold.
+
+This file carries the title, the sentence a search result shows and the
+paragraphs above the table. What it may not carry is a claim about whether
+something is available: that is a value the build reads, so the page cannot go
+on saying it after it has stopped being true.

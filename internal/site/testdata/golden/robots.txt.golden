@@ -1,0 +1,6 @@
+# Nothing on this site is kept out of an index. This file exists so that a
+# crawler asking for it is answered rather than served the not-found page.
+User-agent: *
+Disallow:
+
+Sitemap: https://flowfin.dev/sitemap.xml

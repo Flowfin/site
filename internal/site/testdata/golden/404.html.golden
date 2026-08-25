@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>This page is not here</title>
+    <meta name="description" content="The address you asked for is not one this site answers at, and this is where a reader who arrived at it can start again." />
+    <link rel="canonical" href="https://flowfin.dev/404.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="This page is not here" />
+    <meta property="og:description" content="The address you asked for is not one this site answers at, and this is where a reader who arrived at it can start again." />
+    <meta property="og:url" content="https://flowfin.dev/404.html" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>This page is not here</h1>
+      <p>The address you asked for is not one this site answers at. Nothing is broken, and nothing about your request was recorded: the host looked for a file, did not find one, and served this document instead.</p>
+      <p>If you followed a link from somewhere else, that link points at an address this site does not have. If you typed the address, a page it once answered at may have moved.</p>
+      <nav aria-label="Where to go from here">
+        <ul>
+          <li><a href="/">The page this site starts at</a></li>
+        </ul>
+      </nav>
+      
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

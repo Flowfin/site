@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>a</title>
+    <meta name="description" content="The shortest identifier a row may carry" />
+    <link rel="canonical" href="https://flowfin.dev/plugins/a/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="a" />
+    <meta property="og:description" content="The shortest identifier a row may carry" />
+    <meta property="og:url" content="https://flowfin.dev/plugins/a/" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>a</h1>
+      <p>The shortest identifier a row may carry</p>
+      <p>The plugin is being built. Nothing finished is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see.</p>
+      <p>The plugin is built in the repository Fixture/jellyfin-plugin-a, and what this page says about it is read from the roster rather than written here.</p>
+      <nav aria-label="Where to go from here">
+        <ul>
+          <li><a href="https://github.com/Fixture/jellyfin-plugin-a">The repository this plugin is built in</a></li>
+          <li><a href="/">Every plugin and what state it is in</a></li>
+        </ul>
+      </nav>
+      
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

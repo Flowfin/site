@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Flowfin</title>
+    <meta name="description" content="Flowfin is a set of Jellyfin plugins, and this is the page that says what each of them is and what state it is in." />
+    <link rel="canonical" href="https://flowfin.dev/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="Flowfin" />
+    <meta property="og:description" content="Flowfin is a set of Jellyfin plugins, and this is the page that says what each of them is and what state it is in." />
+    <meta property="og:url" content="https://flowfin.dev/" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>Flowfin</h1>
+      <p>Flowfin is a set of Jellyfin plugins for a server somebody else runs.</p>
+      <p>The clients this project means to build are one genuinely native client per platform, sharing a core between them. None of them is released, so there is nothing here to download and no page describing one as though there were.</p>
+      <p>The table below is the whole list, and it is rendered from the roster rather than written here. Adding a plugin is a row in that file; nothing on this page has to be edited for it to appear, and nothing here can say a different thing about a plugin from what the roster says.</p>
+      <p>What a state word declares is what is true before anything is published. It is the floor rather than the answer, because whether a plugin ships is a fact about published releases and not an opinion a row may hold.</p>
+      <p>This file carries the title, the sentence a search result shows and the paragraphs above the table. What it may not carry is a claim about whether something is available: that is a value the build reads, so the page cannot go on saying it after it has stopped being true.</p>
+      <h2>The plugins, and what state each one is in</h2>
+      <p>6 rows, read from the roster this repository carries. What each plugin has published was read on 2026-01-02, and the state below is computed from that rather than declared: a row says what is true before anything is published, and a finished release raises it.</p>
+      <table>
+        <tr>
+          <th>Plugin</th>
+          <th>What it does</th>
+          <th>State</th>
+        </tr>
+        <tr>
+          <td><a href="/plugins/a/">a</a></td>
+          <td>The shortest identifier a row may carry</td>
+          <td>In build-up</td>
+        </tr>
+        <tr>
+          <td><a href="/plugins/a-row-whose-identifier-is-as-long-as-one-here-ever-gets/">a-row-whose-identifier-is-as-long-as-one-here-ever-gets</a></td>
+          <td>The longest identifier a row may carry, which is where a table cell and a page address stop being comfortable</td>
+          <td>Shell only</td>
+        </tr>
+        <tr>
+          <td><a href="/plugins/markup/">markup</a></td>
+          <td>A sentence carrying &lt;b&gt;markup&lt;/b&gt;, an &amp; ampersand, a &#34;quotation&#34; and an &#39;apostrophe&#39;, so that a page rendering it as markup is a page this file catches</td>
+          <td>In build-up</td>
+        </tr>
+        <tr>
+          <td><a href="/plugins/outside-ascii/">outside-ascii</a></td>
+          <td>A sentence with an em dash — a “curly quotation” and the name Zoë in it, none of which is ASCII</td>
+          <td>Shell only</td>
+        </tr>
+        <tr>
+          <td><a href="/plugins/one-prerelease/">one-prerelease</a></td>
+          <td>A row with a single prerelease published, which is the sentence written in the singular</td>
+          <td>In build-up</td>
+        </tr>
+        <tr>
+          <td><a href="/plugins/declared-shell-and-shipping/">declared-shell-and-shipping</a></td>
+          <td>A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle</td>
+          <td>Ships</td>
+        </tr>
+      </table>
+      
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

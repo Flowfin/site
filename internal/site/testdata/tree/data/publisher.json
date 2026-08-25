@@ -1,0 +1,17 @@
+{
+  "publisher": {
+    "asks": "Who publishes this site",
+    "state": "undecided",
+    "waiting": "entry 8 of issue 7"
+  },
+  "contact": {
+    "asks": "How to reach whoever publishes it",
+    "state": "undecided",
+    "waiting": "entry 8 of issue 7"
+  },
+  "postal": {
+    "asks": "Whether a postal address is published",
+    "state": "undecided",
+    "waiting": "entry 8 of issue 7"
+  }
+}

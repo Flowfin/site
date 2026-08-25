@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>outside-ascii</title>
+    <meta name="description" content="A sentence with an em dash — a “curly quotation” and the name Zoë in it, none of which is ASCII" />
+    <link rel="canonical" href="https://flowfin.dev/plugins/outside-ascii/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="outside-ascii" />
+    <meta property="og:description" content="A sentence with an em dash — a “curly quotation” and the name Zoë in it, none of which is ASCII" />
+    <meta property="og:url" content="https://flowfin.dev/plugins/outside-ascii/" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>outside-ascii</h1>
+      <p>A sentence with an em dash — a “curly quotation” and the name Zoë in it, none of which is ASCII</p>
+      <p>The repository holds the shape of the plugin and none of what it is for. Nothing finished is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see. 4 prereleases are published, which is something to test rather than something to run.</p>
+      <p>The plugin is built in the repository Fixture/jellyfin-plugin-outside-ascii, and what this page says about it is read from the roster rather than written here.</p>
+      <nav aria-label="Where to go from here">
+        <ul>
+          <li><a href="https://github.com/Fixture/jellyfin-plugin-outside-ascii">The repository this plugin is built in</a></li>
+          <li><a href="/">Every plugin and what state it is in</a></li>
+        </ul>
+      </nav>
+      
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>
