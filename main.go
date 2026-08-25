@@ -113,7 +113,8 @@ func run(args []string, out, errOut io.Writer) error {
 		// this tree changes. It is also the one verb here that writes into
 		// the tree, because what it produces is the answer itself rather
 		// than evidence about a file that has an authority elsewhere.
-		body, err := os.ReadFile(filepath.FromSlash(site.RosterFile))
+		const root = "."
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(site.RosterFile)))
 		if err != nil {
 			return fmt.Errorf("reading %s, which is what names the repositories to ask about: %w", site.RosterFile, err)
 		}
@@ -121,7 +122,7 @@ func run(args []string, out, errOut io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return releases.Run(".", named, time.Now().UTC().Format(time.DateOnly), github.Command, github.Fetch, out)
+		return releases.Run(root, named, time.Now().UTC().Format(time.DateOnly), github.Command, github.Fetch, out)
 	case "version":
 		if len(args) != 1 {
 			usage(errOut)
