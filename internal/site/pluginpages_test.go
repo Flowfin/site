@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/Flowfin/site/internal/releases"
 )
 
 // pageTree writes a tree whose frame renders a page's title, its paragraphs and
@@ -32,7 +34,7 @@ func pageTree(t *testing.T, roster, record string) string {
 		"A title\n\ndescription: What the fixture page is.\n\nA paragraph.\n")
 	mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(RosterFile))))
 	write(t, filepath.Join(root, filepath.FromSlash(RosterFile)), roster)
-	write(t, filepath.Join(root, filepath.FromSlash(RepositoriesFile)), record)
+	write(t, filepath.Join(root, filepath.FromSlash(releases.File)), record)
 	return root
 }
 
@@ -76,8 +78,9 @@ func TestARowAddedToTheRosterProducesAPageWithNoOtherEdit(t *testing.T) {
 	three := strings.Replace(twoRows, "\n]",
 		",\n  {\"id\":\"gamma\",\"repository\":\"Flowfin/jellyfin-plugin-gamma\","+
 			"\"summary\":\"What gamma does\",\"state\":\"build-up\"}\n]", 1)
-	record := strings.Replace(bothRecorded, `"Flowfin/jellyfin-plugin-beta"]`,
-		`"Flowfin/jellyfin-plugin-beta","Flowfin/jellyfin-plugin-gamma"]`, 1)
+	record := strings.Replace(bothRecorded, `"Flowfin/jellyfin-plugin-beta":{"finished":0,"prereleases":0}}}`,
+		`"Flowfin/jellyfin-plugin-beta":{"finished":0,"prereleases":0},`+
+			`"Flowfin/jellyfin-plugin-gamma":{"finished":0,"prereleases":0}}}`, 1)
 
 	root := pageTree(t, three, record)
 	written, err := Build(root, OutputDir, io.Discard)

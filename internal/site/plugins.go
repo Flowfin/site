@@ -3,34 +3,25 @@
 package site
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 
+	"github.com/Flowfin/site/internal/releases"
 	"github.com/Flowfin/site/internal/roster"
 )
 
-// The two files the plugin rows are read from.
-//
 // RosterFile is the roster this repository builds against. Entry 6 of #7 is
 // answered `start here against committed fixtures and vendor the published file
 // when it appears`, so this is a copy this repository authors today and a
 // vendored one later. Nothing about the build changes on that day: what moves is
 // where the bytes come from, which is #24.
 //
-// RepositoriesFile is the recorded answer to the one question the roster cannot
-// answer about itself. The parser asks whether each row's repository is there
-// and refuses a read that skipped the question, and asking a host is a request
-// off this machine, which a build may not make: it would produce different bytes
-// on different days and fail with no network. So the answer is taken once,
-// written down with the command that took it, and read from the tree.
-const (
-	RosterFile       = "data/roster.json"
-	RepositoriesFile = "data/repositories.json"
-)
+// What the build reads beside it is internal/releases, which answers both what
+// each repository has published and whether it is there at all.
+const RosterFile = "data/roster.json"
 
 // plugin is one row as a page renders it. It carries the words rather than the
 // row, so the template holds no knowledge of what a state word means and no
@@ -60,15 +51,6 @@ type plugin struct {
 // collide with everything else at the root.
 const PluginsDir = "plugins"
 
-// repositoryRecord is what RepositoriesFile holds. The moment and the command
-// are part of it rather than beside it: a recorded answer with nothing saying
-// when it was taken is an answer nobody can judge the age of.
-type repositoryRecord struct {
-	Taken        string   `json:"taken"`
-	Command      string   `json:"command"`
-	Repositories []string `json:"repositories"`
-}
-
 // readPlugins reads the roster and returns the rows a page renders, or every
 // reason it would not.
 //
@@ -87,13 +69,13 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 		return nil, "", fmt.Errorf("reading %s: %w", RosterFile, err)
 	}
 
-	known, taken, err := readRepositories(root)
+	recorded, err := releases.Load(root)
 	if err != nil {
 		return nil, "", err
 	}
 
 	entries, err := roster.Parse(body, func(repository string) (bool, error) {
-		return known[repository], nil
+		return recorded.Known(repository), nil
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("reading %s: %w", RosterFile, err)
@@ -101,7 +83,7 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 
 	rows := make([]plugin, 0, len(entries))
 	for _, e := range entries {
-		said, means, err := stateInWords(e.State)
+		said, means, err := stateInWords(e.State, recorded.Repositories[e.Repository])
 		if err != nil {
 			return nil, "", fmt.Errorf("%s, row %s: %w", RosterFile, e.ID, err)
 		}
@@ -124,54 +106,67 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 	}
 
 	fmt.Fprintf(log, "read %s (%d row(s))\n", RosterFile, len(rows))
-	return rows, taken, nil
+	return rows, recorded.Taken, nil
 }
 
-// readRepositories reads the recorded answer and returns the set it carries with
-// the day it was taken.
+// stateInWords says what state a plugin is in, in the word the table carries
+// and in the sentence its own page carries.
 //
-// An empty set is refused rather than returned. A record carrying no repository
-// would answer `not there` for every row, which reds the build for twelve
-// reasons that are all one reason, and the message a reader gets has to be that
-// one rather than the twelve.
-func readRepositories(root string) (map[string]bool, string, error) {
-	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(RepositoriesFile)))
-	if err != nil {
-		return nil, "", fmt.Errorf("reading %s, which is what answers whether a roster row's repository is there: %w", RepositoriesFile, err)
-	}
-	var rec repositoryRecord
-	if err := json.Unmarshal(body, &rec); err != nil {
-		return nil, "", fmt.Errorf("reading %s: %w", RepositoriesFile, err)
-	}
-	if len(rec.Repositories) == 0 {
-		return nil, "", fmt.Errorf("%s carries no repository, and a record that answers `not there` for every row is a record nobody took rather than a set of repositories that are gone", RepositoriesFile)
-	}
-	if rec.Taken == "" {
-		return nil, "", fmt.Errorf("%s says nothing about when it was taken, and a recorded answer nobody can judge the age of is one a reader has to trust", RepositoriesFile)
-	}
-	known := make(map[string]bool, len(rec.Repositories))
-	for _, r := range rec.Repositories {
-		known[r] = true
-	}
-	return known, rec.Taken, nil
-}
-
-// stateInWords says what a declared state word means on the page.
+// The declared word is the floor and the recorded releases raise it, which is
+// decisions/0001's rule: whether something ships is a fact about published
+// releases and not an opinion a row may hold, and decisions/0009 fixes which
+// releases count. So a row declaring `shell` or `build-up` for a repository
+// that has published a finished release is shown as shipping, and the
+// disagreement between the two is a thing to repair where it is published
+// rather than a thing this build guesses at.
 //
-// It refuses a word it does not know rather than printing it, so a state added
-// to the roster vocabulary reds the build here instead of reaching a reader as a
-// bare identifier. The parser refuses one too; this is the second half, and the
-// two are different failures: the parser judges the file, and this judges
-// whether the page can say what the file declared.
-func stateInWords(state string) (string, string, error) {
+// A declared word it does not know is refused rather than printed, so a state
+// added to the roster vocabulary reds the build here instead of reaching a
+// reader as a bare identifier. The parser refuses one too; this is the second
+// half, and the two are different failures: the parser judges the file, and
+// this judges whether the page can say what the file declared.
+func stateInWords(state string, published releases.Repository) (string, string, error) {
 	switch state {
-	case roster.BuildUp:
-		return "In build-up", "The plugin is being built. Nothing is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see.", nil
-	case roster.Shell:
-		return "Shell only", "The repository holds the shape of the plugin and none of what it is for. Nothing is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see.", nil
+	case roster.BuildUp, roster.Shell:
 	default:
 		return "", "", fmt.Errorf("declares the state %q, and this page has no words for it", state)
 	}
+
+	if published.Ships() {
+		return "Ships", "The plugin has a finished release published, so there is something to install." +
+			somethingToTest(published), nil
+	}
+
+	said := "The plugin is being built. Nothing finished is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see."
+	if state == roster.Shell {
+		said = "The repository holds the shape of the plugin and none of what it is for. Nothing finished is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see."
+	}
+	return stateWord(state), said + somethingToTest(published), nil
+}
+
+// stateWord is the declared state in the words the table carries.
+func stateWord(state string) string {
+	if state == roster.Shell {
+		return "Shell only"
+	}
+	return "In build-up"
+}
+
+// somethingToTest is the news a prerelease is, in words that cannot be mistaken
+// for the table's word.
+//
+// decisions/0009 says a prerelease is not nothing and that dropping it would
+// lose the one piece of news a plugin that does not ship can offer, and that it
+// belongs on the page rather than in the state. This is that sentence, and it is
+// empty where there is nothing to say rather than saying there is none.
+func somethingToTest(published releases.Repository) string {
+	if published.Prereleases == 0 {
+		return ""
+	}
+	if published.Prereleases == 1 {
+		return " One prerelease is published, which is something to test rather than something to run."
+	}
+	return fmt.Sprintf(" %d prereleases are published, which is something to test rather than something to run.", published.Prereleases)
 }
 
 // saidAboutTheRows is the sentence above the table. It is composed here rather
@@ -180,6 +175,6 @@ func stateInWords(state string) (string, string, error) {
 // would have to be edited to keep true.
 func saidAboutTheRows(rows []plugin, taken string) string {
 	return fmt.Sprintf(
-		"%d rows, read from the roster this repository carries. Each repository was confirmed to be there on %s, and what a state word declares is what is true before anything is published.",
+		"%d rows, read from the roster this repository carries. What each plugin has published was read on %s, and the state below is computed from that rather than declared: a row says what is true before anything is published, and a finished release raises it.",
 		len(rows), taken)
 }

@@ -28,6 +28,7 @@ import (
 
 	"github.com/Flowfin/site/internal/budget"
 	"github.com/Flowfin/site/internal/licence"
+	"github.com/Flowfin/site/internal/releases"
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/site"
 	"github.com/Flowfin/site/internal/tokens"
@@ -1027,9 +1028,9 @@ func tree(t *testing.T, template string) string {
 	wr(filepath.FromSlash(site.RosterFile),
 		`[{"id":"alpha","repository":"Flowfin/jellyfin-plugin-alpha",`+
 			`"summary":"What alpha does","state":"build-up"}]`)
-	wr(filepath.FromSlash(site.RepositoriesFile),
-		`{"taken":"2026-01-02","command":"a command",`+
-			`"repositories":["Flowfin/jellyfin-plugin-alpha"]}`)
+	wr(filepath.FromSlash(releases.File),
+		`{"taken":"2026-01-02","command":"a command","repositories":`+
+			`{"Flowfin/jellyfin-plugin-alpha":{"finished":0,"prereleases":0}}}`)
 
 	git(t, root, "init", "-q")
 	git(t, root, "add", "-A")
