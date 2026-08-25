@@ -1,0 +1,74 @@
+[
+  {
+    "id": "sso",
+    "repository": "Flowfin/jellyfin-plugin-sso",
+    "summary": "Sign in through OpenID Connect or SAML 2.0 identity providers",
+    "state": "build-up"
+  },
+  {
+    "id": "share-links",
+    "repository": "Flowfin/jellyfin-plugin-share-links",
+    "summary": "Share one library item with invited guests, through a link that expires and can be revoked",
+    "state": "build-up"
+  },
+  {
+    "id": "watchlist",
+    "repository": "Flowfin/jellyfin-plugin-watchlist",
+    "summary": "A private per-user watchlist kept on the server, shown by clients that were never changed",
+    "state": "build-up"
+  },
+  {
+    "id": "stats",
+    "repository": "Flowfin/jellyfin-plugin-stats",
+    "summary": "Playback statistics, kept private to the user they are about",
+    "state": "build-up"
+  },
+  {
+    "id": "whisper-subtitles",
+    "repository": "Flowfin/jellyfin-plugin-whisper-subtitles",
+    "summary": "Transcribes library items that have no subtitle, using Whisper",
+    "state": "build-up"
+  },
+  {
+    "id": "server-pairing",
+    "repository": "Flowfin/jellyfin-plugin-server-pairing",
+    "summary": "Pairs one server with a second, so plugins on both sides can work across the pair",
+    "state": "build-up"
+  },
+  {
+    "id": "watch-sync",
+    "repository": "Flowfin/jellyfin-plugin-watch-sync",
+    "summary": "Moves watch history between paired servers",
+    "state": "build-up"
+  },
+  {
+    "id": "metadata-sync",
+    "repository": "Flowfin/jellyfin-plugin-metadata-sync",
+    "summary": "Moves chosen metadata fields between paired servers",
+    "state": "build-up"
+  },
+  {
+    "id": "smart-collections",
+    "repository": "Flowfin/jellyfin-plugin-smart-collections",
+    "summary": "Collections described once as a rule, then filled from the library as it changes",
+    "state": "shell"
+  },
+  {
+    "id": "requests",
+    "repository": "Flowfin/jellyfin-plugin-requests",
+    "summary": "A user asks the server for a title, an administrator answers it in a queue",
+    "state": "shell"
+  },
+  {
+    "id": "invites",
+    "repository": "Flowfin/jellyfin-plugin-invites",
+    "summary": "Invitation links that let somebody set up their own account",
+    "state": "shell"
+  },
+  {
+    "id": "discover",
+    "repository": "Flowfin/jellyfin-plugin-discover",
+    "summary": "Browse titles a server does not have",
+    "state": "shell"
+  }
+]

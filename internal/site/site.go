@@ -58,11 +58,18 @@ type page struct {
 	Canonical  string
 	SiteName   string
 	Paragraphs []string
-	Onward     []link
-	Notices    []notice
-	Claims     []claim
-	Promises   []promise
-	Residuals  []string
+	// The two below are the state table on the landing page. Plugins is one
+	// entry per roster row, in the order the roster carries them, because
+	// the ordering lives in the data rather than in a sort somebody has to
+	// justify. PluginsRead is the sentence above it, composed where the rows
+	// are read so that the template holds no count of anything.
+	Plugins     []plugin
+	PluginsRead string
+	Onward      []link
+	Notices     []notice
+	Claims      []claim
+	Promises    []promise
+	Residuals   []string
 	// The six below are the design system page, which is the one page that
 	// renders a file rather than prose. The three sample lists carry their
 	// values apart rather than as finished declarations, because the frame
@@ -157,6 +164,18 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 		}
 		p.Paragraphs = sayWhatTheClientsAre(p.Paragraphs, c.sentence())
 		fmt.Fprintf(log, "read %s (%s)\n", ClientsFile, c.Availability)
+	}
+
+	// The plugin rows, read before anything is written for the reason the
+	// claim about the clients is: a tree carrying a roster the build will not
+	// accept fails before it has produced half a site.
+	rows, taken, err := readPlugins(root, log)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) > 0 {
+		p.Plugins = rows
+		p.PluginsRead = saidAboutTheRows(rows, taken)
 	}
 
 	out := outDir

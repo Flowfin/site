@@ -5,9 +5,22 @@ Everything this site says about the twelve plugins comes out of it, and so does
 the table on the organisation profile.
 
 Where the file lives and why is `decisions/0001-where-the-plugin-list-comes-from.md`.
-This document is the shape of it. Writing the shape down does not put the file
-anywhere: nothing on this board may write in the repository that holds the
-machine-readable data, and who lands it there is a question on the tracker.
+This document is the shape of it, and the shape is the same wherever the bytes
+come from.
+
+Where they come from today is this repository. Entry 6 of #7 asked who lands the
+file this board only reads and what the build starts from, and it is answered:
+the site builds against a copy committed here and vendors the published file
+once that file exists in the repository holding the machine-readable data. So
+`data/roster.json` is a copy this repository authors for now and a vendored one
+later, and nothing about the build moves on that day. What moves is where the
+bytes come from, which is #24.
+
+Beside it is `data/repositories.json`, which is not part of this shape. The
+parser asks whether each row's repository is there and refuses a read that
+skipped the question, and asking a host is a request off the machine, which a
+build may not make. So that answer is taken once, written down with the command
+that took it, and read from the tree.
 
 ## The format
 

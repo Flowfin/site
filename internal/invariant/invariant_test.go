@@ -1020,6 +1020,16 @@ func tree(t *testing.T, template string) string {
 	// landing page has quietly stopped making the statement, which is what
 	// the refusal below is about.
 	wr(filepath.FromSlash(site.ClientsFile), `{"intent":"a client per platform","availability":"none-released"}`)
+	// The roster and the record that answers whether its one repository is
+	// there. One row rather than twelve: what this tree is for is deciding
+	// the rows against a page, and the rows the roster produces are the
+	// build suite's subject rather than this one's.
+	wr(filepath.FromSlash(site.RosterFile),
+		`[{"id":"alpha","repository":"Flowfin/jellyfin-plugin-alpha",`+
+			`"summary":"What alpha does","state":"build-up"}]`)
+	wr(filepath.FromSlash(site.RepositoriesFile),
+		`{"taken":"2026-01-02","command":"a command",`+
+			`"repositories":["Flowfin/jellyfin-plugin-alpha"]}`)
 
 	git(t, root, "init", "-q")
 	git(t, root, "add", "-A")
@@ -1992,6 +2002,27 @@ func TestANarrowedRowFindsNothingWhenThePageIsNotThere(t *testing.T) {
 // has none. No reading of the produced bytes separates a sentence that was
 // never composed from one nobody ever asked for, so the absence is refused here
 // rather than left to a row over the output.
+// A tree that lost its roster. The page it produces is a page about a set of
+// plugins listing none of them, and nothing in the produced bytes tells that
+// apart from a project that has none, which is why the refusal is here rather
+// than in a row over the output.
+func TestRunRefusesATreeThatLostItsRoster(t *testing.T) {
+	root := tree(t, goodTemplate)
+	if err := os.Remove(filepath.Join(root, filepath.FromSlash(site.RosterFile))); err != nil {
+		t.Fatalf("removing the roster: %v", err)
+	}
+	git(t, root, "add", "-A")
+
+	var log bytes.Buffer
+	err := Run(root, &log)
+	if err == nil {
+		t.Fatalf("Run accepted a tree carrying no roster:\n%s", log.String())
+	}
+	if !strings.Contains(err.Error(), site.RosterFile) {
+		t.Errorf("the refusal reads %q, which does not name the file that is missing", err)
+	}
+}
+
 func TestRunRefusesATreeThatLostTheClaimAboutTheClients(t *testing.T) {
 	root := tree(t, goodTemplate)
 	if err := os.Remove(filepath.Join(root, filepath.FromSlash(site.ClientsFile))); err != nil {
