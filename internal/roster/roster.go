@@ -198,3 +198,40 @@ func Parse(body []byte, exists Exists) ([]Entry, error) {
 	}
 	return entries, nil
 }
+
+// Named reads the repositories a roster names, applying none of the rules that
+// need an answer about them.
+//
+// It exists because the two reads cannot both go first. Parse asks whether each
+// repository is there and refuses a read that skipped the question, and what
+// answers that question is a record made by asking each repository. So the
+// refresh that produces the record reads the file this way, and the build reads
+// it the other way once the record is there.
+//
+// What it does not do is the point of it being a separate door. It applies no
+// rule, judges nothing, and its result is a list of strings out of a file rather
+// than a roster. A caller that used it to render a page would be rendering a
+// file nobody checked.
+func Named(body []byte) ([]string, error) {
+	var entries []Entry
+	if err := json.Unmarshal(body, &entries); err != nil {
+		return nil, &Refusal{Reasons: []string{
+			fmt.Sprintf("the file is not the array of rows this roster has to be: %v", err),
+		}}
+	}
+	var names []string
+	for i, e := range entries {
+		if strings.TrimSpace(e.Repository) == "" {
+			return nil, &Refusal{Reasons: []string{
+				fmt.Sprintf("row %d names no repository, and a row that names none is a row nothing can be asked about", i+1),
+			}}
+		}
+		names = append(names, e.Repository)
+	}
+	if len(names) == 0 {
+		return nil, &Refusal{Reasons: []string{
+			"the file holds no row, and a site with no plugin in it is not what an empty roster was meant to say",
+		}}
+	}
+	return names, nil
+}

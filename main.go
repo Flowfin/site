@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/Flowfin/site/internal/blockers"
 	"github.com/Flowfin/site/internal/bom"
@@ -19,7 +21,10 @@ import (
 	"github.com/Flowfin/site/internal/hygiene"
 	"github.com/Flowfin/site/internal/invariant"
 	"github.com/Flowfin/site/internal/pins"
+	"github.com/Flowfin/site/internal/releases"
+	"github.com/Flowfin/site/internal/releases/github"
 	"github.com/Flowfin/site/internal/reproduce"
+	"github.com/Flowfin/site/internal/roster"
 	"github.com/Flowfin/site/internal/site"
 	"github.com/Flowfin/site/internal/tokens"
 	"github.com/Flowfin/site/internal/version"
@@ -97,6 +102,26 @@ func run(args []string, out, errOut io.Writer) error {
 		// when this tree does. What the build needs from the copy is
 		// decided on every run, because the build reads it.
 		return tokens.Run(".", tokens.Publisher, out)
+	case "releases":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("releases takes no argument")
+		}
+		// Deliberately not a leg of the gate, for the reason the pins and
+		// tokens verbs are not: what it reads is somebody else's release
+		// lists, so its answer moves when they publish rather than when
+		// this tree changes. It is also the one verb here that writes into
+		// the tree, because what it produces is the answer itself rather
+		// than evidence about a file that has an authority elsewhere.
+		body, err := os.ReadFile(filepath.FromSlash(site.RosterFile))
+		if err != nil {
+			return fmt.Errorf("reading %s, which is what names the repositories to ask about: %w", site.RosterFile, err)
+		}
+		named, err := roster.Named(body)
+		if err != nil {
+			return err
+		}
+		return releases.Run(".", named, time.Now().UTC().Format(time.DateOnly), github.Command, github.Fetch, out)
 	case "version":
 		if len(args) != 1 {
 			usage(errOut)
@@ -156,6 +181,10 @@ func usage(w io.Writer) {
                    that publishes it, and report without writing anything
   go run . tokens  compare the pinned copy in `+tokens.File+` against the
                    published token file, naming every value that differs
+  go run . releases
+                   ask each repository the roster names what it has published
+                   and write `+releases.File+`, which is what the shipping state
+                   and the roster's repositories are read from
   go run . version print the version this repository releases under, alone on
                    one line, which is what the release run builds its tag from
   go run . changelog

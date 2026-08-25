@@ -1,0 +1,54 @@
+{
+  "taken": "2026-08-25",
+  "command": "go run . releases, which reads https://api.github.com/repos/OWNER/NAME/releases?per_page=100 for each repository the roster names",
+  "repositories": {
+    "Flowfin/jellyfin-plugin-discover": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-invites": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-metadata-sync": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-requests": {
+      "finished": 1,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-server-pairing": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-share-links": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-smart-collections": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-sso": {
+      "finished": 28,
+      "prereleases": 52
+    },
+    "Flowfin/jellyfin-plugin-stats": {
+      "finished": 1,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-watch-sync": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-watchlist": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Flowfin/jellyfin-plugin-whisper-subtitles": {
+      "finished": 0,
+      "prereleases": 0
+    }
+  }
+}

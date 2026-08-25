@@ -16,11 +16,14 @@ once that file exists in the repository holding the machine-readable data. So
 later, and nothing about the build moves on that day. What moves is where the
 bytes come from, which is #24.
 
-Beside it is `data/repositories.json`, which is not part of this shape. The
-parser asks whether each row's repository is there and refuses a read that
-skipped the question, and asking a host is a request off the machine, which a
-build may not make. So that answer is taken once, written down with the command
-that took it, and read from the tree.
+Beside it is `data/releases.json`, which is not part of this shape. It carries
+what each repository the roster names has published, taken once by
+`go run . releases` and written down with the request that took it. The build
+reads it for two things: whether the plugin ships, which
+`decisions/0009-what-counts-as-shipping.md` decides and no row may declare, and
+whether the row's repository is there at all, which the parser asks and refuses
+a read for skipping. Both are requests off the machine, which a build may not
+make, so both are answered from the tree.
 
 ## The format
 
