@@ -72,9 +72,9 @@ func TestThePageCarriesOneRowPerRosterRowInOrder(t *testing.T) {
 		t.Fatalf("the page carries %d row(s) for a roster of 2:\n%s", rows, page)
 	}
 	want := []string{
-		"<tr><td>alpha</td><td>https://github.com/Flowfin/jellyfin-plugin-alpha</td>" +
+		"<tr><td>alpha</td><td>/plugins/alpha/</td>" +
 			"<td>What alpha does</td><td>In build-up</td></tr>",
-		"<tr><td>beta</td><td>https://github.com/Flowfin/jellyfin-plugin-beta</td>" +
+		"<tr><td>beta</td><td>/plugins/beta/</td>" +
 			"<td>What beta does</td><td>Shell only</td></tr>",
 	}
 	at := 0
@@ -173,7 +173,7 @@ func TestTheReadFailsClosed(t *testing.T) {
 // questions, and a vocabulary widened in one place without the other is what
 // this refuses.
 func TestAStateThePageHasNoWordsForRedsTheBuild(t *testing.T) {
-	if _, err := stateInWords("ships"); err == nil {
+	if _, _, err := stateInWords("ships"); err == nil {
 		t.Fatal("the page accepted a state it has no words for")
 	} else if !strings.Contains(err.Error(), "ships") {
 		t.Errorf("the refusal reads %q, which does not name the state it found", err)

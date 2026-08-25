@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/Flowfin/site/internal/roster"
@@ -35,11 +36,29 @@ const (
 // row, so the template holds no knowledge of what a state word means and no
 // count of anything.
 type plugin struct {
-	ID      string
-	Href    string
-	Summary string
-	State   string
+	ID string
+	// Href is where this plugin's own page is on this site, which is what
+	// the row on the landing page sends a reader to. Repository is where the
+	// code is, and it is on the plugin's page rather than in the table: a
+	// table cell offering both is a cell where a reader has to guess which
+	// of two links is the one they want.
+	Href       string
+	Repository string
+	Summary    string
+	State      string
+	// Means is what the state word says in a sentence. It is composed where
+	// the rows are read, so no template and no per-plugin file carries it,
+	// and a state word gaining a meaning changes one place.
+	Means string
+	// Produced is the path the build writes this plugin's page to. It is not
+	// rendered; it is what the writer and the address derivation use.
+	Produced string
 }
+
+// PluginsDir is the container the plugin pages go in, which is the address
+// decisions/0008-the-url-shape.md gives them. The twelve pages need one or they
+// collide with everything else at the root.
+const PluginsDir = "plugins"
 
 // repositoryRecord is what RepositoriesFile holds. The moment and the command
 // are part of it rather than beside it: a recorded answer with nothing saying
@@ -82,15 +101,18 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 
 	rows := make([]plugin, 0, len(entries))
 	for _, e := range entries {
-		said, err := stateInWords(e.State)
+		said, means, err := stateInWords(e.State)
 		if err != nil {
 			return nil, "", fmt.Errorf("%s, row %s: %w", RosterFile, e.ID, err)
 		}
 		rows = append(rows, plugin{
-			ID:      e.ID,
-			Href:    "https://github.com/" + e.Repository,
-			Summary: e.Summary,
-			State:   said,
+			ID:         e.ID,
+			Href:       "/" + path.Join(PluginsDir, e.ID) + "/",
+			Repository: e.Repository,
+			Summary:    e.Summary,
+			State:      said,
+			Means:      means,
+			Produced:   path.Join(PluginsDir, e.ID, indexDocument),
 		})
 	}
 
@@ -134,14 +156,14 @@ func readRepositories(root string) (map[string]bool, string, error) {
 // bare identifier. The parser refuses one too; this is the second half, and the
 // two are different failures: the parser judges the file, and this judges
 // whether the page can say what the file declared.
-func stateInWords(state string) (string, error) {
+func stateInWords(state string) (string, string, error) {
 	switch state {
 	case roster.BuildUp:
-		return "In build-up", nil
+		return "In build-up", "The plugin is being built. Nothing is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see.", nil
 	case roster.Shell:
-		return "Shell only", nil
+		return "Shell only", "The repository holds the shape of the plugin and none of what it is for. Nothing is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see.", nil
 	default:
-		return "", fmt.Errorf("declares the state %q, and this page has no words for it", state)
+		return "", "", fmt.Errorf("declares the state %q, and this page has no words for it", state)
 	}
 }
 
