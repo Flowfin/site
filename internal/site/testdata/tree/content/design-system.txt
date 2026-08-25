@@ -1,0 +1,18 @@
+The design system
+
+description: Every value the clients and this site are built from, drawn with
+itself, and the two speed budgets stated side by side.
+
+This page is the design system rather than a description of one. Every value
+below is read out of the pinned copy of the token file this repository keeps, and
+the colour, the corner and the focus ring beside a value are drawn with that
+value rather than with a copy of it. A swatch that disagreed with the number next
+to it would be a defect in the page, not a difference of opinion.
+
+Nothing here is defined here. The file the values come from is published with the
+project's machine-readable data, so a client and this site read one set of
+numbers, and what this repository holds is a copy it renders and never edits.
+
+Two budgets follow and they are about different things. One is what a native
+client has to meet before it ships. The other is what this page itself has to fit
+inside. Neither is a target and neither is waived.

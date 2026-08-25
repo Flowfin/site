@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>declared-shell-and-shipping</title>
+    <meta name="description" content="A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle" />
+    <link rel="canonical" href="https://flowfin.dev/plugins/declared-shell-and-shipping/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="declared-shell-and-shipping" />
+    <meta property="og:description" content="A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle" />
+    <meta property="og:url" content="https://flowfin.dev/plugins/declared-shell-and-shipping/" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>declared-shell-and-shipping</h1>
+      <p>A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle</p>
+      <p>The plugin has a finished release published, so there is something to install.</p>
+      <p>The plugin is built in the repository Fixture/jellyfin-plugin-declared-shell-and-shipping, and what this page says about it is read from the roster rather than written here.</p>
+      <nav aria-label="Where to go from here">
+        <ul>
+          <li><a href="https://github.com/Fixture/jellyfin-plugin-declared-shell-and-shipping">The repository this plugin is built in</a></li>
+          <li><a href="/">Every plugin and what state it is in</a></li>
+        </ul>
+      </nav>
+      
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

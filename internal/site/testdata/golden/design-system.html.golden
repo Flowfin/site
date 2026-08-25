@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>The design system</title>
+    <meta name="description" content="Every value the clients and this site are built from, drawn with itself, and the two speed budgets stated side by side." />
+    <link rel="canonical" href="https://flowfin.dev/design-system.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="The design system" />
+    <meta property="og:description" content="Every value the clients and this site are built from, drawn with itself, and the two speed budgets stated side by side." />
+    <meta property="og:url" content="https://flowfin.dev/design-system.html" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>The design system</h1>
+      <p>This page is the design system rather than a description of one. Every value below is read out of the pinned copy of the token file this repository keeps, and the colour, the corner and the focus ring beside a value are drawn with that value rather than with a copy of it. A swatch that disagreed with the number next to it would be a defect in the page, not a difference of opinion.</p>
+      <p>Nothing here is defined here. The file the values come from is published with the project&#39;s machine-readable data, so a client and this site read one set of numbers, and what this repository holds is a copy it renders and never edits.</p>
+      <p>Two budgets follow and they are about different things. One is what a native client has to meet before it ships. The other is what this page itself has to fit inside. Neither is a target and neither is waived.</p>
+      
+      <h2>Type, at both viewing distances</h2>
+      <p>
+        Each role drawn at the size the file gives it, with its weight beside it.
+        The two distances are one scale read from two distances rather than two
+        scales.
+      </p>
+      <ul>
+        <li><span style="font-size:28px">display</span> telephone, 28 at weight 700</li>
+        <li><span style="font-size:12px">meta</span> telephone, 12 at weight 400</li>
+        <li><span style="font-size:19px">shelf</span> telephone, 19 at weight 640</li>
+        <li><span style="font-size:14px">tile</span> telephone, 14 at weight 540</li>
+        <li><span style="font-size:56px">display</span> television, 56 at weight 700</li>
+        <li><span style="font-size:20px">meta</span> television, 20 at weight 400</li>
+        <li><span style="font-size:32px">shelf</span> television, 32 at weight 640</li>
+        <li><span style="font-size:24px">tile</span> television, 24 at weight 540</li>
+      </ul>
+      <h2>The corner a tile is drawn with</h2>
+      <p>
+        Each radius drawn as the corner it makes. The surface and the ink are the
+        light scheme's, so the corner is visible against the box rather than
+        against the page.
+      </p>
+      <ul>
+        <li><span style="border-radius:8px;background:#F0F0F2;color:#0E0E11">radius-small</span> 8</li>
+        <li><span style="border-radius:12px;background:#F0F0F2;color:#0E0E11">radius</span> 12</li>
+      </ul>
+      <h2>The focus ring, one per colour vision preset</h2>
+      <p>
+        Each preset's accent drawn as the ring it makes, at the width that preset
+        asks for, in both schemes. What each preset is for is what a reader is
+        missing.
+      </p>
+      <ul>
+        <li><span style="outline:4px solid #FFFFFF">achroma</span> dark, missing all colour</li>
+        <li><span style="outline:4px solid #111114">achroma</span> light, missing all colour</li>
+        <li><span style="outline:3px solid #8AA0FF">deutan</span> dark, missing M cones, green</li>
+        <li><span style="outline:3px solid #3B57C9">deutan</span> light, missing M cones, green</li>
+        <li><span style="outline:3px solid #46B8E8">protan</span> dark, missing L cones, red</li>
+        <li><span style="outline:3px solid #0E7FA8">protan</span> light, missing L cones, red</li>
+        <li><span style="outline:3px solid #5B9CFF">standard</span> dark, missing nothing</li>
+        <li><span style="outline:3px solid #0A6CE8">standard</span> light, missing nothing</li>
+        <li><span style="outline:3px solid #FF6F7D">tritan</span> dark, missing S cones, blue</li>
+        <li><span style="outline:3px solid #C6283C">tritan</span> light, missing S cones, blue</li>
+      </ul>
+      <h2>What a native client has to meet</h2>
+      <p>Five numbers, each a release condition rather than a target. They travel with the values above because they are the same class of fact, and a client that has not been measured has not met one.</p>
+      <table>
+        <tr>
+          <th>Line</th>
+          <th>Limit</th>
+          <th>What it measures</th>
+        </tr>
+        <tr>
+          <td>dropped-frames</td>
+          <td>exactly 0 frames</td>
+          <td>Frames dropped scrolling across a row of 200 tiles at 60 fps. A single drop is visible.</td>
+        </tr>
+        <tr>
+          <td>first-picture</td>
+          <td>under 1200 ms</td>
+          <td>App start to the first usable tile, from a cold start. Later than that and the app reads as loading rather than opening.</td>
+        </tr>
+        <tr>
+          <td>focus-change</td>
+          <td>under 80 ms</td>
+          <td>Key press to the first moved scanline. Above that the remote feels sluggish.</td>
+        </tr>
+        <tr>
+          <td>layout-shift</td>
+          <td>exactly 0 shifts</td>
+          <td>Elements that move after they are first painted. The tile&#39;s size is fixed before the image arrives, so a shift means something was not held.</td>
+        </tr>
+        <tr>
+          <td>playback-start</td>
+          <td>under 2000 ms</td>
+          <td>Selection to picture, on direct play over the local network. Beyond that the selection stops feeling like it was received.</td>
+        </tr>
+      </table>
+      <h2>What this page itself has to fit inside</h2>
+      <p>This site&#39;s own budget, which is about the bytes of this document rather than about any client. The check that refuses a page over one of these lines reads the same constants this table does.</p>
+      <table>
+        <tr>
+          <th>Line</th>
+          <th>Limit</th>
+          <th>What it measures</th>
+        </tr>
+        <tr>
+          <td>the document</td>
+          <td>under 20480 bytes</td>
+          <td>Markup and inlined stylesheet together, uncompressed, because that is what one request delivers.</td>
+        </tr>
+        <tr>
+          <td>the inlined stylesheet</td>
+          <td>under 12288 bytes</td>
+          <td>What the document carries inside its own style elements, which is what keeps inlining cheaper than the request it replaced.</td>
+        </tr>
+        <tr>
+          <td>downloaded faces</td>
+          <td>exactly 0</td>
+          <td>A downloaded face blocks or reflows the first text a reader sees, and the faces already on the reader&#39;s machine arrive first.</td>
+        </tr>
+        <tr>
+          <td>images the landing page asks for</td>
+          <td>at most 2</td>
+          <td>Counted on the page a reader arrives at, because the first page has to be complete after the fewest exchanges.</td>
+        </tr>
+      </table>
+      <h2>Every value the file carries</h2>
+      <p>The pinned copy holds 206 leaves and this page lists the 154 that are values. Another 52 are sentences the file writes about itself rather than values, and no leaf holds nothing at all. Every value is read out of that one file and none is defined here.</p>
+      
+      <dl>
+<dt>budget.numbers.dropped-frames.comparison</dt><dd>equal</dd>
+<dt>budget.numbers.dropped-frames.limit</dt><dd>0</dd>
+<dt>budget.numbers.dropped-frames.unit</dt><dd>frames</dd>
+<dt>budget.numbers.first-picture.comparison</dt><dd>below</dd>
+<dt>budget.numbers.first-picture.limit</dt><dd>1200</dd>
+<dt>budget.numbers.first-picture.unit</dt><dd>ms</dd>
+<dt>budget.numbers.focus-change.comparison</dt><dd>below</dd>
+<dt>budget.numbers.focus-change.limit</dt><dd>80</dd>
+<dt>budget.numbers.focus-change.unit</dt><dd>ms</dd>
+<dt>budget.numbers.layout-shift.comparison</dt><dd>equal</dd>
+<dt>budget.numbers.layout-shift.limit</dt><dd>0</dd>
+<dt>budget.numbers.layout-shift.unit</dt><dd>shifts</dd>
+<dt>budget.numbers.playback-start.comparison</dt><dd>below</dd>
+<dt>budget.numbers.playback-start.limit</dt><dd>2000</dd>
+<dt>budget.numbers.playback-start.unit</dt><dd>ms</dd>
+<dt>focus.accent-soft.css-var</dt><dd>--sel-soft</dd>
+<dt>focus.accent.css-var</dt><dd>--sel</dd>
+<dt>focus.default-ring-width.css-var</dt><dd>--ring</dd>
+<dt>focus.default-ring-width.value</dt><dd>3</dd>
+<dt>focus.presets.achroma.dark.accent-soft.alpha</dt><dd>0.16</dd>
+<dt>focus.presets.achroma.dark.accent-soft.srgb</dt><dd>#FFFFFF <span style="background:#FFFFFF;color:#FFFFFF">#FFFFFF</span></dd>
+<dt>focus.presets.achroma.dark.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.achroma.dark.accent.srgb</dt><dd>#FFFFFF <span style="background:#FFFFFF;color:#FFFFFF">#FFFFFF</span></dd>
+<dt>focus.presets.achroma.light.accent-soft.alpha</dt><dd>0.12</dd>
+<dt>focus.presets.achroma.light.accent-soft.srgb</dt><dd>#111114 <span style="background:#111114;color:#111114">#111114</span></dd>
+<dt>focus.presets.achroma.light.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.achroma.light.accent.srgb</dt><dd>#111114 <span style="background:#111114;color:#111114">#111114</span></dd>
+<dt>focus.presets.achroma.missing</dt><dd>all colour</dd>
+<dt>focus.presets.achroma.ring-width</dt><dd>4</dd>
+<dt>focus.presets.deutan.dark.accent-soft.alpha</dt><dd>0.17</dd>
+<dt>focus.presets.deutan.dark.accent-soft.srgb</dt><dd>#8AA0FF <span style="background:#8AA0FF;color:#8AA0FF">#8AA0FF</span></dd>
+<dt>focus.presets.deutan.dark.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.deutan.dark.accent.srgb</dt><dd>#8AA0FF <span style="background:#8AA0FF;color:#8AA0FF">#8AA0FF</span></dd>
+<dt>focus.presets.deutan.light.accent-soft.alpha</dt><dd>0.13</dd>
+<dt>focus.presets.deutan.light.accent-soft.srgb</dt><dd>#3B57C9 <span style="background:#3B57C9;color:#3B57C9">#3B57C9</span></dd>
+<dt>focus.presets.deutan.light.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.deutan.light.accent.srgb</dt><dd>#3B57C9 <span style="background:#3B57C9;color:#3B57C9">#3B57C9</span></dd>
+<dt>focus.presets.deutan.missing</dt><dd>M cones, green</dd>
+<dt>focus.presets.deutan.ring-width</dt><dd>3</dd>
+<dt>focus.presets.protan.dark.accent-soft.alpha</dt><dd>0.16</dd>
+<dt>focus.presets.protan.dark.accent-soft.srgb</dt><dd>#46B8E8 <span style="background:#46B8E8;color:#46B8E8">#46B8E8</span></dd>
+<dt>focus.presets.protan.dark.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.protan.dark.accent.srgb</dt><dd>#46B8E8 <span style="background:#46B8E8;color:#46B8E8">#46B8E8</span></dd>
+<dt>focus.presets.protan.light.accent-soft.alpha</dt><dd>0.13</dd>
+<dt>focus.presets.protan.light.accent-soft.srgb</dt><dd>#0E7FA8 <span style="background:#0E7FA8;color:#0E7FA8">#0E7FA8</span></dd>
+<dt>focus.presets.protan.light.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.protan.light.accent.srgb</dt><dd>#0E7FA8 <span style="background:#0E7FA8;color:#0E7FA8">#0E7FA8</span></dd>
+<dt>focus.presets.protan.missing</dt><dd>L cones, red</dd>
+<dt>focus.presets.protan.ring-width</dt><dd>3</dd>
+<dt>focus.presets.standard.dark.accent-soft.alpha</dt><dd>0.16</dd>
+<dt>focus.presets.standard.dark.accent-soft.srgb</dt><dd>#5B9CFF <span style="background:#5B9CFF;color:#5B9CFF">#5B9CFF</span></dd>
+<dt>focus.presets.standard.dark.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.standard.dark.accent.srgb</dt><dd>#5B9CFF <span style="background:#5B9CFF;color:#5B9CFF">#5B9CFF</span></dd>
+<dt>focus.presets.standard.light.accent-soft.alpha</dt><dd>0.12</dd>
+<dt>focus.presets.standard.light.accent-soft.srgb</dt><dd>#0A6CE8 <span style="background:#0A6CE8;color:#0A6CE8">#0A6CE8</span></dd>
+<dt>focus.presets.standard.light.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.standard.light.accent.srgb</dt><dd>#0A6CE8 <span style="background:#0A6CE8;color:#0A6CE8">#0A6CE8</span></dd>
+<dt>focus.presets.standard.missing</dt><dd>nothing</dd>
+<dt>focus.presets.standard.ring-width</dt><dd>3</dd>
+<dt>focus.presets.tritan.dark.accent-soft.alpha</dt><dd>0.16</dd>
+<dt>focus.presets.tritan.dark.accent-soft.srgb</dt><dd>#FF6F7D <span style="background:#FF6F7D;color:#FF6F7D">#FF6F7D</span></dd>
+<dt>focus.presets.tritan.dark.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.tritan.dark.accent.srgb</dt><dd>#FF6F7D <span style="background:#FF6F7D;color:#FF6F7D">#FF6F7D</span></dd>
+<dt>focus.presets.tritan.light.accent-soft.alpha</dt><dd>0.12</dd>
+<dt>focus.presets.tritan.light.accent-soft.srgb</dt><dd>#C6283C <span style="background:#C6283C;color:#C6283C">#C6283C</span></dd>
+<dt>focus.presets.tritan.light.accent.alpha</dt><dd>1</dd>
+<dt>focus.presets.tritan.light.accent.srgb</dt><dd>#C6283C <span style="background:#C6283C;color:#C6283C">#C6283C</span></dd>
+<dt>focus.presets.tritan.missing</dt><dd>S cones, blue</dd>
+<dt>focus.presets.tritan.ring-width</dt><dd>3</dd>
+<dt>font.mono.css-var</dt><dd>--m</dd>
+<dt>font.mono.stack[0]</dt><dd>ui-monospace</dd>
+<dt>font.mono.stack[1]</dt><dd>Cascadia Mono</dd>
+<dt>font.mono.stack[2]</dt><dd>Consolas</dd>
+<dt>font.mono.stack[3]</dt><dd>SF Mono</dd>
+<dt>font.mono.stack[4]</dt><dd>monospace</dd>
+<dt>font.sans.css-var</dt><dd>--f</dd>
+<dt>font.sans.stack[0]</dt><dd>ui-sans-serif</dd>
+<dt>font.sans.stack[1]</dt><dd>-apple-system</dd>
+<dt>font.sans.stack[2]</dt><dd>Segoe UI</dd>
+<dt>font.sans.stack[3]</dt><dd>Roboto</dd>
+<dt>font.sans.stack[4]</dt><dd>system-ui</dd>
+<dt>font.sans.stack[5]</dt><dd>sans-serif</dd>
+<dt>lift.css-var</dt><dd>--lift</dd>
+<dt>lift.dark.blur</dt><dd>34</dd>
+<dt>lift.dark.colour.alpha</dt><dd>0.8</dd>
+<dt>lift.dark.colour.srgb</dt><dd>#000000 <span style="background:#000000;color:#000000">#000000</span></dd>
+<dt>lift.dark.offset-x</dt><dd>0</dd>
+<dt>lift.dark.offset-y</dt><dd>10</dd>
+<dt>lift.dark.spread</dt><dd>-16</dd>
+<dt>lift.light.blur</dt><dd>24</dd>
+<dt>lift.light.colour.alpha</dt><dd>0.16</dd>
+<dt>lift.light.colour.srgb</dt><dd>#000000 <span style="background:#000000;color:#000000">#000000</span></dd>
+<dt>lift.light.offset-x</dt><dd>0</dd>
+<dt>lift.light.offset-y</dt><dd>8</dd>
+<dt>lift.light.spread</dt><dd>-14</dd>
+<dt>shape.content-width.css-var</dt><dd>--maxw</dd>
+<dt>shape.content-width.value</dt><dd>1080</dd>
+<dt>shape.radius-small.css-var</dt><dd>--rs</dd>
+<dt>shape.radius-small.value</dt><dd>8</dd>
+<dt>shape.radius.css-var</dt><dd>--r</dd>
+<dt>shape.radius.value</dt><dd>12</dd>
+<dt>surface.tokens.ground.css-var</dt><dd>--ground</dd>
+<dt>surface.tokens.ground.dark.alpha</dt><dd>1</dd>
+<dt>surface.tokens.ground.dark.srgb</dt><dd>#121216 <span style="background:#121216;color:#121216">#121216</span></dd>
+<dt>surface.tokens.ground.light.alpha</dt><dd>1</dd>
+<dt>surface.tokens.ground.light.srgb</dt><dd>#FAFAFA <span style="background:#FAFAFA;color:#FAFAFA">#FAFAFA</span></dd>
+<dt>surface.tokens.ink-2.css-var</dt><dd>--ink2</dd>
+<dt>surface.tokens.ink-2.dark.alpha</dt><dd>1</dd>
+<dt>surface.tokens.ink-2.dark.srgb</dt><dd>#9C9CA6 <span style="background:#9C9CA6;color:#9C9CA6">#9C9CA6</span></dd>
+<dt>surface.tokens.ink-2.light.alpha</dt><dd>1</dd>
+<dt>surface.tokens.ink-2.light.srgb</dt><dd>#63636B <span style="background:#63636B;color:#63636B">#63636B</span></dd>
+<dt>surface.tokens.ink-3.css-var</dt><dd>--ink3</dd>
+<dt>surface.tokens.ink-3.dark.alpha</dt><dd>1</dd>
+<dt>surface.tokens.ink-3.dark.srgb</dt><dd>#6E6E79 <span style="background:#6E6E79;color:#6E6E79">#6E6E79</span></dd>
+<dt>surface.tokens.ink-3.light.alpha</dt><dd>1</dd>
+<dt>surface.tokens.ink-3.light.srgb</dt><dd>#8E8E96 <span style="background:#8E8E96;color:#8E8E96">#8E8E96</span></dd>
+<dt>surface.tokens.ink.css-var</dt><dd>--ink</dd>
+<dt>surface.tokens.ink.dark.alpha</dt><dd>1</dd>
+<dt>surface.tokens.ink.dark.srgb</dt><dd>#ECECEF <span style="background:#ECECEF;color:#ECECEF">#ECECEF</span></dd>
+<dt>surface.tokens.ink.light.alpha</dt><dd>1</dd>
+<dt>surface.tokens.ink.light.srgb</dt><dd>#0E0E11 <span style="background:#0E0E11;color:#0E0E11">#0E0E11</span></dd>
+<dt>surface.tokens.line.css-var</dt><dd>--line</dd>
+<dt>surface.tokens.line.dark.alpha</dt><dd>0.07</dd>
+<dt>surface.tokens.line.dark.srgb</dt><dd>#FFFFFF <span style="background:#FFFFFF;color:#FFFFFF">#FFFFFF</span></dd>
+<dt>surface.tokens.line.light.alpha</dt><dd>1</dd>
+<dt>surface.tokens.line.light.srgb</dt><dd>#E2E2E6 <span style="background:#E2E2E6;color:#E2E2E6">#E2E2E6</span></dd>
+<dt>surface.tokens.raise-2.css-var</dt><dd>--raise2</dd>
+<dt>surface.tokens.raise-2.dark.alpha</dt><dd>1</dd>
+<dt>surface.tokens.raise-2.dark.srgb</dt><dd>#26262E <span style="background:#26262E;color:#26262E">#26262E</span></dd>
+<dt>surface.tokens.raise-2.light.alpha</dt><dd>1</dd>
+<dt>surface.tokens.raise-2.light.srgb</dt><dd>#F0F0F2 <span style="background:#F0F0F2;color:#F0F0F2">#F0F0F2</span></dd>
+<dt>surface.tokens.raise.css-var</dt><dd>--raise</dd>
+<dt>surface.tokens.raise.dark.alpha</dt><dd>1</dd>
+<dt>surface.tokens.raise.dark.srgb</dt><dd>#1C1C22 <span style="background:#1C1C22;color:#1C1C22">#1C1C22</span></dd>
+<dt>surface.tokens.raise.light.alpha</dt><dd>1</dd>
+<dt>surface.tokens.raise.light.srgb</dt><dd>#FFFFFF <span style="background:#FFFFFF;color:#FFFFFF">#FFFFFF</span></dd>
+<dt>type.distances.telephone.read-from</dt><dd>35 cm</dd>
+<dt>type.distances.telephone.roles.display.size</dt><dd>28</dd>
+<dt>type.distances.telephone.roles.display.weight</dt><dd>700</dd>
+<dt>type.distances.telephone.roles.meta.size</dt><dd>12</dd>
+<dt>type.distances.telephone.roles.meta.weight</dt><dd>400</dd>
+<dt>type.distances.telephone.roles.shelf.size</dt><dd>19</dd>
+<dt>type.distances.telephone.roles.shelf.weight</dt><dd>640</dd>
+<dt>type.distances.telephone.roles.tile.size</dt><dd>14</dd>
+<dt>type.distances.telephone.roles.tile.weight</dt><dd>540</dd>
+<dt>type.distances.television.read-from</dt><dd>3 m</dd>
+<dt>type.distances.television.roles.display.size</dt><dd>56</dd>
+<dt>type.distances.television.roles.display.weight</dt><dd>700</dd>
+<dt>type.distances.television.roles.meta.size</dt><dd>20</dd>
+<dt>type.distances.television.roles.meta.weight</dt><dd>400</dd>
+<dt>type.distances.television.roles.shelf.size</dt><dd>32</dd>
+<dt>type.distances.television.roles.shelf.weight</dt><dd>640</dd>
+<dt>type.distances.television.roles.tile.size</dt><dd>24</dd>
+<dt>type.distances.television.roles.tile.weight</dt><dd>540</dd>
+      </dl>
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

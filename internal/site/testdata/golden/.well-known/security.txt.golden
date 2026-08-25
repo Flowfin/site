@@ -1,0 +1,6 @@
+# A problem found in these pages goes to the route below rather than to the
+# public tracker, where a report is readable by everybody from the moment it
+# is made. What that route is and what state it is in is the policy.
+Contact: https://github.com/Flowfin/site/security/advisories/new
+Policy: https://github.com/Flowfin/site/blob/main/SECURITY.md
+Expires: 2027-08-11T00:00:00Z

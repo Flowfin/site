@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>a-row-whose-identifier-is-as-long-as-one-here-ever-gets</title>
+    <meta name="description" content="The longest identifier a row may carry, which is where a table cell and a page address stop being comfortable" />
+    <link rel="canonical" href="https://flowfin.dev/plugins/a-row-whose-identifier-is-as-long-as-one-here-ever-gets/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="a-row-whose-identifier-is-as-long-as-one-here-ever-gets" />
+    <meta property="og:description" content="The longest identifier a row may carry, which is where a table cell and a page address stop being comfortable" />
+    <meta property="og:url" content="https://flowfin.dev/plugins/a-row-whose-identifier-is-as-long-as-one-here-ever-gets/" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>a-row-whose-identifier-is-as-long-as-one-here-ever-gets</h1>
+      <p>The longest identifier a row may carry, which is where a table cell and a page address stop being comfortable</p>
+      <p>The repository holds the shape of the plugin and none of what it is for. Nothing finished is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see.</p>
+      <p>The plugin is built in the repository Fixture/jellyfin-plugin-a-row-whose-identifier-is-as-long-as-one-here-ever-gets, and what this page says about it is read from the roster rather than written here.</p>
+      <nav aria-label="Where to go from here">
+        <ul>
+          <li><a href="https://github.com/Fixture/jellyfin-plugin-a-row-whose-identifier-is-as-long-as-one-here-ever-gets">The repository this plugin is built in</a></li>
+          <li><a href="/">Every plugin and what state it is in</a></li>
+        </ul>
+      </nav>
+      
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>

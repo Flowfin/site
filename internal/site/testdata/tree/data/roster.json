@@ -1,0 +1,38 @@
+[
+  {
+    "id": "a",
+    "repository": "Fixture/jellyfin-plugin-a",
+    "summary": "The shortest identifier a row may carry",
+    "state": "build-up"
+  },
+  {
+    "id": "a-row-whose-identifier-is-as-long-as-one-here-ever-gets",
+    "repository": "Fixture/jellyfin-plugin-a-row-whose-identifier-is-as-long-as-one-here-ever-gets",
+    "summary": "The longest identifier a row may carry, which is where a table cell and a page address stop being comfortable",
+    "state": "shell"
+  },
+  {
+    "id": "markup",
+    "repository": "Fixture/jellyfin-plugin-markup",
+    "summary": "A sentence carrying <b>markup</b>, an & ampersand, a \"quotation\" and an 'apostrophe', so that a page rendering it as markup is a page this file catches",
+    "state": "build-up"
+  },
+  {
+    "id": "outside-ascii",
+    "repository": "Fixture/jellyfin-plugin-outside-ascii",
+    "summary": "A sentence with an em dash — a “curly quotation” and the name Zoë in it, none of which is ASCII",
+    "state": "shell"
+  },
+  {
+    "id": "one-prerelease",
+    "repository": "Fixture/jellyfin-plugin-one-prerelease",
+    "summary": "A row with a single prerelease published, which is the sentence written in the singular",
+    "state": "build-up"
+  },
+  {
+    "id": "declared-shell-and-shipping",
+    "repository": "Fixture/jellyfin-plugin-declared-shell-and-shipping",
+    "summary": "A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle",
+    "state": "shell"
+  }
+]

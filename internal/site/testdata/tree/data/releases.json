@@ -1,0 +1,30 @@
+{
+  "taken": "2026-01-02",
+  "command": "authored as a fixture rather than taken, so that what these pages say about publication never moves under the golden files",
+  "repositories": {
+    "Fixture/jellyfin-plugin-a": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Fixture/jellyfin-plugin-a-row-whose-identifier-is-as-long-as-one-here-ever-gets": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Fixture/jellyfin-plugin-markup": {
+      "finished": 0,
+      "prereleases": 0
+    },
+    "Fixture/jellyfin-plugin-outside-ascii": {
+      "finished": 0,
+      "prereleases": 4
+    },
+    "Fixture/jellyfin-plugin-one-prerelease": {
+      "finished": 0,
+      "prereleases": 1
+    },
+    "Fixture/jellyfin-plugin-declared-shell-and-shipping": {
+      "finished": 2,
+      "prereleases": 0
+    }
+  }
+}
