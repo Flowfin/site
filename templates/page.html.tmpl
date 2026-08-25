@@ -20,6 +20,24 @@
       {{- range .Paragraphs }}
       <p>{{ . }}</p>
       {{- end }}
+      {{- if .Plugins }}
+      <h2>The plugins, and what state each one is in</h2>
+      <p>{{ .PluginsRead }}</p>
+      <table>
+        <tr>
+          <th>Plugin</th>
+          <th>What it does</th>
+          <th>State</th>
+        </tr>
+        {{- range .Plugins }}
+        <tr>
+          <td><a href="{{ .Href }}">{{ .ID }}</a></td>
+          <td>{{ .Summary }}</td>
+          <td>{{ .State }}</td>
+        </tr>
+        {{- end }}
+      </table>
+      {{- end }}
       {{- if .Onward }}
       <nav aria-label="Where to go from here">
         <ul>

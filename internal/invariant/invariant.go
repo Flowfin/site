@@ -1260,6 +1260,17 @@ func gather(root string) (map[string][]file, error) {
 	if len(tracked.clientClaims) == 0 {
 		return nil, fmt.Errorf("%s is not tracked in this tree, so the landing page says nothing about the clients and reads as a page about a project that has none", site.ClientsFile)
 	}
+	// The roster is refused here for the same reason as the claim above and
+	// it is the larger loss. A tree that lost it still builds, and the
+	// landing page it produces is a page about a set of plugins that lists
+	// none of them - which is the state this whole milestone exists to end,
+	// and which no reading of the produced bytes tells apart from a project
+	// that has no plugins. What the rows say is a rule about the build and
+	// has its own suite; that there are rows at all is a rule about this
+	// repository, and it belongs here.
+	if len(tracked.rosterCopies) == 0 {
+		return nil, fmt.Errorf("%s is not tracked in this tree, so the landing page lists no plugin and reads as a page about a project that has none", site.RosterFile)
+	}
 
 	return map[string][]file{
 		ProducedPages:                        pages,
@@ -1286,6 +1297,7 @@ type tracked struct {
 	tokenCopies     []file
 	securitySources []file
 	clientClaims    []file
+	rosterCopies    []file
 }
 
 // workflowDir is where a workflow has to live for the server to run it, so it
@@ -1347,6 +1359,10 @@ func trackedText(root string) (tracked, error) {
 		}
 		if name == site.ClientsFile {
 			found.clientClaims = append(found.clientClaims, f)
+			continue
+		}
+		if name == site.RosterFile {
+			found.rosterCopies = append(found.rosterCopies, f)
 			continue
 		}
 		if strings.HasPrefix(name, site.TemplatesDir+"/") || strings.HasPrefix(name, site.ContentDir+"/") {

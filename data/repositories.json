@@ -1,0 +1,18 @@
+{
+  "taken": "2026-08-25",
+  "command": "gh repo list Flowfin --limit 60 --json nameWithOwner --jq '[.[].nameWithOwner|select(contains(\"/jellyfin-plugin-\"))]|sort|.[]'",
+  "repositories": [
+    "Flowfin/jellyfin-plugin-discover",
+    "Flowfin/jellyfin-plugin-invites",
+    "Flowfin/jellyfin-plugin-metadata-sync",
+    "Flowfin/jellyfin-plugin-requests",
+    "Flowfin/jellyfin-plugin-server-pairing",
+    "Flowfin/jellyfin-plugin-share-links",
+    "Flowfin/jellyfin-plugin-smart-collections",
+    "Flowfin/jellyfin-plugin-sso",
+    "Flowfin/jellyfin-plugin-stats",
+    "Flowfin/jellyfin-plugin-watch-sync",
+    "Flowfin/jellyfin-plugin-watchlist",
+    "Flowfin/jellyfin-plugin-whisper-subtitles"
+  ]
+}
