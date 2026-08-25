@@ -1,0 +1,75 @@
+# The comparison between the roster this repository pins and the one published
+# where the machine-readable data lives.
+#
+# It reads a file published somewhere else, so its verdict moves when somebody
+# else commits rather than when this tree changes, which is why it is not a leg
+# of the gate and why the tokens comparison beside it is not either. The half
+# that needs no network is the build, which reads the pinned copy on every run.
+#
+# It reports and does not write. A run that quietly pulled the published rows
+# into the tree would destroy the difference, and the difference is the evidence
+# for the change somebody makes. The last step is what holds it to that.
+#
+# THIS WORKFLOW CARRIES NO SCHEDULE YET, AND THAT IS THE STATE RATHER THAN AN
+# OVERSIGHT. Nothing is published at the address the comparison reads, so every
+# run today reports OFF and reds. That is the right verdict - a freshness check
+# that passed having compared nothing is the exact failure it exists to prevent
+# - and a weekly red for a state nobody can repair from this repository would be
+# an entry the failure watchdog opens every day and a red somebody learns to
+# ignore. Entry 6 of #7 is answered `the site builds against fixtures now and
+# vendors the published roster file once it lands in the data repository; until
+# then the freshness checks stay disabled by name`, and this file is that
+# sentence carried out: the comparison exists, it is named, it can be asked for
+# by hand, and its timer is off.
+#
+# What turns the timer on is one condition and it is written here rather than
+# remembered: a roster published at the address `internal/freshness` reads.
+# On that day this file gains
+#
+#     schedule:
+#       - cron: "37 5 * * 3"
+#
+# on the weekly cadence the other comparisons of a pinned copy use, so the whole
+# set is looked at on one rhythm rather than on several nobody can hold in their
+# head.
+name: Roster
+
+on:
+  workflow_dispatch:
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+jobs:
+  roster:
+    name: Compare the pinned roster against the published file
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Compare every pinned row against the published one
+        run: go run . roster
+
+      - name: Prove the run wrote nothing
+        # After the comparison whether it passed or failed, because a run that
+        # rewrote a row on its way to a red verdict is the failure this step
+        # exists for and a red verdict is exactly when it would be missed.
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain=v1
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"

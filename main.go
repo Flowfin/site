@@ -17,6 +17,7 @@ import (
 	"github.com/Flowfin/site/internal/blockers"
 	"github.com/Flowfin/site/internal/bom"
 	"github.com/Flowfin/site/internal/changelog"
+	"github.com/Flowfin/site/internal/freshness"
 	"github.com/Flowfin/site/internal/gate"
 	"github.com/Flowfin/site/internal/hygiene"
 	"github.com/Flowfin/site/internal/invariant"
@@ -102,6 +103,18 @@ func run(args []string, out, errOut io.Writer) error {
 		// when this tree does. What the build needs from the copy is
 		// decided on every run, because the build reads it.
 		return tokens.Run(".", tokens.Publisher, out)
+	case "roster":
+		if len(args) != 1 {
+			usage(errOut)
+			return errors.New("roster takes no argument")
+		}
+		// Deliberately not a leg of the gate, for the reason the pins and
+		// tokens comparisons beside it are not: what it reads is a file
+		// published somewhere else, so its verdict moves when somebody
+		// else commits rather than when this tree changes. The half that
+		// needs no network is the build, which reads the pinned copy on
+		// every run.
+		return freshness.Run(".", freshness.Publisher, out)
 	case "releases":
 		if len(args) != 1 {
 			usage(errOut)
@@ -182,6 +195,9 @@ func usage(w io.Writer) {
                    that publishes it, and report without writing anything
   go run . tokens  compare the pinned copy in `+tokens.File+` against the
                    published token file, naming every value that differs
+  go run . roster  compare the pinned roster against the published one, naming
+                   every row that differs, and report OFF rather than green
+                   where nothing is published to compare against
   go run . releases
                    ask each repository the roster names what it has published
                    and write `+releases.File+`, which is what the shipping state

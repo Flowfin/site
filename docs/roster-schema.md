@@ -16,6 +16,13 @@ once that file exists in the repository holding the machine-readable data. So
 later, and nothing about the build moves on that day. What moves is where the
 bytes come from, which is #24.
 
+`go run . roster` is what says the copy has fallen behind. It compares the
+pinned rows against the published ones, names every row that differs, writes
+nothing, and reports OFF rather than green where nothing is published to compare
+against. Nothing is published there today, so every run reports OFF; the address
+it reads and what turns its schedule on are in `internal/freshness` and in the
+workflow beside it.
+
 Beside it is `data/releases.json`, which is not part of this shape. It carries
 what each repository the roster names has published, taken once by
 `go run . releases` and written down with the request that took it. The build
