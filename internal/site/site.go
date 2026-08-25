@@ -212,6 +212,16 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 	written = append(written, path.Join(label, IndexPath))
 	fmt.Fprintf(log, "wrote %s (%d bytes)\n", path.Join(label, IndexPath), rendered.Len())
 
+	// The plugin pages, written after the page that links them and before
+	// everything the sitemap lists. One per row and none without one: the
+	// rows the table rendered are the rows these pages come from, so a page
+	// with no row and a row with no page are the same read seen twice.
+	pluginPages, err := writePluginPages(p.Plugins, out, label, tmpl, said, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, pluginPages...)
+
 	privacy, err := writePrivacy(root, out, label, tmpl, said, log)
 	if err != nil {
 		return nil, err

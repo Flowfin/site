@@ -1036,6 +1036,28 @@ func tree(t *testing.T, template string) string {
 	return root
 }
 
+// producedPages is how many pages a build of root writes.
+//
+// The cases about a property lost in the frame assert that every produced page
+// is named in the refusal, and that is a count of what the fixture tree happens
+// to produce. A number typed into those cases is a number the fixture tree
+// moves: it moved the day the tree gained a roster, and seven cases that had
+// nothing to do with rosters went red naming a repair none of them needed.
+func producedPages(t *testing.T, root string) int {
+	t.Helper()
+	written, err := site.Build(root, filepath.Join(t.TempDir(), site.OutputDir), io.Discard)
+	if err != nil {
+		t.Fatalf("building the fixture tree to count its pages: %v", err)
+	}
+	n := 0
+	for _, w := range written {
+		if strings.HasSuffix(w, ".html") {
+			n++
+		}
+	}
+	return n
+}
+
 // asJSON writes the fixture numbers the way the token file carries them, so a
 // tree and the cases about a single row are held to one set of values rather
 // than to two that agree today.
@@ -1137,7 +1159,7 @@ func TestRunRefusesATemplateDeclaringALanguageTheSiteDoesNotPublishIn(t *testing
 		t.Fatalf("Run accepted a template declaring a language this site does not publish in:\n%s", log.String())
 	}
 	for _, want := range []string{
-		"page-declares-its-language: REFUSED, 2 violation(s)",
+		fmt.Sprintf("page-declares-its-language: REFUSED, %d violation(s)", producedPages(t, root)),
 		`dist/index.html: the html element declares lang="de"`,
 		`dist/privacy/index.html: the html element declares lang="de"`,
 		"it refuses",
@@ -1165,7 +1187,7 @@ func TestRunRefusesATemplateThatDroppedTheSchemeOnEveryPageItProduced(t *testing
 		t.Fatalf("Run accepted a template declaring no colour scheme:\n%s", log.String())
 	}
 	for _, want := range []string{
-		"page-declares-the-schemes-it-supports: REFUSED, 2 violation(s)",
+		fmt.Sprintf("page-declares-the-schemes-it-supports: REFUSED, %d violation(s)", producedPages(t, root)),
 		"dist/index.html: this page declares no colour scheme",
 		"dist/privacy/index.html: this page declares no colour scheme",
 	} {
@@ -1189,7 +1211,7 @@ func TestRunRefusesAFrameThatDroppedTheAffiliationNoticeOnEveryPageItProduced(t 
 		t.Fatalf("Run accepted a frame carrying no affiliation notice:\n%s", log.String())
 	}
 	for _, want := range []string{
-		"page-carries-the-affiliation-notice: REFUSED, 2 violation(s)",
+		fmt.Sprintf("page-carries-the-affiliation-notice: REFUSED, %d violation(s)", producedPages(t, root)),
 		"dist/index.html: this page carries no affiliation notice",
 		"dist/privacy/index.html: this page carries no affiliation notice",
 	} {
@@ -1297,7 +1319,7 @@ func TestRunRefusesAFrameThatDroppedTheContentLinkOnEveryPageItProduced(t *testi
 		t.Fatalf("Run accepted a frame carrying no link to the content:\n%s", log.String())
 	}
 	for _, want := range []string{
-		"page-reaches-the-content-first: REFUSED, 2 violation(s)",
+		fmt.Sprintf("page-reaches-the-content-first: REFUSED, %d violation(s)", producedPages(t, root)),
 		"dist/index.html: line 19: the first thing a keyboard reader reaches is a link to /legal/",
 		"dist/privacy/index.html: line 19: the first thing a keyboard reader reaches is a link to /legal/",
 	} {
@@ -1312,15 +1334,21 @@ func TestRunRefusesAFrameThatDroppedTheContentLinkOnEveryPageItProduced(t *testi
 // source and nothing else, and the run over it decides the head rules on two
 // pages rather than on one.
 func TestASecondPageIsRenderedThroughTheSameFrame(t *testing.T) {
+	root := tree(t, goodTemplate)
+
 	var log bytes.Buffer
-	if err := Run(tree(t, goodTemplate), &log); err != nil {
+	if err := Run(root, &log); err != nil {
 		t.Fatalf("Run refused a tree that breaks nothing: %v\n%s", err, log.String())
 	}
+	pages := producedPages(t, root)
+	if pages < 2 {
+		t.Fatalf("the fixture tree produces %d page(s), and a frame property over one page is a property of that page", pages)
+	}
 	for _, want := range []string{
-		"page-declares-its-language: ok, 2 file(s)",
-		"page-carries-a-title: ok, 2 file(s)",
-		"page-declares-the-schemes-it-supports: ok, 2 file(s)",
-		"page-carries-the-affiliation-notice: ok, 2 file(s)",
+		fmt.Sprintf("page-declares-its-language: ok, %d file(s)", pages),
+		fmt.Sprintf("page-carries-a-title: ok, %d file(s)", pages),
+		fmt.Sprintf("page-declares-the-schemes-it-supports: ok, %d file(s)", pages),
+		fmt.Sprintf("page-carries-the-affiliation-notice: ok, %d file(s)", pages),
 	} {
 		if !strings.Contains(log.String(), want) {
 			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
@@ -1352,12 +1380,14 @@ func TestRunNamesWhatItCouldNotDecide(t *testing.T) {
 // motion row is the row in that state, and an ok beside it would read as a set
 // of pages that answer the reader when it is a set that never asks.
 func TestRunSaysARowFoundNothingToDecide(t *testing.T) {
+	root := tree(t, goodTemplate)
+
 	var log bytes.Buffer
-	if err := Run(tree(t, goodTemplate), &log); err != nil {
+	if err := Run(root, &log); err != nil {
 		t.Fatalf("Run refused a tree that breaks nothing: %v\n%s", err, log.String())
 	}
-	want := "page-motion-answers-the-reader: 2 file(s) of every page the build produced " +
-		"carried no declarations that move something, so this rule decided nothing"
+	want := fmt.Sprintf("page-motion-answers-the-reader: %d file(s) of every page the build produced "+
+		"carried no declarations that move something, so this rule decided nothing", producedPages(t, root))
 	if !strings.Contains(log.String(), want) {
 		t.Errorf("the run does not say the row decided nothing; it said:\n%s", log.String())
 	}
@@ -1376,12 +1406,18 @@ func TestRunCountsWhatAMovingPageCarried(t *testing.T) {
 			"      @media (prefers-reduced-motion: reduce) { a { transition: none } }\n"+
 			"    </style>\n  </head>", 1)
 
+	root := tree(t, answered)
+
 	var log bytes.Buffer
-	if err := Run(tree(t, answered), &log); err != nil {
+	if err := Run(root, &log); err != nil {
 		t.Fatalf("Run refused a tree whose motion is answered for: %v\n%s", err, log.String())
 	}
-	want := "page-motion-answers-the-reader: ok, 2 declarations that move something " +
-		"in 2 file(s) of every page the build produced"
+	// One declaration per page, because the frame carries one and every page
+	// is rendered through it, which is what makes the count a reading of the
+	// pages rather than of the file they came from.
+	pages := producedPages(t, root)
+	want := fmt.Sprintf("page-motion-answers-the-reader: ok, %d declarations that move something "+
+		"in %d file(s) of every page the build produced", pages, pages)
 	if !strings.Contains(log.String(), want) {
 		t.Errorf("the run does not report what the row read; it said:\n%s", log.String())
 	}
@@ -1401,7 +1437,7 @@ func TestRunRefusesAFrameThatMovesSomethingWithNothingAskingTheReader(t *testing
 		t.Fatalf("Run passed a frame that moves something with nothing asking the reader:\n%s", log.String())
 	}
 	for _, want := range []string{
-		"page-motion-answers-the-reader: REFUSED, 2 violation(s)",
+		fmt.Sprintf("page-motion-answers-the-reader: REFUSED, %d violation(s)", producedPages(t, root)),
 		"index.html: line",
 		filepath.ToSlash(filepath.Join("privacy", "index.html")) + ": line",
 		"no query asking the reader about motion switches transition off",
@@ -2057,7 +2093,7 @@ func TestRunRefusesAFrameThatSetsACookie(t *testing.T) {
 		t.Fatalf("Run passed a frame that sets a cookie:\n%s", log.String())
 	}
 	for _, want := range []string{
-		"page-touches-no-browser-storage: REFUSED, 2 violation(s)",
+		fmt.Sprintf("page-touches-no-browser-storage: REFUSED, %d violation(s)", producedPages(t, root)),
 		"carries a meta element that sets a cookie",
 	} {
 		if !strings.Contains(log.String(), want) {
@@ -2105,7 +2141,7 @@ func TestRunRefusesAPageCarryingAHandlerRatherThanAScriptSource(t *testing.T) {
 		t.Errorf("the row about a script source judged this page rather than passing it; it said:\n%s", log.String())
 	}
 	for _, want := range []string{
-		"page-carries-no-inline-handler: REFUSED, 2 violation(s)",
+		fmt.Sprintf("page-carries-no-inline-handler: REFUSED, %d violation(s)", producedPages(t, root)),
 		"the a element carries the handler attribute onclick",
 	} {
 		if !strings.Contains(log.String(), want) {

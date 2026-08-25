@@ -228,3 +228,59 @@ func TestTheRefusalReadsAsSomethingSomebodyCanActOn(t *testing.T) {
 		}
 	}
 }
+
+// An identifier that is not one segment of an address.
+//
+// `..` is the case that costs. It is a legal suffix of a repository name, it
+// survives every other rule in this file, and joined into the container the
+// plugin pages go in it resolves out of that container and over a page the
+// build already wrote. The others are the shapes an address would carry
+// unevenly rather than dangerously, and they are here because a rule admitting
+// them is a rule that admits the first one too.
+//
+// The question about the repository is answered by this case's own rather than
+// by the shared one, so each fixture trips this rule and nothing else, which is
+// the property the table above is written for.
+func TestAnIdentifierThatIsNotOneSegmentOfAnAddressIsRefused(t *testing.T) {
+	anywhere := func(string) (bool, error) { return true, nil }
+
+	for _, id := range []string{"..", ".", "A", "watch_sync", "-lead", "trail-", "two words"} {
+		file := fmt.Sprintf(
+			`[{"id":%q,"repository":"Flowfin/jellyfin-plugin-%s","summary":"What it does","state":"shell"}]`,
+			id, id)
+
+		entries, err := Parse([]byte(file), anywhere)
+		if err == nil {
+			t.Errorf("the identifier %q parsed into %d row(s) rather than being refused", id, len(entries))
+			continue
+		}
+		got := reasons(t, err)
+		if len(got) != 1 {
+			t.Errorf("the identifier %q was refused for %d reason(s), and a fixture tripping more than one proves none of them: %v", id, len(got), got)
+			continue
+		}
+		if !strings.Contains(got[0], "lower case words joined by hyphens") {
+			t.Errorf("the identifier %q was refused with %q, which is not this rule", id, got[0])
+		}
+		if !strings.Contains(got[0], id) {
+			t.Errorf("the refusal reads %q, which does not name the identifier it found", got[0])
+		}
+	}
+}
+
+// What the rule leaves alone, taken from the identifiers this project actually
+// uses rather than from shapes invented here. A rule refusing one of these
+// would be a rule somebody widens the first time it is in the way.
+func TestTheIdentifierRuleLeavesEveryRealShapeAlone(t *testing.T) {
+	anywhere := func(string) (bool, error) { return true, nil }
+
+	for _, id := range []string{"sso", "share-links", "whisper-subtitles", "smart-collections", "watch-sync"} {
+		file := fmt.Sprintf(
+			`[{"id":%q,"repository":"Flowfin/jellyfin-plugin-%s","summary":"What it does","state":"shell"}]`,
+			id, id)
+
+		if _, err := Parse([]byte(file), anywhere); err != nil {
+			t.Errorf("the identifier %q was refused: %v", id, err)
+		}
+	}
+}
