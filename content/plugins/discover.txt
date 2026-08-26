@@ -1,0 +1,13 @@
+The repository holds the shape of this plugin and none of what it is for. What it
+is meant to do is let somebody browse titles the server does not have, so that
+the answer to whether something is worth asking for is reachable from the same
+place as the library rather than from somewhere else entirely.
+
+Before it is any use it will need a source for the titles it shows, and where
+that source is decides most of what this plugin turns out to be: a source outside
+the operator's host is a request leaving that host, which is the question this
+project answers deliberately rather than by default.
+
+What it does with data about a person depends on that unanswered question, and
+saying it stays on the host today would be a claim about a design that has not
+been taken. That is what the plugin is meant to do, and none of it is built yet.

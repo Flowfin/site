@@ -1,0 +1,16 @@
+The plugin is meant to establish a relationship between two servers, so that a
+plugin on either side can act across the pair without each of those plugins
+inventing its own way of finding, trusting and talking to the other machine.
+Nothing about a pair is useful on its own; it is the thing the plugins that move
+something between servers are built on.
+
+Before it is any use two servers are needed, each running this plugin, each able
+to reach the other, and an operator on each side willing to agree to the pair.
+That last one is the part that is not a networking problem: a pair is two
+operators agreeing, not one operator configuring.
+
+What it does with data about a person is establish the route the plugins above
+it move data along, and decide which side may ask the other for what. The pair
+itself carries the fact that two servers are joined and what each is permitted
+to ask. That is the intended behaviour and not a description of code that runs
+today.

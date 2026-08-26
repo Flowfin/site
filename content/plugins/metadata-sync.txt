@@ -1,0 +1,16 @@
+The plugin is meant to keep chosen metadata fields the same across two paired
+servers, so that work done once on one library does not have to be repeated on
+the other. Which fields travel is chosen rather than assumed, because a field
+one operator corrected by hand is not a field they want overwritten by the other
+side.
+
+Before it is any use a pair has to exist, which is what the server-pairing plugin
+is for, and the two libraries have to hold items that can be recognised as the
+same item. Matching is the hard half: two servers that disagree about what a
+title is will disagree about where its metadata goes.
+
+What it does with data about a person is less than the plugins beside it, because
+metadata is about titles rather than about viewers. What can cross is anything a
+field happens to hold that somebody typed, which is why the fields that travel
+are chosen. That is the intended behaviour and not a description of code that
+runs today.

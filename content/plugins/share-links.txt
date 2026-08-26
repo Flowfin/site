@@ -1,0 +1,15 @@
+The plugin is meant to let somebody with an account hand one item from the
+library to somebody without one, through an address that stops working after a
+time the sharer chooses and that the sharer can withdraw before then. The point
+of the expiry and the withdrawal together is that a share is a decision that can
+be taken back, rather than an address that exists until somebody remembers it.
+
+Before it is any use the server has to be reachable by the person the link is
+given to, which for most operators means reachable from outside their own
+network. A link nobody outside the house can open is a link that only works for
+people who did not need one.
+
+What it does with data about a person is bounded by what a guest has to be shown
+and by what the server has to keep to know that a link is still valid: the item
+the link is for, when the link stops working, and that it was used. That is the
+intended behaviour and not a description of code that runs today.

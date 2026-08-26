@@ -18,6 +18,9 @@
     <main id="content" tabindex="-1">
       <h1>a-row-whose-identifier-is-as-long-as-one-here-ever-gets</h1>
       <p>The longest identifier a row may carry, which is where a table cell and a page address stop being comfortable</p>
+      <p>The longest identifier a row may carry, with a paragraph behind it, so that a file name at that length is shown to be read, matched and rendered rather than truncated somewhere between the directory and the page.</p>
+      <p>What it needs before it is any use is nothing beyond the name it already has, which is the case this fixture row is here to hold.</p>
+      <p>What it does with data about a person is nothing.</p>
       <p>The repository holds the shape of the plugin and none of what it is for. Nothing finished is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see.</p>
       <p>The plugin is built in the repository Fixture/jellyfin-plugin-a-row-whose-identifier-is-as-long-as-one-here-ever-gets, and what this page says about it is read from the roster rather than written here.</p>
       <nav aria-label="Where to go from here">

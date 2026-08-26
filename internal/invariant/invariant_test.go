@@ -1031,6 +1031,13 @@ func tree(t *testing.T, template string) string {
 	wr(filepath.FromSlash(releases.File),
 		`{"taken":"2026-01-02","command":"a command","repositories":`+
 			`{"Flowfin/jellyfin-plugin-alpha":{"finished":0,"prereleases":0}}}`)
+	mk(filepath.FromSlash(site.PluginProseDir))
+	// The prose that row's page renders. The build refuses a row with no file
+	// and a file with no row, so a fixture carrying one and not the other is a
+	// fixture that never builds, and every case here would fail naming a repair
+	// none of them is about.
+	wr(filepath.FromSlash(site.PluginProseDir)+string(filepath.Separator)+"alpha.txt",
+		"What alpha is for, at more length than the sentence the roster carries.\n")
 
 	git(t, root, "init", "-q")
 	git(t, root, "add", "-A")

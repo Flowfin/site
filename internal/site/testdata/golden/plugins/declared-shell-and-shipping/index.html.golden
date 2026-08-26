@@ -18,6 +18,9 @@
     <main id="content" tabindex="-1">
       <h1>declared-shell-and-shipping</h1>
       <p>A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle</p>
+      <p>A row declaring the shell state for a repository that has published a finished release, with a paragraph behind it, so that the page where the declared word and the computed one disagree is shown to render its file like any other.</p>
+      <p>What it needs before it is any use is nothing this fixture supplies, because what this row is for is the disagreement above rather than anything downstream of it.</p>
+      <p>What it does with data about a person is nothing, and this file says so in words while the state sentence beside it is computed, which is the split the page depends on.</p>
       <p>The plugin has a finished release published, so there is something to install.</p>
       <p>The plugin is built in the repository Fixture/jellyfin-plugin-declared-shell-and-shipping, and what this page says about it is read from the roster rather than written here.</p>
       <nav aria-label="Where to go from here">

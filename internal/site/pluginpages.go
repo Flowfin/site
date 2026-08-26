@@ -41,7 +41,7 @@ func writePluginPages(rows []plugin, out, label string, tmpl *template.Template,
 		p := page{
 			Title:       r.ID,
 			Description: r.Summary,
-			Paragraphs:  []string{r.Summary, r.Means, whereItIs(r)},
+			Paragraphs:  paragraphsFor(r),
 			Onward: []link{
 				{Text: "The repository this plugin is built in", Href: "https://github.com/" + r.Repository},
 				{Text: "Every plugin and what state it is in", Href: "/"},
@@ -71,6 +71,26 @@ func writePluginPages(rows []plugin, out, label string, tmpl *template.Template,
 		fmt.Fprintf(log, "%d plugin page(s) written, one per roster row\n", len(written))
 	}
 	return written, nil
+}
+
+// paragraphsFor is what a plugin's page says, in the order it says it.
+//
+// The roster sentence opens, because it is what the table sent the reader here
+// with and a page that opens on something else reads as a different plugin. The
+// file's paragraphs follow it, which is what the page is for: what the plugin
+// does in more than one sentence, what an operator needs before it is any use,
+// and what it does with data about a person.
+//
+// The state sentence stays after them and stays computed. What state a plugin
+// is in is a fact about published releases rather than an opinion a file may
+// hold, which is decisions/0001's rule, and a second copy of it in prose is a
+// copy that goes stale the day something is published and says so to a reader
+// who has no way to tell which half is current.
+func paragraphsFor(r plugin) []string {
+	said := make([]string, 0, len(r.Prose)+3)
+	said = append(said, r.Summary)
+	said = append(said, r.Prose...)
+	return append(said, r.Means, whereItIs(r))
 }
 
 // whereItIs is the sentence naming the repository. It is composed rather than

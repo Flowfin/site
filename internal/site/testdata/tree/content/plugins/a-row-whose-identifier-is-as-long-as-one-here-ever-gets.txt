@@ -1,0 +1,8 @@
+The longest identifier a row may carry, with a paragraph behind it, so that a
+file name at that length is shown to be read, matched and rendered rather than
+truncated somewhere between the directory and the page.
+
+What it needs before it is any use is nothing beyond the name it already has,
+which is the case this fixture row is here to hold.
+
+What it does with data about a person is nothing.

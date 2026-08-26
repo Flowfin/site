@@ -1,0 +1,16 @@
+The plugin is meant to produce a subtitle track for an item in the library that
+has none, by transcribing its audio with Whisper. What it is for is the part of
+a library that no subtitle was ever published for, rather than the part where a
+subtitle exists somewhere and has to be found.
+
+Before it is any use an operator needs a Whisper model and somewhere to run it,
+and that somewhere is the real cost: transcription is slow on a machine with no
+accelerator, and a server that is also serving video is a machine whose spare
+capacity is not constant. Which model is chosen decides both how long a title
+takes and how good the result is.
+
+What it does with data about a person is nothing directly, because what it reads
+is the audio of a library item rather than anything about the people watching it.
+Where the model runs is the question that matters, and it is meant to run on
+hardware the operator controls rather than by sending audio to a service. That is
+the intended behaviour and not a description of code that runs today.
