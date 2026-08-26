@@ -1,0 +1,11 @@
+The shortest identifier a row may carry, with a paragraph behind it, so that a
+page whose file is found by the shortest name there is proves the join works at
+that end of the range.
+
+What it needs before it is any use is a second paragraph, because a file
+carrying exactly one is a file that cannot show whether the order paragraphs
+arrive in survives the read.
+
+What it does with data about a person is nothing, and saying so is the point:
+this paragraph exists so that a page carrying no data line and a page carrying
+one are two different pages in this fixture.

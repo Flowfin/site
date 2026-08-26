@@ -18,6 +18,9 @@
     <main id="content" tabindex="-1">
       <h1>markup</h1>
       <p>A sentence carrying &lt;b&gt;markup&lt;/b&gt;, an &amp; ampersand, a &#34;quotation&#34; and an &#39;apostrophe&#39;, so that a page rendering it as markup is a page this file catches</p>
+      <p>A paragraph carrying &lt;b&gt;markup&lt;/b&gt;, an &amp; ampersand, a &#34;quotation&#34; and an &#39;apostrophe&#39;, so that a page rendering prose as markup is a page this fixture catches on the prose as well as on the roster sentence.</p>
+      <p>What it needs before it is any use is a second block carrying &lt;i&gt;more&lt;/i&gt; of the same, because escaping that holds for the first paragraph and not the rest is a failure the golden files should show.</p>
+      <p>What it does with data about a person is &lt;script&gt;nothing&lt;/script&gt;, written that way on purpose.</p>
       <p>The plugin is being built. Nothing finished is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see.</p>
       <p>The plugin is built in the repository Fixture/jellyfin-plugin-markup, and what this page says about it is read from the roster rather than written here.</p>
       <nav aria-label="Where to go from here">

@@ -1,0 +1,8 @@
+A paragraph with an em dash — a “curly quotation” and the name Zoë in it, none of
+which is ASCII, so that a read which mangles anything outside it is a read this
+fixture catches.
+
+What it needs before it is any use is a second block, also outside ASCII: naïve,
+café, and a character beyond the basic plane 😀.
+
+What it does with data about a person is nothing.

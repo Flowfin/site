@@ -35,6 +35,7 @@ func pageTree(t *testing.T, roster, record string) string {
 	mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(RosterFile))))
 	write(t, filepath.Join(root, filepath.FromSlash(RosterFile)), roster)
 	write(t, filepath.Join(root, filepath.FromSlash(releases.File)), record)
+	proseForEveryRow(t, root, roster)
 	return root
 }
 

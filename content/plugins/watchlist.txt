@@ -1,0 +1,15 @@
+The plugin is meant to keep a list of things a user intends to watch, stored on
+the server against that user rather than in one client's own storage, so the
+list is the same list from every client and survives a client being reinstalled.
+It is meant to be visible in clients that were never changed for it, which is the
+constraint that decides most of how it can work at all.
+
+Before it is any use nothing outside the server is needed. What it needs is a
+place in an unmodified client's interface that a list can be surfaced through,
+and what that place is decides what the list can look like rather than whether
+it exists.
+
+What it does with data about a person is keep, on the operator's own server,
+which items that person put on their own list. Nothing about it is meant to leave
+the host at all. That is the intended behaviour and not a description of code
+that runs today.

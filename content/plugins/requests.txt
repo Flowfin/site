@@ -1,0 +1,14 @@
+The repository holds the shape of this plugin and none of what it is for. What
+it is meant to do is let somebody with an account ask the server for a title it
+does not have, and give the administrator a queue where those asks are answered
+rather than a stream of messages somewhere else.
+
+Before it is any use it will need somewhere for a request to be answered from,
+which is the administrator's own decision about how a library grows, and it will
+need to be clear to the person asking that a request is a question rather than
+an instruction.
+
+What it does with data about a person is keep who asked for what, which is a
+record of somebody's interest in a title and is not nothing. It is meant to stay
+on the operator's host. That is what the plugin is meant to do, and none of it is
+built yet.

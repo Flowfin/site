@@ -48,6 +48,7 @@ func rosterTree(t *testing.T, roster, record string) string {
 	if roster != "" {
 		mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(RosterFile))))
 		write(t, filepath.Join(root, filepath.FromSlash(RosterFile)), roster)
+		proseForEveryRow(t, root, roster)
 	}
 	if record != "" {
 		mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(releases.File))))

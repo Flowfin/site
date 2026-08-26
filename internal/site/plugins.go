@@ -44,6 +44,11 @@ type plugin struct {
 	// Produced is the path the build writes this plugin's page to. It is not
 	// rendered; it is what the writer and the address derivation use.
 	Produced string
+	// Prose is the paragraphs this plugin's own file carries, in the order it
+	// carries them. It is what makes the page more than the table row with
+	// space around it, and it is joined to the row by the identifier alone, so
+	// the template never learns that a plugin exists.
+	Prose []string
 }
 
 // PluginsDir is the container the plugin pages go in, which is the address
@@ -106,6 +111,19 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 	}
 
 	fmt.Fprintf(log, "read %s (%d row(s))\n", RosterFile, len(rows))
+	// The prose is read against the rows rather than beside them, so the two
+	// halves are compared before a single page is written. A build that
+	// rendered eleven pages and then refused the twelfth would leave an output
+	// directory that looks like a site.
+	prose, err := readPluginProse(root, rows)
+	if err != nil {
+		return nil, "", err
+	}
+	for i := range rows {
+		rows[i].Prose = prose[rows[i].ID]
+	}
+	fmt.Fprintf(log, "read %s (%d file(s), one per row)\n", PluginProseDir, len(prose))
+
 	return rows, recorded.Taken, nil
 }
 

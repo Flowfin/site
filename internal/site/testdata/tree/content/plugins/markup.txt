@@ -1,0 +1,10 @@
+A paragraph carrying <b>markup</b>, an & ampersand, a "quotation" and an
+'apostrophe', so that a page rendering prose as markup is a page this fixture
+catches on the prose as well as on the roster sentence.
+
+What it needs before it is any use is a second block carrying <i>more</i> of the
+same, because escaping that holds for the first paragraph and not the rest is a
+failure the golden files should show.
+
+What it does with data about a person is <script>nothing</script>, written that
+way on purpose.

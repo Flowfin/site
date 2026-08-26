@@ -18,6 +18,9 @@
     <main id="content" tabindex="-1">
       <h1>outside-ascii</h1>
       <p>A sentence with an em dash — a “curly quotation” and the name Zoë in it, none of which is ASCII</p>
+      <p>A paragraph with an em dash — a “curly quotation” and the name Zoë in it, none of which is ASCII, so that a read which mangles anything outside it is a read this fixture catches.</p>
+      <p>What it needs before it is any use is a second block, also outside ASCII: naïve, café, and a character beyond the basic plane 😀.</p>
+      <p>What it does with data about a person is nothing.</p>
       <p>The repository holds the shape of the plugin and none of what it is for. Nothing finished is published for it, so there is nothing to install and installing what is in the repository would add nothing a user can see. 4 prereleases are published, which is something to test rather than something to run.</p>
       <p>The plugin is built in the repository Fixture/jellyfin-plugin-outside-ascii, and what this page says about it is read from the roster rather than written here.</p>
       <nav aria-label="Where to go from here">

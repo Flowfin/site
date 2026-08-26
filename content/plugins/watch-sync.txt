@@ -1,0 +1,15 @@
+The plugin is meant to keep what a person has watched consistent across two
+paired servers, so that a title finished on one is not offered again as unwatched
+by the other. It is for somebody who has an account on two servers rather than
+for two people, and that distinction is what decides who the data is about.
+
+Before it is any use a pair has to exist, which is what the server-pairing plugin
+is for, and the same person has to be identifiable on both sides. Two accounts
+that happen to share a name are not the same person, and deciding that they are
+would be the plugin quietly merging two viewing histories.
+
+What it does with data about a person is move their watch history from one
+server to the other, which is data crossing a boundary between two machines that
+may have different operators. That is exactly the case a per-plugin data line
+exists for, and it is the intended behaviour rather than a description of code
+that runs today.
