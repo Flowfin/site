@@ -9,11 +9,11 @@
 // budget counts requests. Referencing a file and producing it costs one request
 // either way, and the reference is what stops the guess.
 //
-// What the mark is was decided as a typographic icon and no drawn mark, so what
-// is here is a letter set in the reader's own font rather than artwork. That
-// decision is why this package can exist at all: a drawn mark is a file
-// somebody authors and this repository commits, and a letter is a function of
-// values the token file already carries.
+// What the mark is was decided as a typographic icon and no drawn mark, in
+// decisions/0015-what-the-mark-is.md, so what is here is a letter set in the
+// reader's own font rather than artwork. That decision is why this package can
+// exist at all: a drawn mark is a file somebody authors and this repository
+// commits, and a letter is a function of values the token file already carries.
 //
 // So the file is produced rather than committed, which is the rule the
 // exclusion file and the sitemap are already written under: a committed file
