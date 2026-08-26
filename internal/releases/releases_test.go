@@ -237,6 +237,31 @@ func TestTwoRefreshesOverTheSameAnswersWriteTheSameBytes(t *testing.T) {
 	}
 }
 
+// Every field an entry carries is compared, one field at a time, and an entry
+// is not different from itself. The verb's case below moves two fields at once,
+// so a comparison that had stopped reading one of them would still report that
+// entry as MOVED and nothing in the suite would say otherwise. What a run of
+// this file reports is what somebody reads instead of diffing the record, so a
+// field that dropped out of the comparison is a change that gets recorded and
+// announced as unchanged.
+func TestOneFieldIsEnoughToMakeTwoEntriesDifferent(t *testing.T) {
+	base := Repository{Finished: 2, Prereleases: 3, Unstated: 1, Generations: []string{"10.11", "12.0"}}
+	if !same(base, base) {
+		t.Error("an entry was reported as saying something other than itself")
+	}
+	for name, other := range map[string]Repository{
+		"one more finished release":              {Finished: 3, Prereleases: 3, Unstated: 1, Generations: []string{"10.11", "12.0"}},
+		"one more prerelease":                    {Finished: 2, Prereleases: 4, Unstated: 1, Generations: []string{"10.11", "12.0"}},
+		"one more stating no server generation":  {Finished: 2, Prereleases: 3, Unstated: 2, Generations: []string{"10.11", "12.0"}},
+		"one generation fewer":                   {Finished: 2, Prereleases: 3, Unstated: 1, Generations: []string{"10.11"}},
+		"as many generations, named differently": {Finished: 2, Prereleases: 3, Unstated: 1, Generations: []string{"10.11", "12.1"}},
+	} {
+		if same(base, other) {
+			t.Errorf("%s: two entries that differ were reported as saying the same thing", name)
+		}
+	}
+}
+
 // The verb over a tree, end to end, and what it says about what moved. The
 // report is the whole point of the run: a refresh that wrote a file and said
 // nothing would leave somebody diffing to find out whether anything changed.
