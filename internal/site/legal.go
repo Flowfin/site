@@ -198,7 +198,7 @@ func keysInFileOrder(body []byte, raw map[string]json.RawMessage) []string {
 // assets walk and the other pages report an absent one, and the report names
 // which of the two was missing: a page with words and no values and a page with
 // values and no words are different repairs.
-func writeLegal(root, out, label string, tmpl *template.Template, said descriptions, log io.Writer) ([]string, error) {
+func writeLegal(root, out, label string, tmpl *template.Template, said descriptions, mark string, log io.Writer) ([]string, error) {
 	prose := filepath.Join(root, filepath.FromSlash(LegalProse))
 	values := filepath.Join(root, filepath.FromSlash(LegalFile))
 	for _, source := range []struct{ name, path string }{{LegalProse, prose}, {LegalFile, values}} {
@@ -216,7 +216,7 @@ func writeLegal(root, out, label string, tmpl *template.Template, said descripti
 	if err != nil {
 		return nil, fmt.Errorf("reading who publishes this site: %w", err)
 	}
-	p.locate(LegalPath)
+	p.locate(LegalPath, mark)
 	if err := said.add(LegalPath, p.Description); err != nil {
 		return nil, err
 	}

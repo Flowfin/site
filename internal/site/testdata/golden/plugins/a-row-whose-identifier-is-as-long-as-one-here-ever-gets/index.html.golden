@@ -7,6 +7,7 @@
     <title>a-row-whose-identifier-is-as-long-as-one-here-ever-gets</title>
     <meta name="description" content="The longest identifier a row may carry, which is where a table cell and a page address stop being comfortable" />
     <link rel="canonical" href="https://flowfin.dev/plugins/a-row-whose-identifier-is-as-long-as-one-here-ever-gets/" />
+    <link rel="icon" href="/icon.svg" type="image/svg&#43;xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Flowfin" />
     <meta property="og:title" content="a-row-whose-identifier-is-as-long-as-one-here-ever-gets" />

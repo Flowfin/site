@@ -7,6 +7,7 @@
     <title>Privacy</title>
     <meta name="description" content="What happens to a request for a page on this site, what is kept, and which of those statements a check refuses a page for breaking." />
     <link rel="canonical" href="https://flowfin.dev/privacy/" />
+    <link rel="icon" href="/icon.svg" type="image/svg&#43;xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Flowfin" />
     <meta property="og:title" content="Privacy" />

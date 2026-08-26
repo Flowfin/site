@@ -35,7 +35,7 @@ import (
 // landing page and the pages it links cannot disagree about what the roster
 // says. A row with no page and a page with no row are the same failure seen
 // from two sides, and there is one read behind both.
-func writePluginPages(rows []plugin, out, label string, tmpl *template.Template, said descriptions, log io.Writer) ([]string, error) {
+func writePluginPages(rows []plugin, out, label string, tmpl *template.Template, said descriptions, mark string, log io.Writer) ([]string, error) {
 	var written []string
 	for _, r := range rows {
 		p := page{
@@ -47,7 +47,7 @@ func writePluginPages(rows []plugin, out, label string, tmpl *template.Template,
 				{Text: "Every plugin and what state it is in", Href: "/"},
 			},
 		}
-		p.locate(r.Produced)
+		p.locate(r.Produced, mark)
 		if err := said.add(r.Produced, p.Description); err != nil {
 			return nil, err
 		}

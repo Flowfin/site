@@ -2193,3 +2193,42 @@ func TestTheTwoBrowserRowsPassAPageThatCarriesNeither(t *testing.T) {
 		}
 	}
 }
+
+// The mark referenced from the head is one of the requests the record counts,
+// so a page at the limit in its body is over it once the head asks for one more.
+// The pair is the whole of what widening this row added: the same body passes
+// with no mark and is refused with one, so the count moved because of the head
+// and not because of anything a reader can see.
+func TestTheLandingImageRowCountsTheMarkInTheHead(t *testing.T) {
+	body := strings.Repeat(`<img src="/a.png" alt="A picture of something" width="8" height="8" />`,
+		budget.LandingImages)
+	if got := decideLandingImages([]byte(body)); len(got) != 0 {
+		t.Fatalf("the row refused a page at the limit with no mark on it: %v", got)
+	}
+
+	withMark := `<link rel="icon" href="/icon.svg" type="image/svg+xml" />` + body
+	got := decideLandingImages([]byte(withMark))
+	if len(got) != 1 {
+		t.Fatalf("the row passed a page at the limit that also asks for the mark: %v", got)
+	}
+	if !strings.Contains(got[0], "the mark in its head counted with them") {
+		t.Errorf("the refusal does not say the mark was counted; it said: %s", got[0])
+	}
+}
+
+// The relationship is what makes the reference a request for an image, so a
+// link element of any other kind is not one. The canonical address every page
+// states is the case this protects: it is a link element carrying an address
+// this site serves, and nothing fetches it.
+func TestTheLandingImageRowCountsNoOtherLinkElement(t *testing.T) {
+	body := strings.Repeat(`<img src="/a.png" alt="A picture of something" width="8" height="8" />`,
+		budget.LandingImages)
+	for _, other := range []string{
+		`<link rel="canonical" href="https://flowfin.dev/" />`,
+		`<link rel="stylesheet" href="/a.css" />`,
+	} {
+		if got := decideLandingImages([]byte(other + body)); len(got) != 0 {
+			t.Errorf("the row counted %s as a request for an image: %v", other, got)
+		}
+	}
+}

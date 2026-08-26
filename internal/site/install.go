@@ -205,7 +205,7 @@ func installable(rows []plugin) ([]plugin, string) {
 // other pages report an absent one, and the report names which of the two was
 // missing: a page with words and no address and a page with an address and no
 // words are different repairs.
-func writeInstall(root, out, label string, rows []plugin, tmpl *template.Template, said descriptions, log io.Writer) ([]string, error) {
+func writeInstall(root, out, label string, rows []plugin, tmpl *template.Template, said descriptions, mark string, log io.Writer) ([]string, error) {
 	prose := filepath.Join(root, filepath.FromSlash(InstallProse))
 	values := filepath.Join(root, filepath.FromSlash(InstallFile))
 	for _, source := range []struct{ name, path string }{{InstallProse, prose}, {InstallFile, values}} {
@@ -225,7 +225,7 @@ func writeInstall(root, out, label string, rows []plugin, tmpl *template.Templat
 	}
 	p.Paragraphs = sayWhatTheClientsAre(p.Paragraphs, saidAboutTheAddress(c))
 	p.Installable, p.InstallableRead = installable(rows)
-	p.locate(InstallPath)
+	p.locate(InstallPath, mark)
 	if err := said.add(InstallPath, p.Description); err != nil {
 		return nil, err
 	}

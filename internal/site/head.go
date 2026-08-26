@@ -9,16 +9,21 @@
 // site exists to explain what it is spends that first impression saying one
 // word.
 //
-// Three things are decided here and none of them is written into the template. A
+// Four things are decided here and none of them is written into the template. A
 // description belongs to the page, so it comes out of the same file the prose
 // does; one written into the frame would be one description for every page,
 // which is worse than none because it makes every result look like every other.
 // A canonical address is decisions/0008-the-url-shape.md stated inside the
 // document, so a page reachable at a second address does not compete with
-// itself. And the card a shared link renders carries the title, the description
-// and the site name and references nothing, because the project publishes no
-// image and a card image would be a file per page against a budget that counts
-// every byte.
+// itself. The mark a browser asks for is referenced from every page and stated
+// only where the build wrote one, so a page never promises a file that is not
+// beside it.
+//
+// And the card a shared link renders carries the title, the description and the
+// site name and references no image. That is unchanged by the mark existing,
+// and the two are different files for different readers: a card image is sized
+// for a chat window and is a file per page against a budget that counts every
+// byte, where the mark is one file every page shares.
 //
 // Nothing here reaches another origin. A card is metadata this site serves about
 // itself, and the row that refuses a reference to a domain this project does not
@@ -33,6 +38,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/Flowfin/site/internal/icon"
 )
 
 // Host is the name this site is published under and Origin is that name with the
@@ -132,9 +139,20 @@ func missingDescription() string {
 // a page added later cannot be written without them: the field is on the struct
 // the template reads, and the row over the produced pages refuses a page whose
 // head is missing.
-func (p *page) locate(produced string) {
+//
+// mark is the address the build wrote the icon at, or empty where it wrote
+// none. It is a parameter rather than a constant here for the reason the
+// address is not written into the frame: a reference is stated only where the
+// file behind it exists, so a tree that produced no mark produces pages that
+// promise none, rather than pages carrying a reference the leg over the output
+// then finds nothing behind.
+func (p *page) locate(produced, mark string) {
 	p.Canonical = Origin + addressOf(produced)
 	p.SiteName = SiteName
+	p.Icon = mark
+	if mark != "" {
+		p.IconType = icon.MediaType
+	}
 }
 
 // addressOf is the address decisions/0008-the-url-shape.md gives a page, read off

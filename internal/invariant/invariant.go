@@ -41,6 +41,7 @@ import (
 
 	"github.com/Flowfin/site/internal/budget"
 	"github.com/Flowfin/site/internal/changelog"
+	"github.com/Flowfin/site/internal/icon"
 	"github.com/Flowfin/site/internal/licence"
 	"github.com/Flowfin/site/internal/markup"
 	"github.com/Flowfin/site/internal/pins"
@@ -153,9 +154,18 @@ var (
 	colourSchemeProperty = regexp.MustCompile(`(?is)(^|[^-a-z])color-scheme\s*:\s*([^;{}"']*)`)
 	contentAttr          = regexp.MustCompile(`(?is)\bcontent\s*=\s*"([^"]*)"`)
 	imgElement           = regexp.MustCompile(`(?is)<img\b[^>]*>`)
-	srcAttr              = regexp.MustCompile(`(?is)\bsrc\s*=\s*"([^"]*)"`)
-	widthAttr            = regexp.MustCompile(`(?is)\bwidth\s*=\s*"([^"]*)"`)
-	heightAttr           = regexp.MustCompile(`(?is)\bheight\s*=\s*"([^"]*)"`)
+	// The reference a page states to the mark a browser fetches on the first
+	// visit. It is matched on the relationship rather than on the address,
+	// because what makes it a request the reader pays for is what the page
+	// says the file is for, and an address is whatever the build wrote.
+	//
+	// The relationship is read as a whole word between the quotes, so a page
+	// declaring several relationships on one element is still one request and
+	// a longer word ending in these letters is not one at all.
+	iconLink   = regexp.MustCompile(`(?is)<link\b[^>]*\brel\s*=\s*"[^"]*\bicon\b[^"]*"[^>]*>`)
+	srcAttr    = regexp.MustCompile(`(?is)\bsrc\s*=\s*"([^"]*)"`)
+	widthAttr  = regexp.MustCompile(`(?is)\bwidth\s*=\s*"([^"]*)"`)
+	heightAttr = regexp.MustCompile(`(?is)\bheight\s*=\s*"([^"]*)"`)
 	// The hex forms CSS reads, longest first so that the six digits of a
 	// full colour are not matched as a four-digit one with a stray digit
 	// after it. The shorthand forms are in the set because they spell
@@ -1074,8 +1084,11 @@ func decideLicenceHeader(body []byte) []string {
 func Owing() []Owed {
 	return []Owed{
 		{
-			ID:      "image-dimensions-match-the-file",
-			Waiting: "the first image the build writes, in #69. The row above refuses a produced image with no usable dimensions on it; this one is the other half, that the numbers written are the ones the image file carries rather than numbers somebody typed, and the build writes no image today, so there is nothing on either side of that comparison",
+			ID: "image-dimensions-match-the-file",
+			Waiting: "the first page that states a size for an image, in #85. The row above refuses a produced image with no usable dimensions on it; this one is the other half, that the numbers written are the ones the image file carries rather than numbers somebody typed. " +
+				"What it was waiting for until the mark landed was the first image the build writes, and that half has arrived: " + icon.Path + " is produced and declares its own size in its root element, which is the file side of the comparison. " +
+				"The markup side is what is absent now, and it is absent by construction rather than by omission: every page references the mark from its head with a link element, and a link element states no width and no height, so there is nothing on a page for the file to be compared against. " +
+				"This row starts deciding on the day a page states a size for an image, which is an element that carries one rather than a second reference to the same mark",
 		},
 	}
 }
@@ -2083,14 +2096,23 @@ func decideWebFont(body []byte) []string {
 // decideLandingImages refuses the landing page for asking for more images than the
 // record allows. The document itself is the one request the record counts beside
 // them, and a page is one document by construction.
+//
+// The mark referenced from the head is counted with them, and it is counted
+// because of what the record measures rather than because of which element
+// carries it. A line in the head and a picture in the body are one request each
+// on the exchange the record is written about, and a rule that counted only the
+// element a reader can see would let the page grow by whatever a head can be
+// made to hold. The mark is also the one image on this site small enough to
+// argue for an exemption, which is the argument this row refuses: it is counted
+// like any other image rather than being exempt because it is small.
 func decideLandingImages(body []byte) []string {
-	found := imgElement.FindAllIndex(body, -1)
-	if len(found) <= budget.LandingImages {
+	found := len(imgElement.FindAllIndex(body, -1)) + len(iconLink.FindAllIndex(body, -1))
+	if found <= budget.LandingImages {
 		return nil
 	}
 	return []string{fmt.Sprintf(
-		"this page asks for %d image(s) after its document and the budget in %s allows %d",
-		len(found), budget.Record, budget.LandingImages)}
+		"this page asks for %d image(s) after its document, the mark in its head counted with them, and the budget in %s allows %d",
+		found, budget.Record, budget.LandingImages)}
 }
 
 // onlyNamed keeps the one file a narrowed row is about. A row naming a path the

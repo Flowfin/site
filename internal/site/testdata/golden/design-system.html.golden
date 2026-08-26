@@ -7,6 +7,7 @@
     <title>The design system</title>
     <meta name="description" content="Every value the clients and this site are built from, drawn with itself, and the two speed budgets stated side by side." />
     <link rel="canonical" href="https://flowfin.dev/design-system.html" />
+    <link rel="icon" href="/icon.svg" type="image/svg&#43;xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Flowfin" />
     <meta property="og:title" content="The design system" />
