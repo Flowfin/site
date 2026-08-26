@@ -176,3 +176,78 @@ func TestABrokenPageIsReportedOnceRatherThanGuessedAt(t *testing.T) {
 		t.Errorf("the one problem reported is %s rather than the structure it stopped at", got[0].Kind)
 	}
 }
+
+// A page that stops in the middle of a tag. Every case here is a raw fragment
+// rather than a wrapped one, and deliberately: what is being read is what the
+// tag reader does when the bytes run out under it, and wrapping would put a
+// closing body after the point each case is about.
+//
+// A template that stops writing produces exactly these. What they must not do
+// is index past the end of what was written: the walk reads the byte after the
+// one it tested at nine places, and each place is a byte the page does not
+// have.
+func TestAPageThatEndsInTheMiddleOfATagIsRefusedRatherThanReadPastItsEnd(t *testing.T) {
+	for name, fragment := range map[string]string{
+		"a tag name that runs to the end":          "<div",
+		"a space after the name and nothing after": "<div ",
+		"an attribute name that runs to the end":   "<div id",
+		"a space after an attribute name":          "<div id ",
+		"an equals sign at the end":                "<div id=",
+		"a space after the equals sign":            "<div id= ",
+		"an unquoted value that runs to the end":   "<div id=x",
+		"a double quote that never closes":         `<div id="x`,
+		"a single quote that never closes":         `<div id='x`,
+		"a slash at the end":                       "<div /",
+	} {
+		got := Read([]byte(fragment))
+		if len(got) != 1 {
+			t.Errorf("%s: %q was read as %d problem(s): %v", name, fragment, len(got), got)
+			continue
+		}
+		if got[0].Kind != Structure || !strings.Contains(got[0].Says, "a tag is opened and never closed") {
+			t.Errorf("%s: %q was refused as %v", name, fragment, got[0])
+		}
+	}
+}
+
+// The neighbour of every case above, and the half that matters more: a tag
+// written in a shape a template legitimately writes is read rather than
+// refused. A reader that refused one of these would be repaired by somebody
+// loosening the rule, which is the repair this package cannot afford.
+func TestTheEdgesOfAWellFormedTagAreReadRatherThanRefused(t *testing.T) {
+	for name, body := range map[string]string{
+		"a space before the closing bracket":      `    <div ></div>`,
+		"an unquoted value":                       `    <div id="a"></div><div id=b></div>`,
+		"a single-quoted value":                   `    <div id='c'></div>`,
+		"spaces around the equals sign":           `    <div id = "d"></div>`,
+		"an attribute carrying no value":          `    <div hidden></div>`,
+		"a void element closed with a slash":      `    <br/>`,
+		"a raw text element with nothing inside":  `    <style></style>`,
+		"a comment holding what looks like a tag": `    <!-- <div> is a character here --><p>A paragraph.</p>`,
+		"a comment ending on a stray bracket":     `    <!-- a rule with a < --><p>A paragraph.</p>`,
+	} {
+		if got := Read(page(body)); len(got) != 0 {
+			t.Errorf("%s: %q was refused: %v", name, body, got)
+		}
+	}
+}
+
+// The heading rule refuses a level that was skipped and nothing else. The three
+// cases it must leave alone are the first heading on a page, whatever level it
+// is, the level directly under the last one, and the deepest level reached that
+// way; the fourth is the jump it exists for, and it is here so that the pair is
+// one case rather than two files apart.
+func TestOnlyASkippedHeadingLevelIsRefused(t *testing.T) {
+	for name, body := range map[string]string{
+		"a first heading that is not the top level": `    <h2>A section</h2>`,
+		"the level directly under the last one":     `    <h1>A title</h1><h2>A section</h2>`,
+		"the deepest level under the one above it":  `    <h4>A</h4><h5>B</h5><h6>C</h6>`,
+	} {
+		if got := Of(Heading, Read(page(body))); len(got) != 0 {
+			t.Errorf("%s: %q was refused: %v", name, body, got)
+		}
+	}
+	if got := Of(Heading, Read(page(`    <h1>A title</h1><h6>Six</h6>`))); len(got) != 1 {
+		t.Errorf("a jump from the top level to the deepest was read as %d problem(s): %v", len(got), got)
+	}
+}
