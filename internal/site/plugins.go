@@ -44,6 +44,12 @@ type plugin struct {
 	// Produced is the path the build writes this plugin's page to. It is not
 	// rendered; it is what the writer and the address derivation use.
 	Produced string
+	// Installable says whether a server given the catalogue address can
+	// install this plugin today. It is the computed state rather than the
+	// word the table renders, so the install page's list and that table are
+	// one read of what each repository has published: a page filtering on
+	// the word would be a second copy of what the word means.
+	Installable bool
 	// Prose is the paragraphs this plugin's own file carries, in the order it
 	// carries them. It is what makes the page more than the table row with
 	// space around it, and it is joined to the row by the identifier alone, so
@@ -107,6 +113,10 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 			State:      said,
 			Means:      means,
 			Produced:   path.Join(PluginsDir, segment, indexDocument),
+			// Read from the same record stateInWords was handed, so
+			// the row cannot say one thing in the table and another
+			// on the page that tells a reader what to install.
+			Installable: recorded.Repositories[e.Repository].Ships(),
 		})
 	}
 

@@ -38,6 +38,17 @@
         {{- end }}
       </table>
       {{- end }}
+      {{- if .InstallableRead }}
+      <h2>What can be installed today</h2>
+      <p>{{ .InstallableRead }}</p>
+      {{- if .Installable }}
+      <ul>
+        {{- range .Installable }}
+        <li><a href="{{ .Href }}">{{ .ID }}</a> {{ .Summary }}</li>
+        {{- end }}
+      </ul>
+      {{- end }}
+      {{- end }}
       {{- if .Onward }}
       <nav aria-label="Where to go from here">
         <ul>

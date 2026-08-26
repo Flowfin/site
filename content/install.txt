@@ -1,0 +1,38 @@
+Installing a plugin
+
+description: What to add to a Jellyfin server so that these plugins appear in
+  it, what happens after the address is added, and what to check when nothing
+  appears.
+
+A Jellyfin server installs plugins from a catalogue it is told about. The
+catalogue is one address, added once as a new repository in the server's
+administration pages, and everything published under it appears in the server's
+own plugin list from then on. Nothing is downloaded from here by hand and no
+file is copied into a server directory.
+
+A server that has just been given a catalogue usually needs its plugin list
+reloaded before anything from it shows up, and some versions of Jellyfin only
+reload that list when the server restarts. Nothing is wrong with a list that is
+still empty a moment after the address was saved.
+
+What a catalogue offers is finished releases. A plugin whose repository holds
+work in progress and has published nothing has nothing there to offer, so it
+will not appear in the server's list however the address is added, and that is
+the state most of these plugins are in today. The list below is computed from
+what each repository has published rather than from anything written on this
+page.
+
+When a plugin appears and then refuses to load, the usual cause is that the
+build was made for a different generation of the server. A build states the
+generation it targets and a server refuses one it does not match, which is the
+failure that looks like a broken plugin and is a mismatched one.
+
+When nothing appears at all, the three things worth checking are that the
+address was saved rather than typed and left, that the server can reach it from
+where the server runs, and that the plugin list has been reloaded since. An
+address that answers in a browser on another machine says nothing about whether
+the server can reach it.
+
+onward: Every plugin and what state it is in [/]
+
+onward: What happens to a request for a page here [/privacy/]

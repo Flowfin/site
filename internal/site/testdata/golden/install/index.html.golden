@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Installing a fixture plugin</title>
+    <meta name="description" content="The fixture install page, which carries the steps, the way onward and nothing that would move when the real catalogue address does." />
+    <link rel="canonical" href="https://flowfin.dev/install/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowfin" />
+    <meta property="og:title" content="Installing a fixture plugin" />
+    <meta property="og:description" content="The fixture install page, which carries the steps, the way onward and nothing that would move when the real catalogue address does." />
+    <meta property="og:url" content="https://flowfin.dev/install/" />
+  </head>
+  <body>
+    <a href="#content">Skip to the content</a>
+    <main id="content" tabindex="-1">
+      <h1>Installing a fixture plugin</h1>
+      <p>A server installs plugins from a catalogue it is told about, and the address of that catalogue is a value this page reads rather than a sentence written into it.</p>
+      <p>The address is https://fixture.example/manifest.json. It is added once, in the server&#39;s administration pages under the plugin catalogues, and it keeps answering afterwards: what is published under it is what the server sees the next time it looks.</p>
+      <p>The list below is computed from what each fixture repository has published, so the page and the table it is reached from are one read of the same file.</p>
+      <h2>What can be installed today</h2>
+      <p>One of the 6 plugins has a finished release published, so it is the one a server can install today. The rest appear here as they publish, and this list is computed from what each repository has published rather than written on this page.</p>
+      <ul>
+        <li><a href="/plugins/declared-shell-and-shipping/">declared-shell-and-shipping</a> A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle</li>
+      </ul>
+      <nav aria-label="Where to go from here">
+        <ul>
+          <li><a href="/">Every fixture plugin and what state it is in</a></li>
+          <li><a href="/privacy/">What happens to a request for a fixture page</a></li>
+        </ul>
+      </nav>
+      
+    </main>
+    <footer>
+      <p>
+        Flowfin is not affiliated with the Jellyfin project. Other projects are
+        named here to say what this software works with, and nothing further is
+        meant by naming them.
+      </p>
+      <p>
+        <a href="/legal/">Who publishes this site</a>
+      </p>
+      <p>
+        <a href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
+          >The intended-use notice</a
+        >
+      </p>
+    </footer>
+  </body>
+</html>
