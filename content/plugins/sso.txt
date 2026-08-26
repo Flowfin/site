@@ -1,17 +1,18 @@
-The plugin is meant to let a person sign in to the server with an account they
-already have, held by an identity provider the operator already runs or already
-trusts, over OpenID Connect or SAML 2.0. What the operator gets from that is one
-place where an account is created, suspended and removed, instead of a second
-list of users that has to be kept in step with the first by hand.
+The plugin lets a person sign in to the server with an account they already have,
+held by an identity provider the operator already runs or already trusts, over
+OpenID Connect or SAML 2.0. What the operator gets from that is one place where
+an account is created, suspended and removed, instead of a second list of users
+that has to be kept in step with the first by hand.
 
-Before it is any use an operator needs an identity provider to point it at, and
-a client that can complete a sign-in in a browser. A provider that is reachable
+Before it is any use an operator needs an identity provider to point it at, and a
+client that can complete a sign-in in a browser. A provider that is reachable
 only from inside a network is reachable only from clients inside that network,
 which is a property of the network rather than of the plugin, and it is the part
 that most often turns out to be the work.
 
-What it does with data about a person is defined by what a sign-in has to
-exchange: an identifier for the person and whatever claims the operator's
-provider is configured to release, passed between the server and that provider.
-That is the intended behaviour and not a description of code that runs today, so
-nothing crosses anywhere yet because nothing does anything yet.
+What it does with data about a person is what a sign-in has to exchange: an
+identifier for that person and whatever claims the operator's provider is
+configured to release, passed between the server and that provider. Where the
+plugin fetches a picture for the account, the server reaches that provider for a
+file belonging to that person. Both are the operator's own arrangement with a
+party the operator named, and neither is a second Jellyfin server.
