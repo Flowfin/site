@@ -1,8 +1,7 @@
-The repository holds the shape of this plugin and none of what it is for. What
-it is meant to do is let a collection be described once as a rule about the
-library, and then be filled and refilled from the library as it changes, so that
-a collection is a standing question rather than a list somebody has to keep
-adding to.
+What this plugin is meant to do is let a collection be described once as a rule
+about the library, and then be filled and refilled from the library as it
+changes, so that a collection is a standing question rather than a list somebody
+has to keep adding to.
 
 Before it is any use it will need a library large enough that maintaining a
 collection by hand is the annoyance it exists to remove, and a way of writing a

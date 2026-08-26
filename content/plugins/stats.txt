@@ -1,7 +1,7 @@
-The plugin is meant to show what has been played, when, and how far through,
-kept private to the person it is about. A server already knows most of this in
-order to resume a title in the right place; what the plugin adds is a reading of
-it that the person themselves can see, and a boundary saying who else may.
+The plugin shows what has been played, when, and how far through, kept private to
+the person it is about. A server already knows most of this in order to resume a
+title in the right place; what the plugin adds is a reading of it that the person
+themselves can see, and a boundary saying who else may.
 
 Before it is any use nothing outside the server is needed. What decides whether
 its numbers mean anything is how long the server has been in use, because a
@@ -9,6 +9,5 @@ statistic over a week of playback is a statistic about a week.
 
 What it does with data about a person is the whole of what it is: a record of
 what somebody watched is one of the more revealing things a media server holds.
-It is meant to stay on the operator's host and to be shown to the person it is
-about rather than to everybody with an account. That is the intended behaviour
-and not a description of code that runs today.
+It stays on the operator's host, and it is meant to be shown to the person it is
+about rather than to everybody with an account.

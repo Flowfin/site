@@ -1,7 +1,6 @@
-The repository holds the shape of this plugin and none of what it is for. What
-it is meant to do is let an operator hand somebody an address that lets that
-person set up their own account, rather than the operator creating an account and
-then passing a password along by some other route.
+What this plugin is meant to do is let an operator hand somebody an address that
+lets that person set up their own account, rather than the operator creating an
+account and then passing a password along by some other route.
 
 Before it is any use the address has to be reachable by the person being invited,
 and the operator has to have decided what a newly arrived account may see before
