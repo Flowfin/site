@@ -95,3 +95,13 @@ there is no earlier bundle to compare it against.
   each repository has published rather than from the state word a roster row
   declares, and where nothing has a finished release the page says so instead of
   listing nothing.
+- The build says which server generation each plugin's published builds are
+  for, on the plugin's own page and beside it on the install page. The value is
+  recorded by `go run . releases` out of the metadata each finished release
+  publishes rather than typed anywhere, one line per generation so a plugin
+  publishing a build per generation is not rendered as one that publishes a
+  single build, and a plugin with no finished release states no version at all.
+  Finished releases that publish nothing about which server they are for are
+  counted and said, so a page listing the generations some of the releases state
+  is not read as one listing all of them. The record refuses a plugin recorded
+  as shipping with nothing saying which server it is for.

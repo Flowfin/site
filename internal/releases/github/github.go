@@ -12,6 +12,7 @@ package github
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -30,7 +31,8 @@ const API = "https://api.github.com/repos/"
 // the request rather than a shell line, because what the verb makes is an HTTP
 // request and a shell command in the record would name a route nobody took.
 const Command = "go run . releases, which reads " + API +
-	"OWNER/NAME/releases?per_page=100 for each repository the roster names"
+	"OWNER/NAME/releases?per_page=100 for each repository the roster names, and the " +
+	metadataSuffix + " asset of each finished release for the server generation it targets"
 
 // Fetch reads one repository's release list and counts the two things the
 // rule needs.
@@ -63,24 +65,162 @@ func Fetch(repository string) (releases.Repository, error) {
 		return releases.Repository{}, fmt.Errorf("%s answered %s", address, resp.Status)
 	}
 
-	var published []struct {
-		Draft      bool `json:"draft"`
-		Prerelease bool `json:"prerelease"`
-	}
+	var published []release
 	if err := json.NewDecoder(resp.Body).Decode(&published); err != nil {
 		return releases.Repository{}, fmt.Errorf("reading what %s answered: %w", address, err)
 	}
 
-	return count(published), nil
+	r := count(published)
+	generations, unstated, err := generationsOf(client.Get, published)
+	if err != nil {
+		return releases.Repository{}, err
+	}
+	r.Generations = generations
+	r.Unstated = unstated
+	return r, nil
+}
+
+// release is what this package reads out of one entry of a release list. The
+// flags decide which count it lands in, and the assets are where the generation
+// it targets is published.
+type release struct {
+	Tag        string `json:"tag_name"`
+	Draft      bool   `json:"draft"`
+	Prerelease bool   `json:"prerelease"`
+	Assets     []struct {
+		Name string `json:"name"`
+		URL  string `json:"browser_download_url"`
+	} `json:"assets"`
+}
+
+// metadataSuffix is what the published metadata beside a release archive is
+// named. It is the file a Jellyfin server reads to decide whether a build fits
+// it, which is why it is the authority here: the same bytes that tell a server
+// to refuse a build are what this record says the build is for.
+const metadataSuffix = ".meta.json"
+
+// generationsOf reads the generation each finished release targets and answers
+// with the distinct ones, newest release first.
+//
+// Only finished releases are read. decisions/0009-what-counts-as-shipping.md
+// keeps a prerelease out of the state the pages compute, and a generation taken
+// from one would put a server version on a page beside a sentence saying the
+// build it belongs to is not the finished one. That is the reading this record
+// takes and it is the reading the pages are written against.
+//
+// A finished release that publishes no metadata at all is counted rather than
+// refused, and the count is returned beside the generations. That is a third
+// state and not a silence: a release stating no generation and a run that could
+// not read one are different, and the plugin that ships today published four
+// finished releases before it published the metadata a generation is read out
+// of, so a rule refusing this state could not record that repository at all.
+//
+// A release that publishes metadata this run could not read or could not parse
+// is still refused. That is the run failing rather than the release saying
+// nothing, and recording it as the state above would turn a failure into a
+// claim about somebody's release.
+func generationsOf(get getter, published []release) ([]string, int, error) {
+	var out []string
+	unstated := 0
+	seen := map[string]bool{}
+	for _, p := range published {
+		if p.Draft || p.Prerelease {
+			continue
+		}
+		g, err := generationOf(get, p)
+		switch {
+		case errors.Is(err, errNoMetadata):
+			unstated++
+			continue
+		case err != nil:
+			return nil, 0, err
+		}
+		if seen[g] {
+			continue
+		}
+		seen[g] = true
+		out = append(out, g)
+	}
+	return out, unstated, nil
+}
+
+// errNoMetadata is the release publishing nothing a generation could be read
+// out of. It is a value rather than a message so that the caller can tell it
+// from a run that failed, which is the distinction the third state rests on.
+var errNoMetadata = errors.New("the release publishes no metadata asset")
+
+// getter is how the metadata beside a release is reached. It is a parameter
+// rather than a client so that the reading above can be decided by a case that
+// opens no connection: what this package refuses to guess is worth a proof, and
+// a proof that needed the network would not be run.
+type getter func(address string) (*http.Response, error)
+
+// generationOf reads one release's published metadata and answers with the
+// generation it declares, in the spelling a page states rather than the
+// four-part number the metadata carries.
+func generationOf(get getter, p release) (string, error) {
+	var from string
+	for _, a := range p.Assets {
+		if strings.HasSuffix(a.Name, metadataSuffix) {
+			from = a.URL
+			break
+		}
+	}
+	if from == "" {
+		return "", errNoMetadata
+	}
+
+	resp, err := get(from)
+	if err != nil {
+		return "", fmt.Errorf("reading the metadata of the release %s: %w", p.Tag, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("%s answered %s", from, resp.Status)
+	}
+
+	var meta struct {
+		TargetAbi string `json:"targetAbi"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
+		return "", fmt.Errorf("reading the metadata of the release %s: %w", p.Tag, err)
+	}
+	g, err := Generation(meta.TargetAbi)
+	if err != nil {
+		return "", fmt.Errorf("the release %s: %w", p.Tag, err)
+	}
+	return g, nil
+}
+
+// Generation is the server generation a target ABI names, which is its first
+// two parts.
+//
+// The metadata carries four, and every place this project publishes the
+// generation in words carries two: the organisation profile, the plugin
+// documents and the sentence a server administrator reads. So the record holds
+// the two-part form and a page states it rather than deriving anything, and the
+// derivation is here, once, with a case behind it.
+//
+// A value that is not an ABI is refused rather than shortened. An ABI is what a
+// server compares a build against, so a value this cannot read is a value
+// nothing on a page should be built out of.
+func Generation(abi string) (string, error) {
+	parts := strings.Split(strings.TrimSpace(abi), ".")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("declares the target ABI %q, which names no server generation", abi)
+	}
+	for _, part := range parts[:2] {
+		if part == "" || strings.TrimLeft(part, "0123456789") != "" {
+			return "", fmt.Errorf("declares the target ABI %q, which is not a number a server compares a build against", abi)
+		}
+	}
+	return parts[0] + "." + parts[1], nil
 }
 
 // count applies the reading decisions/0009 fixes: the flag decides and the tag
 // string is not read. A draft is not published at all, so it is in neither
 // count.
-func count(published []struct {
-	Draft      bool `json:"draft"`
-	Prerelease bool `json:"prerelease"`
-}) releases.Repository {
+func count(published []release) releases.Repository {
 	var r releases.Repository
 	for _, p := range published {
 		switch {

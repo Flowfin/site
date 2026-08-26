@@ -87,10 +87,15 @@ func writePluginPages(rows []plugin, out, label string, tmpl *template.Template,
 // copy that goes stale the day something is published and says so to a reader
 // who has no way to tell which half is current.
 func paragraphsFor(r plugin) []string {
-	said := make([]string, 0, len(r.Prose)+3)
+	said := make([]string, 0, len(r.Prose)+len(r.Generations)+3)
 	said = append(said, r.Summary)
 	said = append(said, r.Prose...)
-	return append(said, r.Means, whereItIs(r))
+	said = append(said, r.Means)
+	// The generation lines sit under the state sentence, because which
+	// server a build is for is only a question once there is a build, and
+	// the sentence above them is what says whether there is one.
+	said = append(said, generationLines(r)...)
+	return append(said, whereItIs(r))
 }
 
 // whereItIs is the sentence naming the repository. It is composed rather than

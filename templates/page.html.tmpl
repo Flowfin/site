@@ -44,7 +44,7 @@
       {{- if .Installable }}
       <ul>
         {{- range .Installable }}
-        <li><a href="{{ .Href }}">{{ .ID }}</a> {{ .Summary }}</li>
+        <li><a href="{{ .Href }}">{{ .ID }}</a> {{ .Summary }}{{ if .Targets }} Published for {{ .Targets }}.{{ end }}</li>
         {{- end }}
       </ul>
       {{- end }}
