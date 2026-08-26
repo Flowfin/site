@@ -61,6 +61,11 @@
           <td>Ships</td>
         </tr>
       </table>
+      <nav aria-label="Where to go from here">
+        <ul>
+          <li><a href="/install/">What to do on a server to install one of these</a></li>
+        </ul>
+      </nav>
       
     </main>
     <footer>

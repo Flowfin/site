@@ -86,3 +86,12 @@ there is no earlier bundle to compare it against.
   words the page states it in and the number with its unit alone, and a limit
   written in any other unit walks through, which is the same bound the row about
   a typed colour declares for itself.
+- The build produces the install page at `/install/`, and the landing page sends
+  a reader to it. It states the catalogue address a server is given, read out of
+  `data/catalogue.json` rather than written into the prose, so the address is a
+  data change and the page renders a sentence naming what the answer waits on
+  where none is settled rather than an empty space somebody would follow. Under
+  it the page lists which plugins a server can install today, computed from what
+  each repository has published rather than from the state word a roster row
+  declares, and where nothing has a finished release the page says so instead of
+  listing nothing.

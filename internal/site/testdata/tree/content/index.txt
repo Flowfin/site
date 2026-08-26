@@ -18,3 +18,5 @@ This file carries the title, the sentence a search result shows and the
 paragraphs above the table. What it may not carry is a claim about whether
 something is available: that is a value the build reads, so the page cannot go
 on saying it after it has stopped being true.
+
+onward: What to do on a server to install one of these [/install/]

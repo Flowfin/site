@@ -1,0 +1,15 @@
+Installing a fixture plugin
+
+description: The fixture install page, which carries the steps, the way onward
+  and nothing that would move when the real catalogue address does.
+
+A server installs plugins from a catalogue it is told about, and the address of
+that catalogue is a value this page reads rather than a sentence written into
+it.
+
+The list below is computed from what each fixture repository has published, so
+the page and the table it is reached from are one read of the same file.
+
+onward: Every fixture plugin and what state it is in [/]
+
+onward: What happens to a request for a fixture page [/privacy/]

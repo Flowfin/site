@@ -65,11 +65,19 @@ type page struct {
 	// are read so that the template holds no count of anything.
 	Plugins     []plugin
 	PluginsRead string
-	Onward      []link
-	Notices     []notice
-	Claims      []claim
-	Promises    []promise
-	Residuals   []string
+	// The two below are the install page's list of what a server can be
+	// given today. Installable is the subset of the rows whose computed
+	// state says a finished release is published, in the order the roster
+	// carries them, and InstallableRead is the sentence above it. The
+	// sentence is what renders where the subset is empty, so a page with
+	// nothing to list says so rather than showing a space.
+	Installable     []plugin
+	InstallableRead string
+	Onward          []link
+	Notices         []notice
+	Claims          []claim
+	Promises        []promise
+	Residuals       []string
 	// The six below are the design system page, which is the one page that
 	// renders a file rather than prose. The three sample lists carry their
 	// values apart rather than as finished declarations, because the frame
@@ -227,6 +235,12 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 		return nil, err
 	}
 	written = append(written, privacy...)
+
+	install, err := writeInstall(root, out, label, p.Plugins, tmpl, said, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, install...)
 
 	legal, err := writeLegal(root, out, label, tmpl, said, log)
 	if err != nil {
@@ -394,10 +408,17 @@ func copyAssets(src, out, label string, log io.Writer) ([]string, error) {
 	return written, nil
 }
 
-// readPage reads the placeholder page's prose. The first non-empty line is the
+// readPage reads the landing page's prose. The first non-empty line is the
 // title and the blocks below it are paragraphs. This is the smallest thing
 // that lets the prose live in content/ rather than inside the generator, and
 // it is what the pages issues replace once there is a real page to write.
+//
+// It reads the way onward for the reason the other pages do, and the landing
+// page needs it for a page nothing else can send a reader to: a reader with no
+// plugin in mind arrives here, and the page telling them what to do with one is
+// reachable from this page or from nowhere. The block is not required here, the
+// way it is on the not-found page and the install page, because a landing page
+// with no onward block is a landing page rather than a dead end.
 func readPage(name string) (page, error) {
 	read, err := blocks(name)
 	if err != nil {
@@ -418,10 +439,17 @@ func readPage(name string) (page, error) {
 				continue
 			}
 			p.Description = text
+		case strings.HasPrefix(joined, onwardKeyword):
+			text, address, reason := splitOnward(joined)
+			if reason != "" {
+				reasons = append(reasons, reason)
+				continue
+			}
+			p.Onward = append(p.Onward, link{Text: text, Href: address})
 		case keywordLine.MatchString(joined):
 			reasons = append(reasons, fmt.Sprintf(
-				"a block opens %q, and the only keyword this file carries is %s, so a block that opens like one and is read as a paragraph loses whatever it was for: %s",
-				strings.SplitN(joined, ":", 2)[0]+":", descriptionKeyword, short(joined)))
+				"a block opens %q, which is neither %s nor %s, so a block that opens like one and is read as a paragraph loses whatever it was for: %s",
+				strings.SplitN(joined, ":", 2)[0]+":", descriptionKeyword, onwardKeyword, short(joined)))
 		default:
 			p.Paragraphs = append(p.Paragraphs, joined)
 		}
