@@ -1,6 +1,6 @@
 {
-  "taken": "2026-08-25",
-  "command": "go run . releases, which reads https://api.github.com/repos/OWNER/NAME/releases?per_page=100 for each repository the roster names",
+  "taken": "2026-08-26",
+  "command": "go run . releases, which reads https://api.github.com/repos/OWNER/NAME/releases?per_page=100 for each repository the roster names, and the .meta.json asset of each finished release for the server generation it targets",
   "repositories": {
     "Flowfin/jellyfin-plugin-discover": {
       "finished": 0,
@@ -16,7 +16,10 @@
     },
     "Flowfin/jellyfin-plugin-requests": {
       "finished": 1,
-      "prereleases": 0
+      "prereleases": 0,
+      "generations": [
+        "10.11"
+      ]
     },
     "Flowfin/jellyfin-plugin-server-pairing": {
       "finished": 0,
@@ -31,12 +34,19 @@
       "prereleases": 0
     },
     "Flowfin/jellyfin-plugin-sso": {
-      "finished": 28,
-      "prereleases": 52
+      "finished": 29,
+      "prereleases": 53,
+      "generations": [
+        "10.11"
+      ],
+      "generations-unstated": 4
     },
     "Flowfin/jellyfin-plugin-stats": {
       "finished": 1,
-      "prereleases": 0
+      "prereleases": 0,
+      "generations": [
+        "10.11"
+      ]
     },
     "Flowfin/jellyfin-plugin-watch-sync": {
       "finished": 0,

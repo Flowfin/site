@@ -67,6 +67,27 @@ func TestTheReadFailsClosed(t *testing.T) {
 			`{"taken":"  ","repositories":{"a/b":{"finished":0,"prereleases":0}}}`, "says nothing about when it was taken"},
 		"a count a release list cannot answer": {
 			`{"taken":"2026-01-02","repositories":{"a/b":{"finished":-1,"prereleases":0}}}`, "negative count"},
+		"a finished release with no server generation beside it": {
+			`{"taken":"2026-01-02","repositories":{"a/b":{"finished":1,"prereleases":0}}}`,
+			"no server generation"},
+		"a server generation for a plugin nobody can install": {
+			`{"taken":"2026-01-02","repositories":{"a/b":{"finished":0,"prereleases":2,"generations":["10.11"]}}}`,
+			"no finished release and the generation(s) 10.11"},
+		"a finished release stating no generation, counted as fewer than were published": {
+			`{"taken":"2026-01-02","repositories":{"a/b":{"finished":3,"prereleases":0,"generations-unstated":2}}}`,
+			"only 2 of them stating none"},
+		"more releases stating no generation than were published": {
+			`{"taken":"2026-01-02","repositories":{"a/b":{"finished":1,"prereleases":0,"generations":["10.11"],"generations-unstated":2}}}`,
+			"more releases than were published"},
+		"releases stating no generation where none were published": {
+			`{"taken":"2026-01-02","repositories":{"a/b":{"finished":0,"prereleases":0,"generations-unstated":1}}}`,
+			"more releases than were published"},
+		"a negative count of releases stating no generation": {
+			`{"taken":"2026-01-02","repositories":{"a/b":{"finished":1,"prereleases":0,"generations":["10.11"],"generations-unstated":-1}}}`,
+			"negative count of releases stating no generation"},
+		"a server generation that names nothing": {
+			`{"taken":"2026-01-02","repositories":{"a/b":{"finished":1,"prereleases":0,"generations":["  "]}}}`,
+			"empty server generation"},
 	} {
 		_, err := Read([]byte(tc.body))
 		if err == nil {
@@ -83,7 +104,7 @@ func TestTheReadFailsClosed(t *testing.T) {
 // into what it declares.
 func TestARecordThatBreaksNothingReadsIntoWhatItDeclares(t *testing.T) {
 	rec, err := Read([]byte(`{"taken":"2026-01-02","command":"a command",
-		"repositories":{"a/b":{"finished":2,"prereleases":3}}}`))
+		"repositories":{"a/b":{"finished":2,"prereleases":3,"generations":["10.11","12.0"]}}}`))
 	if err != nil {
 		t.Fatalf("a record breaking nothing was refused: %v", err)
 	}
@@ -91,6 +112,29 @@ func TestARecordThatBreaksNothingReadsIntoWhatItDeclares(t *testing.T) {
 		t.Errorf("the record read as taken %q by %q", rec.Taken, rec.Command)
 	}
 	if got := rec.Repositories["a/b"]; got.Finished != 2 || got.Prereleases != 3 {
+		t.Errorf("the record read a/b as %+v", got)
+	}
+	if got := rec.Repositories["a/b"].Generations; len(got) != 2 || got[0] != "10.11" || got[1] != "12.0" {
+		t.Errorf("the record read the generations as %q, and the order is the file's", got)
+	}
+}
+
+// The third state reads rather than being refused. A repository whose finished
+// releases all publish nothing about which server they are for is a real state
+// and not a hole: the plugin that ships today published four such releases
+// before it published the metadata a generation is read out of, and a rule
+// refusing it could not record that repository at all.
+func TestEveryFinishedReleaseStatingNoGenerationIsAState(t *testing.T) {
+	rec, err := Read([]byte(`{"taken":"2026-01-02","command":"a command",
+		"repositories":{"a/b":{"finished":4,"prereleases":0,"generations-unstated":4}}}`))
+	if err != nil {
+		t.Fatalf("a record in the third state was refused: %v", err)
+	}
+	got := rec.Repositories["a/b"]
+	if !got.Ships() {
+		t.Error("a repository with four finished releases was read as not shipping")
+	}
+	if len(got.Generations) != 0 || got.Unstated != 4 {
 		t.Errorf("the record read a/b as %+v", got)
 	}
 }
@@ -212,7 +256,7 @@ func TestTheVerbWritesTheRecordAndSaysWhatMoved(t *testing.T) {
 	err := Run(root, []string{"a/b", "c/d"}, "2026-01-02", "a command",
 		func(repository string) (Repository, error) {
 			if repository == "a/b" {
-				return Repository{Finished: 1}, nil
+				return Repository{Finished: 1, Generations: []string{"10.11"}}, nil
 			}
 			return Repository{Prereleases: 4}, nil
 		}, &log)
@@ -221,7 +265,7 @@ func TestTheVerbWritesTheRecordAndSaysWhatMoved(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"a/b: MOVED, was 0 finished and 0 prerelease(s), now 1 and 0",
+		"a/b: MOVED, was 0 finished, 0 prerelease(s), now 1 finished, 0 prerelease(s), for 10.11",
 		"c/d: NEW, 0 finished, 4 prerelease(s)",
 		"gone/away: GONE",
 		"2 repository(s) recorded as taken on 2026-01-02, 3 entry(s) moved",

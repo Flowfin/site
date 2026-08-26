@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/Flowfin/site/internal/releases"
 	"github.com/Flowfin/site/internal/roster"
@@ -44,6 +45,22 @@ type plugin struct {
 	// Produced is the path the build writes this plugin's page to. It is not
 	// rendered; it is what the writer and the address derivation use.
 	Produced string
+	// Generations is the server generation each finished release targets,
+	// as the record carries them, and Targets is the same value as one
+	// phrase. Both are read off one field of one record, so the line on this
+	// plugin's own page and the phrase on the install page cannot name
+	// different servers.
+	//
+	// It is a list because one plugin can publish a build per generation
+	// under one identity, and the page has to render that as a line each
+	// rather than as one line that is right about half of it.
+	Generations []string
+	Targets     string
+	// Unstated is how many of the finished releases publish nothing about
+	// which server generation they are for. The page carries it so that a
+	// list of generations taken from some of the releases is not read as one
+	// taken from all of them.
+	Unstated int
 	// Installable says whether a server given the catalogue address can
 	// install this plugin today. It is the computed state rather than the
 	// word the table renders, so the install page's list and that table are
@@ -117,6 +134,9 @@ func readPlugins(root string, log io.Writer) ([]plugin, string, error) {
 			// the row cannot say one thing in the table and another
 			// on the page that tells a reader what to install.
 			Installable: recorded.Repositories[e.Repository].Ships(),
+			Generations: recorded.Repositories[e.Repository].Generations,
+			Targets:     targetsInWords(recorded.Repositories[e.Repository].Generations),
+			Unstated:    recorded.Repositories[e.Repository].Unstated,
 		})
 	}
 
@@ -205,4 +225,75 @@ func saidAboutTheRows(rows []plugin, taken string) string {
 	return fmt.Sprintf(
 		"%d rows, read from the roster this repository carries. What each plugin has published was read on %s, and the state below is computed from that rather than declared: a row says what is true before anything is published, and a finished release raises it.",
 		len(rows), taken)
+}
+
+// generationLines is what a plugin's own page says about which server its
+// published builds are for, one line per generation.
+//
+// One line each rather than one line listing them, because a plugin publishing
+// a build per generation is the case a single line renders wrong while looking
+// exactly as correct as a right one, and a reader deciding what to install is
+// reading for their own server rather than for the set.
+//
+// A plugin with no finished release gets no line at all. What such a page says
+// is that there is nothing to install, which the state sentence already says,
+// and a version beside it would be read as something to install.
+func generationLines(r plugin) []string {
+	if len(r.Generations) == 0 && r.Unstated == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(r.Generations)+2)
+	for _, g := range r.Generations {
+		out = append(out, fmt.Sprintf("A finished release is published for Jellyfin %s.", g))
+	}
+	if said := whatStatesNothing(r); said != "" {
+		out = append(out, said)
+	}
+	// What the generation is for, once rather than once per line. It is the
+	// sentence that turns a number into something a reader can act on, and
+	// repeating it under each generation would bury the numbers it is about.
+	return append(out, "A server of another generation refuses a build that is not for it, which is what a plugin that appears in the list and then will not load usually is.")
+}
+
+// whatStatesNothing is the sentence for the finished releases that publish
+// nothing about which server they are for, and it is empty where there are
+// none.
+//
+// It is the third state written down. A list of generations taken from some of
+// the releases and one taken from all of them are different claims, and a page
+// printing the first as though it were the second is the failure the count
+// exists against. Where no finished release states one at all, the page says
+// that instead of a generation, because a build a reader can install and a
+// silence about which server it fits is exactly what an operator meets as a
+// plugin that appears and will not load.
+func whatStatesNothing(r plugin) string {
+	switch {
+	case r.Unstated == 0:
+		return ""
+	case len(r.Generations) == 0 && r.Unstated == 1:
+		return "The finished release publishes nothing about which server generation it is for, so this page states none rather than one nothing published says."
+	case len(r.Generations) == 0:
+		return fmt.Sprintf(
+			"All %d finished releases publish nothing about which server generation they are for, so this page states none rather than one nothing published says.", r.Unstated)
+	case r.Unstated == 1:
+		return "One further finished release publishes nothing about which server generation it is for, so the line above is what the rest of them state rather than all of them."
+	default:
+		return fmt.Sprintf(
+			"A further %d finished releases publish nothing about which server generation they are for, so the lines above are what the rest of them state rather than all of them.", r.Unstated)
+	}
+}
+
+// targetsInWords is the same value as one phrase, for the page that names it
+// beside a plugin rather than under it. It is composed here so that both
+// spellings come out of one read of one field.
+func targetsInWords(generations []string) string {
+	switch len(generations) {
+	case 0:
+		return ""
+	case 1:
+		return "Jellyfin " + generations[0]
+	default:
+		return "Jellyfin " + strings.Join(generations[:len(generations)-1], ", ") +
+			" and " + generations[len(generations)-1]
+	}
 }

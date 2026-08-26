@@ -24,7 +24,11 @@
     },
     "Fixture/jellyfin-plugin-declared-shell-and-shipping": {
       "finished": 2,
-      "prereleases": 0
+      "prereleases": 0,
+      "generations": [
+        "10.11",
+        "12.0"
+      ]
     }
   }
 }

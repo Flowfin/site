@@ -49,6 +49,29 @@ const File = "data/releases.json"
 type Repository struct {
 	Finished    int `json:"finished"`
 	Prereleases int `json:"prereleases"`
+	// Generations is the server generation each finished release targets,
+	// distinct and in the order a page reads them. It is a list rather than
+	// a value because one plugin can publish a build per generation under
+	// one identity, and a single-value field would render that plugin wrong
+	// while looking exactly as correct as a right one.
+	//
+	// It is recorded rather than derived from anything in this tree, for the
+	// reason the counts are: which generation a build is for is a fact about
+	// what was published, and a source file says what somebody intends to
+	// publish. It is absent where nothing finished is published, because
+	// there is then nothing for it to be about, and a finished release with
+	// nothing recorded beside it is refused rather than rendered silently.
+	Generations []string `json:"generations,omitempty"`
+	// Unstated is how many finished releases publish nothing about which
+	// server generation they are for. It is a third state rather than a
+	// silence, because a run that observed less than every release must not
+	// read as one that observed all of them and found one answer.
+	//
+	// The state is real rather than defensive: the plugin that ships today
+	// published four finished releases before it published the metadata a
+	// generation is read out of, so a rule that refused this state could not
+	// record that repository at all.
+	Unstated int `json:"generations-unstated,omitempty"`
 }
 
 // Record is the file.
@@ -104,6 +127,30 @@ func Read(body []byte) (Record, error) {
 	for name, r := range rec.Repositories {
 		if r.Finished < 0 || r.Prereleases < 0 {
 			return Record{}, fmt.Errorf("%s records %s with a negative count, which is not something a release list can answer", File, name)
+		}
+		if r.Unstated < 0 {
+			return Record{}, fmt.Errorf("%s records %s with a negative count of releases stating no generation, which is not something a release list can answer", File, name)
+		}
+		if r.Unstated > r.Finished {
+			return Record{}, fmt.Errorf(
+				"%s records %s with %d finished release(s) and %d of them stating no generation, which is more releases than were published",
+				File, name, r.Finished, r.Unstated)
+		}
+		if r.Finished > 0 && len(r.Generations) == 0 && r.Unstated < r.Finished {
+			return Record{}, fmt.Errorf(
+				"%s records %s with %d finished release(s), no server generation and only %d of them stating none, and a plugin a reader can install with nothing saying which server it is for is the hole that field exists to prevent",
+				File, name, r.Finished, r.Unstated)
+		}
+		if r.Finished == 0 && len(r.Generations) > 0 {
+			return Record{}, fmt.Errorf(
+				"%s records %s with no finished release and the generation(s) %s, which is a fact about a build nobody can install and reads on a page as one they can",
+				File, name, strings.Join(r.Generations, ", "))
+		}
+		for _, g := range r.Generations {
+			if strings.TrimSpace(g) == "" {
+				return Record{}, fmt.Errorf(
+					"%s records %s with an empty server generation, which renders as a page naming a generation and saying which one it is nowhere", File, name)
+			}
 		}
 	}
 	return rec, nil
@@ -196,13 +243,12 @@ func Run(root string, repositories []string, taken, command string, fetch Fetche
 		switch {
 		case !had:
 			moved++
-			fmt.Fprintf(out, "  %s: NEW, %d finished, %d prerelease(s)\n", n, now.Finished, now.Prereleases)
-		case was != now:
+			fmt.Fprintf(out, "  %s: NEW, %s\n", n, said(now))
+		case !same(was, now):
 			moved++
-			fmt.Fprintf(out, "  %s: MOVED, was %d finished and %d prerelease(s), now %d and %d\n",
-				n, was.Finished, was.Prereleases, now.Finished, now.Prereleases)
+			fmt.Fprintf(out, "  %s: MOVED, was %s, now %s\n", n, said(was), said(now))
 		default:
-			fmt.Fprintf(out, "  %s: unchanged, %d finished, %d prerelease(s)\n", n, now.Finished, now.Prereleases)
+			fmt.Fprintf(out, "  %s: unchanged, %s\n", n, said(now))
 		}
 	}
 	for n := range before.Repositories {
@@ -215,4 +261,35 @@ func Run(root string, repositories []string, taken, command string, fetch Fetche
 	fmt.Fprintf(out, "releases: %d repository(s) recorded as taken on %s, %d entry(s) moved, written to %s\n",
 		len(rec.Repositories), rec.Taken, moved, File)
 	return nil
+}
+
+// said is one repository's entry in the words the run reports it in. The
+// generations are named rather than counted, because what a reader of this
+// output is checking is which server a build was recorded for, and a count
+// answers a question nobody asked.
+func said(r Repository) string {
+	out := fmt.Sprintf("%d finished, %d prerelease(s)", r.Finished, r.Prereleases)
+	if len(r.Generations) > 0 {
+		out += ", for " + strings.Join(r.Generations, " and ")
+	}
+	if r.Unstated > 0 {
+		out += fmt.Sprintf(", %d stating no generation", r.Unstated)
+	}
+	return out
+}
+
+// same answers whether two entries say the same thing. It is written out rather
+// than compared with == because the entry carries a slice now, and == stopped
+// compiling on it rather than stopping being true, which is the comparison this
+// function exists to keep honest.
+func same(a, b Repository) bool {
+	if a.Finished != b.Finished || a.Prereleases != b.Prereleases || a.Unstated != b.Unstated || len(a.Generations) != len(b.Generations) {
+		return false
+	}
+	for i := range a.Generations {
+		if a.Generations[i] != b.Generations[i] {
+			return false
+		}
+	}
+	return true
 }

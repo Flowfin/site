@@ -23,7 +23,7 @@
       <h2>What can be installed today</h2>
       <p>One of the 6 plugins has a finished release published, so it is the one a server can install today. The rest appear here as they publish, and this list is computed from what each repository has published rather than written on this page.</p>
       <ul>
-        <li><a href="/plugins/declared-shell-and-shipping/">declared-shell-and-shipping</a> A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle</li>
+        <li><a href="/plugins/declared-shell-and-shipping/">declared-shell-and-shipping</a> A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle Published for Jellyfin 10.11 and 12.0.</li>
       </ul>
       <nav aria-label="Where to go from here">
         <ul>

@@ -22,6 +22,9 @@
       <p>What it needs before it is any use is nothing this fixture supplies, because what this row is for is the disagreement above rather than anything downstream of it.</p>
       <p>What it does with data about a person is nothing, and this file says so in words while the state sentence beside it is computed, which is the split the page depends on.</p>
       <p>The plugin has a finished release published, so there is something to install.</p>
+      <p>A finished release is published for Jellyfin 10.11.</p>
+      <p>A finished release is published for Jellyfin 12.0.</p>
+      <p>A server of another generation refuses a build that is not for it, which is what a plugin that appears in the list and then will not load usually is.</p>
       <p>The plugin is built in the repository Fixture/jellyfin-plugin-declared-shell-and-shipping, and what this page says about it is read from the roster rather than written here.</p>
       <nav aria-label="Where to go from here">
         <ul>

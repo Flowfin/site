@@ -37,7 +37,7 @@ const installTemplate = `<title>{{ .Title }}</title>
 {{- if .InstallableRead }}
 <p id="installable">{{ .InstallableRead }}</p>
 {{- range .Installable }}
-<li><a href="{{ .Href }}">{{ .ID }}</a> {{ .Summary }}</li>
+<li><a href="{{ .Href }}">{{ .ID }}</a> {{ .Summary }}{{ if .Targets }} Published for {{ .Targets }}.{{ end }}</li>
 {{- end }}
 {{- end }}
 {{- range .Onward }}
@@ -79,7 +79,7 @@ const (
 ]`
 	betaShips = `{"taken":"2026-01-02","command":"a command","repositories":{
   "Flowfin/jellyfin-plugin-alpha":{"finished":0,"prereleases":3},
-  "Flowfin/jellyfin-plugin-beta":{"finished":1,"prereleases":0}}}`
+  "Flowfin/jellyfin-plugin-beta":{"finished":1,"prereleases":0,"generations":["10.11"]}}}`
 	neitherShips = `{"taken":"2026-01-02","command":"a command","repositories":{
   "Flowfin/jellyfin-plugin-alpha":{"finished":0,"prereleases":3},
   "Flowfin/jellyfin-plugin-beta":{"finished":0,"prereleases":0}}}`
