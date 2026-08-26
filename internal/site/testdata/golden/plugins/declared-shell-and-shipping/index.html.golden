@@ -7,6 +7,7 @@
     <title>declared-shell-and-shipping</title>
     <meta name="description" content="A row declaring the shell state for a repository that has published a finished release, which is the disagreement the state is computed to settle" />
     <link rel="canonical" href="https://flowfin.dev/plugins/declared-shell-and-shipping/" />
+    <link rel="icon" href="/icon.svg" type="image/svg&#43;xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Flowfin" />
     <meta property="og:title" content="declared-shell-and-shipping" />

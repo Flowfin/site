@@ -7,6 +7,7 @@
     <title>markup</title>
     <meta name="description" content="A sentence carrying &lt;b&gt;markup&lt;/b&gt;, an &amp; ampersand, a &#34;quotation&#34; and an &#39;apostrophe&#39;, so that a page rendering it as markup is a page this file catches" />
     <link rel="canonical" href="https://flowfin.dev/plugins/markup/" />
+    <link rel="icon" href="/icon.svg" type="image/svg&#43;xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Flowfin" />
     <meta property="og:title" content="markup" />

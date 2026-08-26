@@ -54,7 +54,7 @@ const onwardKeyword = "onward:"
 // the reporting route and the privacy page report an absent one. A run that
 // produced no not-found page must not read like a run that had nothing to
 // produce.
-func writeNotFound(root, out, label string, tmpl *template.Template, said descriptions, log io.Writer) ([]string, error) {
+func writeNotFound(root, out, label string, tmpl *template.Template, said descriptions, mark string, log io.Writer) ([]string, error) {
 	source := filepath.Join(root, filepath.FromSlash(NotFoundFile))
 	if _, err := os.Stat(source); os.IsNotExist(err) {
 		fmt.Fprintf(log, "no %s in the tree, so no %s was written\n", NotFoundFile, NotFoundPath)
@@ -64,7 +64,7 @@ func writeNotFound(root, out, label string, tmpl *template.Template, said descri
 	if err != nil {
 		return nil, fmt.Errorf("reading the not-found prose: %w", err)
 	}
-	p.locate(NotFoundPath)
+	p.locate(NotFoundPath, mark)
 	if err := said.add(NotFoundPath, p.Description); err != nil {
 		return nil, err
 	}

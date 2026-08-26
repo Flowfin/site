@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Flowfin/site/internal/icon"
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/tokens"
 	"github.com/Flowfin/site/internal/version"
@@ -55,8 +56,16 @@ type page struct {
 	// compete with itself. It is put on by whatever writes the page rather
 	// than read out of the prose, because the address is a property of where
 	// the build puts the file.
-	Canonical  string
-	SiteName   string
+	Canonical string
+	SiteName  string
+	// Icon is the address of the mark a browser asks for on the first visit
+	// to any page, and IconType is what the file is, so a browser knows
+	// before it fetches whether it can use it. Both are empty on a build
+	// that drew no mark, and the frame then states no reference at all: a
+	// reference to a file the build did not write is a request answered by
+	// the not-found page, which is the failure producing the file removes.
+	Icon       string
+	IconType   string
 	Paragraphs []string
 	// The two below are the state table on the landing page. Plugins is one
 	// entry per roster row, in the order the roster carries them, because
@@ -148,7 +157,8 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 	}
 	fmt.Fprintf(log, "read %s\n", path.Join(ContentDir, "index.txt"))
 
-	if err := readTokens(root, log); err != nil {
+	values, err := readTokens(root, log)
+	if err != nil {
 		return nil, err
 	}
 
@@ -200,12 +210,22 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 
 	var written []string
 
+	// The mark is drawn before the first page, because every page states a
+	// reference to it and a page cannot state one for a file the build has not
+	// decided it is writing. It is the one thing in the output produced ahead
+	// of the pages rather than beside them, and that ordering is the reason.
+	mark, markFile, err := writeIcon(values, out, label, log)
+	if err != nil {
+		return nil, err
+	}
+	written = append(written, markFile...)
+
 	// What each page says about itself in a search result is collected as the
 	// pages are written, because the build is the only place that holds more
 	// than one of them at a time.
 	said := descriptions{}
 
-	p.locate(IndexPath)
+	p.locate(IndexPath, mark)
 	if err := said.add(IndexPath, p.Description); err != nil {
 		return nil, err
 	}
@@ -224,37 +244,37 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 	// everything the sitemap lists. One per row and none without one: the
 	// rows the table rendered are the rows these pages come from, so a page
 	// with no row and a row with no page are the same read seen twice.
-	pluginPages, err := writePluginPages(p.Plugins, out, label, tmpl, said, log)
+	pluginPages, err := writePluginPages(p.Plugins, out, label, tmpl, said, mark, log)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, pluginPages...)
 
-	privacy, err := writePrivacy(root, out, label, tmpl, said, log)
+	privacy, err := writePrivacy(root, out, label, tmpl, said, mark, log)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, privacy...)
 
-	install, err := writeInstall(root, out, label, p.Plugins, tmpl, said, log)
+	install, err := writeInstall(root, out, label, p.Plugins, tmpl, said, mark, log)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, install...)
 
-	legal, err := writeLegal(root, out, label, tmpl, said, log)
+	legal, err := writeLegal(root, out, label, tmpl, said, mark, log)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, legal...)
 
-	designSystem, err := writeDesignSystem(root, out, label, tmpl, said, log)
+	designSystem, err := writeDesignSystem(root, out, label, tmpl, said, mark, log)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, designSystem...)
 
-	notFound, err := writeNotFound(root, out, label, tmpl, said, log)
+	notFound, err := writeNotFound(root, out, label, tmpl, said, mark, log)
 	if err != nil {
 		return nil, err
 	}
@@ -311,17 +331,57 @@ func Build(root, outDir string, log io.Writer) ([]string, error) {
 // nothing to read. What refuses a tree that lost the file is the invariant over
 // the tree, because that is a rule about this repository rather than about a
 // fixture somebody built a page in.
-func readTokens(root string, log io.Writer) error {
+func readTokens(root string, log io.Writer) (tokens.Values, error) {
 	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(tokens.File))); os.IsNotExist(err) {
 		fmt.Fprintf(log, "no %s in the tree, so no token was read\n", tokens.File)
-		return nil
+		return nil, nil
 	}
 	values, err := tokens.Load(root)
 	if err != nil {
-		return fmt.Errorf("reading the design tokens: %w", err)
+		return nil, fmt.Errorf("reading the design tokens: %w", err)
 	}
 	fmt.Fprintf(log, "read %s (%d value(s))\n", tokens.File, len(values))
-	return nil
+	return values, nil
+}
+
+// writeIcon draws the mark and reports the address a page references it at, or
+// an empty address where there was nothing to draw it from.
+//
+// A tree with no token copy produces no mark, and a copy that has lost a value
+// the mark is composed of produces no mark either. Neither is a refused build,
+// for the reason the absent copy above is not one: what refuses a tree that
+// lost the file is the invariant over the tree, because that is a rule about
+// this repository rather than about a fixture somebody built a page in. What
+// this function owes instead is to say which values were missing, one line
+// each, so a reader is not left with a site whose mark quietly stopped being
+// produced.
+//
+// The address comes back rather than being written into the frame, and that is
+// what keeps the pages honest: a page states a reference only where the file
+// behind it was written, so the leg that walks the output for a reference with
+// no file behind it has nothing to find rather than finding one this build
+// created.
+func writeIcon(values tokens.Values, out, label string, log io.Writer) (string, []string, error) {
+	if len(values) == 0 {
+		fmt.Fprintf(log, "no design token was read, so no %s was drawn and no page references one\n", icon.Path)
+		return "", nil, nil
+	}
+	body, reasons := icon.Render(values)
+	if len(reasons) > 0 {
+		fmt.Fprintf(log, "no %s was drawn, %d value(s) missing from %s, and no page references one\n",
+			icon.Path, len(reasons), tokens.File)
+		for _, r := range reasons {
+			fmt.Fprintf(log, "  %s\n", r)
+		}
+		return "", nil, nil
+	}
+	name := filepath.Join(out, filepath.FromSlash(icon.Path))
+	if err := os.WriteFile(name, body, 0o644); err != nil {
+		return "", nil, fmt.Errorf("writing %s: %w", icon.Path, err)
+	}
+	slashed := path.Join(label, icon.Path)
+	fmt.Fprintf(log, "wrote %s (%d bytes, %dx%d)\n", slashed, len(body), icon.Side, icon.Side)
+	return "/" + icon.Path, []string{slashed}, nil
 }
 
 // writeSecurityTxt renders the route a person who found a problem in the

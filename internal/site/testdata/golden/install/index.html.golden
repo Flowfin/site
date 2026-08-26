@@ -7,6 +7,7 @@
     <title>Installing a fixture plugin</title>
     <meta name="description" content="The fixture install page, which carries the steps, the way onward and nothing that would move when the real catalogue address does." />
     <link rel="canonical" href="https://flowfin.dev/install/" />
+    <link rel="icon" href="/icon.svg" type="image/svg&#43;xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Flowfin" />
     <meta property="og:title" content="Installing a fixture plugin" />

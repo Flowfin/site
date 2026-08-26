@@ -161,7 +161,7 @@ type budgetTable struct {
 // other pages report an absent one, and the report names which of the two was
 // missing: a page with words and no values and a page with values and no words
 // are different repairs.
-func writeDesignSystem(root, out, label string, tmpl *template.Template, said descriptions, log io.Writer) ([]string, error) {
+func writeDesignSystem(root, out, label string, tmpl *template.Template, said descriptions, mark string, log io.Writer) ([]string, error) {
 	prose := filepath.Join(root, filepath.FromSlash(DesignSystemProse))
 	pinned := filepath.Join(root, filepath.FromSlash(tokens.File))
 	for _, source := range []struct{ name, path string }{{DesignSystemProse, prose}, {tokens.File, pinned}} {
@@ -197,7 +197,7 @@ func writeDesignSystem(root, out, label string, tmpl *template.Template, said de
 	}
 	p.Budgets = []budgetTable{client, siteBudget()}
 
-	p.locate(DesignSystemPath)
+	p.locate(DesignSystemPath, mark)
 	if err := said.add(DesignSystemPath, p.Description); err != nil {
 		return nil, err
 	}

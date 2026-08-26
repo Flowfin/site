@@ -7,6 +7,9 @@
     <title>{{ .Title }}</title>
     <meta name="description" content="{{ .Description }}" />
     <link rel="canonical" href="{{ .Canonical }}" />
+    {{- if .Icon }}
+    <link rel="icon" href="{{ .Icon }}" type="{{ .IconType }}" />
+    {{- end }}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="{{ .SiteName }}" />
     <meta property="og:title" content="{{ .Title }}" />

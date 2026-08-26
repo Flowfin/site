@@ -19,9 +19,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/Flowfin/site/internal/icon"
 	"github.com/Flowfin/site/internal/security"
 	"github.com/Flowfin/site/internal/tokens"
 )
@@ -379,5 +381,135 @@ func TestBuildRefusesASecurityContactItCannotRead(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), security.File) {
 		t.Errorf("the refusal reads %q, which does not name the file that was wrong", err)
+	}
+}
+
+// framed is the minimal tree with the repository's own frame in it and the
+// package's fixture token copy beside it, so a case about what the head carries
+// reads the frame every page is actually rendered through. A case that wrote
+// its own template would go on passing after the real one had changed, which is
+// the one thing the two cases below exist to catch.
+//
+// The token copy is the fixture one rather than a copy written out here, and
+// that is not only taste: the path a mark's weight is read from puts the word a
+// display server is named by in quotes, and a test source carrying it is
+// refused by the row over the suite. A fixture file is not a test source, so
+// the values live there and this helper copies them.
+func framed(t *testing.T, copy string) string {
+	t.Helper()
+
+	root := tree(t, "Fixture title\n\ndescription: What this fixture page is, in one sentence.\n\nOne paragraph.\n")
+	copyFile(t,
+		filepath.Join("..", "..", TemplatesDir, "page.html.tmpl"),
+		filepath.Join(root, TemplatesDir, "page.html.tmpl"))
+	switch copy {
+	case "":
+	case complete:
+		mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(tokens.File))))
+		copyFile(t,
+			filepath.Join(fixtureTree, filepath.FromSlash(tokens.File)),
+			filepath.Join(root, filepath.FromSlash(tokens.File)))
+	default:
+		mkdir(t, filepath.Join(root, filepath.Dir(filepath.FromSlash(tokens.File))))
+		write(t, filepath.Join(root, filepath.FromSlash(tokens.File)), copy)
+	}
+	return root
+}
+
+// complete asks framed for the fixture copy rather than for a copy written into
+// the case. It is a word rather than the bytes, because the bytes are the file.
+const complete = "the fixture copy"
+
+// The mark is produced rather than committed, and every page states a reference
+// to it. Both halves are here because either one alone is the failure: a file
+// nothing references is one a browser never asks for and guesses around, and a
+// reference with no file behind it is the not-found page answering the request
+// that producing the file was meant to remove.
+func TestTheBuildWritesTheMarkAndEveryPageReferencesIt(t *testing.T) {
+	root := framed(t, complete)
+
+	var log bytes.Buffer
+	written, err := Build(root, OutputDir, &log)
+	if err != nil {
+		t.Fatalf("Build refused a tree carrying every value the mark is drawn from: %v", err)
+	}
+	if !wrote(written, path.Join(OutputDir, icon.Path)) {
+		t.Fatalf("the build reported no %s:\n%s", icon.Path, log.String())
+	}
+
+	body, err := os.ReadFile(filepath.Join(root, OutputDir, filepath.FromSlash(icon.Path)))
+	if err != nil {
+		t.Fatalf("the build reported %s and wrote no file: %v", icon.Path, err)
+	}
+	if !strings.Contains(string(body), `width="`+strconv.Itoa(icon.Side)+`"`) {
+		t.Errorf("the mark does not carry its own size:\n%s", body)
+	}
+
+	// Every page the build wrote, rather than the one this case happens to
+	// look at. A frame referencing the mark from the pages somebody
+	// remembered is the state a reference in the head exists to end.
+	pages := 0
+	for _, w := range written {
+		if !strings.HasSuffix(w, ".html") {
+			continue
+		}
+		pages++
+		page, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(w)))
+		if err != nil {
+			t.Fatalf("reading %s: %v", w, err)
+		}
+		if !strings.Contains(string(page), `rel="icon" href="/`+icon.Path+`"`) {
+			t.Errorf("%s states no reference to the mark:\n%s", w, page)
+		}
+	}
+	if pages == 0 {
+		t.Fatal("the build wrote no page, so nothing here read a reference at all")
+	}
+}
+
+// A tree the mark cannot be drawn from produces no mark and no reference, and
+// says which values were missing. It is not a refused build, for the reason an
+// absent token copy is not one: what refuses a tree that lost the file is the
+// invariant over the tree rather than a fixture somebody built a page in.
+//
+// The pair matters more than either line. A build that wrote no mark and left
+// the reference standing would produce pages promising a file that is not
+// beside them, which is worse than the mark being absent and is invisible from
+// the page.
+func TestATreeTheMarkCannotBeDrawnFromProducesNoReferenceToIt(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		copy string
+		says string
+	}{
+		{"no copy at all", "", "no design token was read"},
+		{"a copy missing what the mark needs", `{"shape":{"radius":{"value":12}}}`, "value(s) missing from"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			root := framed(t, c.copy)
+
+			var log bytes.Buffer
+			written, err := Build(root, OutputDir, &log)
+			if err != nil {
+				t.Fatalf("Build refused a tree the mark cannot be drawn from: %v", err)
+			}
+			if wrote(written, path.Join(OutputDir, icon.Path)) {
+				t.Errorf("the build reported a mark it had nothing to draw:\n%s", log.String())
+			}
+			if !strings.Contains(log.String(), c.says) {
+				t.Errorf("the build passed over the absence in silence:\n%s", log.String())
+			}
+			if !strings.Contains(log.String(), "no page references one") {
+				t.Errorf("the build does not say the pages reference no mark:\n%s", log.String())
+			}
+
+			page, err := os.ReadFile(filepath.Join(root, OutputDir, IndexPath))
+			if err != nil {
+				t.Fatalf("reading the page: %v", err)
+			}
+			if strings.Contains(string(page), `rel="icon"`) {
+				t.Errorf("a page references a mark the build did not write:\n%s", page)
+			}
+		})
 	}
 }

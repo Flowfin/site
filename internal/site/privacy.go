@@ -70,7 +70,7 @@ var marker = regexp.MustCompile(`^(.*?)\s*\[([^\]]*)\]$`)
 // there and cannot be read is a refusal, because a privacy page rendered from
 // half a file is the one page where a missing statement reads as an absence of
 // the thing it was about.
-func writePrivacy(root, out, label string, tmpl *template.Template, said descriptions, log io.Writer) ([]string, error) {
+func writePrivacy(root, out, label string, tmpl *template.Template, said descriptions, mark string, log io.Writer) ([]string, error) {
 	source := filepath.Join(root, filepath.FromSlash(PrivacyFile))
 	if _, err := os.Stat(source); os.IsNotExist(err) {
 		fmt.Fprintf(log, "no %s in the tree, so no privacy page was written\n", PrivacyFile)
@@ -80,7 +80,7 @@ func writePrivacy(root, out, label string, tmpl *template.Template, said descrip
 	if err != nil {
 		return nil, fmt.Errorf("reading the privacy prose: %w", err)
 	}
-	p.locate(PrivacyPath)
+	p.locate(PrivacyPath, mark)
 	if err := said.add(PrivacyPath, p.Description); err != nil {
 		return nil, err
 	}

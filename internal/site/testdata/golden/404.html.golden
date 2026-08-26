@@ -7,6 +7,7 @@
     <title>This page is not here</title>
     <meta name="description" content="The address you asked for is not one this site answers at, and this is where a reader who arrived at it can start again." />
     <link rel="canonical" href="https://flowfin.dev/404.html" />
+    <link rel="icon" href="/icon.svg" type="image/svg&#43;xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Flowfin" />
     <meta property="og:title" content="This page is not here" />

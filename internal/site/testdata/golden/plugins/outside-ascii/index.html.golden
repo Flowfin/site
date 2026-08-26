@@ -7,6 +7,7 @@
     <title>outside-ascii</title>
     <meta name="description" content="A sentence with an em dash — a “curly quotation” and the name Zoë in it, none of which is ASCII" />
     <link rel="canonical" href="https://flowfin.dev/plugins/outside-ascii/" />
+    <link rel="icon" href="/icon.svg" type="image/svg&#43;xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Flowfin" />
     <meta property="og:title" content="outside-ascii" />
