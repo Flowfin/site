@@ -251,3 +251,71 @@ func TestOnlyASkippedHeadingLevelIsRefused(t *testing.T) {
 		t.Errorf("a jump from the top level to the deepest was read as %d problem(s): %v", len(got), got)
 	}
 }
+
+// The order the problems come back in, which is the order somebody repairs the
+// page in.
+//
+// It is a sort rather than the order they were found, and nothing asserted it.
+// An element still open when the input ends is only known to be open once the
+// input has ended, so its problem is appended after every problem found further
+// down the page. Reversing the comparison leaves a reader sent to line 10 first
+// and then back up to line 2, over a list whose whole use is repairing a file
+// from the top.
+//
+// The document here is deliberately not the wrapper the rest of this file uses.
+// That wrapper closes everything it opens, and an element still open at the end
+// of the input is the only shape that produces the out-of-order append.
+func TestTheProblemsComeBackInTheOrderThePageReadsIn(t *testing.T) {
+	got := Read([]byte(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A title</title>
+  </head>
+  <body>
+    <main>
+      <h1>A</h1>
+      <h3>B</h3>
+`))
+
+	want := []int{2, 7, 8, 10}
+	if len(got) != len(want) {
+		t.Fatalf("%d problem(s) came back, and the page breaks %d rules: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i].Line != want[i] {
+			t.Fatalf("problem %d is on line %d, and the page reads them in the order %v: %v", i+1, got[i].Line, want, got)
+		}
+	}
+	// The heading is the problem found first and reported last, which is the whole
+	// of what the sort is for. Naming it stops a fixture that had stopped producing
+	// it from leaving this case passing on four lines that happen to ascend.
+	if got[len(got)-1].Kind != Heading {
+		t.Errorf("the last problem is %s, and the one found before the input ended is the heading", got[len(got)-1].Kind)
+	}
+}
+
+// Two problems on one line stay in the order the reader found them, which is the
+// other half of the same comparison. A sort that is not strict swaps equal keys
+// instead of leaving them alone, so the three below come back in an order the
+// page does not read in, and the run above cannot see it because every line in
+// it is different.
+func TestProblemsOnOneLineStayInTheOrderTheyWereFound(t *testing.T) {
+	got := Read(page(`    <main>
+      <h1>A</h1>
+      <h3>B</h3><img src="/a.png" width="1" height="1" /><section id="x">One</section><section id="x">Two</section>
+    </main>`))
+
+	want := []string{Heading, Alt, Identity}
+	if len(got) != len(want) {
+		t.Fatalf("%d problem(s) came back, and the one line breaks %d rules: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i].Line != 10 {
+			t.Fatalf("problem %d is on line %d, and every one of them is on line 10: %v", i+1, got[i].Line, got)
+		}
+		if got[i].Kind != want[i] {
+			t.Fatalf("problem %d is %s, and the reader finds them in the order %v: %v", i+1, got[i].Kind, want, got)
+		}
+	}
+}
