@@ -14,12 +14,14 @@ today:
     gh api repos/Flowfin/site/private-vulnerability-reporting
     {"enabled":false}
 
-Run 2026-08-10. So this file names the destination and states plainly that the
+Run 2026-08-27. So this file names the destination and states plainly that the
 destination is currently shut, rather than sending a reporter to a door that
-does not open. Opening it is issue #57, and it is not a change to this tree. The
-address above is the one the form uses once the setting is on, so nothing here
-moves when it changes. Until then the honest alternative is a public issue with
-as little detail as the report can carry, which is a poor arrangement and is
+does not open. Opening it is a repository setting rather than a change to this
+tree, and [docs/parity.md](docs/parity.md) is where that setting is held, beside
+the others this repository is measured against and does not have. The address
+above is the one the form uses once the setting is on, so nothing here moves
+when it changes. Until then the honest alternative is a public issue with as
+little detail as the report can carry, which is a poor arrangement and is
 written down as one.
 
 ## What this repository is, and what a problem in it can be
