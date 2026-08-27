@@ -4,10 +4,24 @@ The sequence for moving `flowfin.dev` from the origin that serves it today to
 the one this repository builds, written before it is performed rather than
 improvised on the day.
 
-It does not decide whether the domain moves, or when. That is entry 3 of #7 and
-it is the maintainer's call. What this covers is the move itself, which is the
-same sequence on any answer that ends with this repository as the origin, and it
-is written now because the expensive part is the ordering rather than the typing.
+It does not decide whether the domain moves, or when. That was entry 3 of #7,
+and it has an answer:
+
+    gh issue view 7 --repo Flowfin/site --json comments \
+      --jq '.comments[]|select(.createdAt=="2026-08-24T18:18:14Z")|.body' \
+      | sed -n '1p'
+    Answer to entry 3, decided 2026-08-24: the new site goes live on a subdomain first, is proven there, and the cutover happens against a standing target - the catalogue address answers throughout, with no resolution gap. Two live sites for a bounded while is the price, paid knowingly.
+
+Run 2026-08-27. What this covers is the move itself, and it is written now
+because the expensive part is the ordering rather than the typing.
+
+The sequence below was written before that answer and does not carry it. This
+paragraph used to say the sequence is the same on any answer that ends with this
+repository as the origin, and the answer that arrived is one it is not the same
+on. Where the two disagree is set out under
+[Where this runbook departs from the answer](#where-this-runbook-departs-from-the-answer)
+and is not repaired there, because what would close the gap is a decision
+nobody has taken.
 
 Nothing in this repository performs any of it. Every step is a settings action
 or a reading of what a settings action did, and the settings belong to whoever
@@ -317,9 +331,39 @@ the other one, and whether it should be carried, redirected or allowed to stop
 is a decision nobody has taken. It is written here so that the cutover does not
 discover it, and it is not settled by this document.
 
+## Where this runbook departs from the answer
+
+Two of the steps above were written against a different answer to entry 3 than
+the one that was taken, and neither is repaired here.
+
+The first is the address the new site is proven at. Step 2 publishes it at the
+address the host gives a project site, `https://flowfin.github.io/site/`, and
+the answer says a subdomain. Whether the host's project address satisfies that
+word or whether it asks for a name under `flowfin.dev` is not decided here, and
+the difference is not cosmetic: a name under `flowfin.dev` is a second custom
+domain, which is a settings action this document does not describe and a
+certificate this document does not wait for.
+
+The second is the window, and it is a contradiction rather than a reading. Step
+5 releases the name from the old origin before step 6 claims it at the new one,
+and says in its own words that from there until step 6 completes no published
+site claims the name. The answer says the catalogue address answers throughout,
+with no resolution gap. Both cannot hold as this sequence is written.
+
+What makes it structural rather than an ordering mistake is stated above under
+`## What moves, and what does not`: one custom domain is attached to one
+published site at a time, so the old site releases the name before the new one
+can take it, and that is where the window comes from. That sentence is a claim
+about how the host behaves rather than a measurement, and measuring it costs
+performing the move once. So closing the window means either a route this
+document has not found, or the clause that forbids the gap giving way, and
+neither is chosen here.
+
 ## What this runbook does not cover
 
-Whether the domain moves at all, and on what schedule, is entry 3 of #7.
+Whether the domain moves at all, and on what schedule, was entry 3 of #7 and is
+answered above. What the answer costs this sequence is the section before this
+one; reconciling the two is not covered here.
 
 Publishing the built output is #58, and the refusal of a publish that would
 leave the catalogue address unanswered is #67. This document assumes both exist
