@@ -284,3 +284,102 @@ func TestTheIdentifierRuleLeavesEveryRealShapeAlone(t *testing.T) {
 		}
 	}
 }
+
+// The other door, which the refresh reads the file through before anything can
+// be asked about the repositories in it.
+//
+// Nothing asserted any of what follows. `Named` carried no test, so all three
+// of its refusals could have stopped refusing with every run staying green,
+// and what it hands back goes straight into the refresh that produces the
+// record the build then reads as answered.
+func TestTheOtherDoorReadsTheRepositoriesARosterNames(t *testing.T) {
+	got, err := Named([]byte(valid))
+	if err != nil {
+		t.Fatalf("a roster that breaks nothing was refused: %v", err)
+	}
+	want := []string{
+		"Flowfin/jellyfin-plugin-watchlist",
+		"Flowfin/jellyfin-plugin-sso",
+		"Flowfin/jellyfin-plugin-requests",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("the roster read as %d repository(s), and it declares %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("repository %d read as %q, and the file declares %q", i+1, got[i], want[i])
+		}
+	}
+}
+
+// It applies no rule, which is the whole reason it is a second door rather than
+// a flag on the first. A file the parser refuses three times over comes back out
+// of this one, because the question those rules need answering is the question
+// the refresh reading it is on its way to ask.
+//
+// The neighbour half of this case is the parser refusing the same bytes. Without
+// it, a `Named` that had quietly grown a rule would still pass here on a file
+// that had stopped being one the parser refuses.
+func TestTheOtherDoorJudgesNothingAboutWhatItReads(t *testing.T) {
+	file := `[{"id":"two words","repository":"Flowfin/jellyfin-plugin-wishes","summary":"","state":"ships"}]`
+
+	if _, err := Parse([]byte(file), there); err == nil {
+		t.Fatal("the fixture is meant to be one the parser refuses, and the parser read it")
+	}
+	got, err := Named([]byte(file))
+	if err != nil {
+		t.Fatalf("a file the parser refuses was refused by the door that applies no rule: %v", err)
+	}
+	if len(got) != 1 || got[0] != "Flowfin/jellyfin-plugin-wishes" {
+		t.Errorf("the file read as %v, and it names one repository", got)
+	}
+}
+
+// Each thing this door refuses, in the smallest form somebody would actually
+// write, each tripping exactly it.
+//
+// The opening is compared whole rather than by a fragment, for the reason the
+// table above gives: a reason saying `row 1` where the fixture broke the third
+// row still contains the word row and still reads as a refusal about one, and
+// it sends somebody to the wrong line. The two ways of getting that number
+// wrong are counting from zero and counting the wrong row, and a fixture on the
+// third row separates both from the right answer.
+//
+// This door stops at the first bad row rather than collecting every reason, so
+// one reason is the whole of what a fixture may produce here. That is the
+// opposite of the parser, and it is what the refresh needs: the file is being
+// read to find out what to ask about, and a list that is wrong anywhere is a
+// list nothing should be asked from.
+func TestEachRefusalOfTheOtherDoorIsTrippedByItsOwnFixture(t *testing.T) {
+	for name, c := range map[string]struct{ file, says string }{
+		"a file that is not JSON": {
+			`[{"repository": "Flowfin/jellyfin-plugin-sso",]`,
+			"the file is not the array of rows this roster has to be"},
+		"a file that is an object rather than an array": {
+			`{"repository": "Flowfin/jellyfin-plugin-sso"}`,
+			"the file is not the array of rows this roster has to be"},
+		"a row naming no repository": {
+			strings.Replace(valid, `"repository": "Flowfin/jellyfin-plugin-requests"`, `"repository": ""`, 1),
+			"row 3 names no repository"},
+		"a row whose repository is spaces": {
+			strings.Replace(valid, `"repository": "Flowfin/jellyfin-plugin-requests"`, `"repository": "   "`, 1),
+			"row 3 names no repository"},
+		"a file holding no row": {
+			`[]`,
+			"the file holds no row"},
+	} {
+		names, err := Named([]byte(c.file))
+		if err == nil {
+			t.Errorf("%s read as %d repository(s) rather than being refused", name, len(names))
+			continue
+		}
+		got := reasons(t, err)
+		if len(got) != 1 {
+			t.Errorf("%s was refused for %d reason(s), and this door stops at the first bad row: %v", name, len(got), got)
+			continue
+		}
+		if !strings.HasPrefix(got[0], c.says) {
+			t.Errorf("%s was refused with %q, which does not open with %q", name, got[0], c.says)
+		}
+	}
+}
