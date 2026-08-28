@@ -17,24 +17,22 @@ three commands against a checkout produces the same archive:
         --mtime='UTC 1970-01-01' --format=gnu \
         -cf - dist SHA256SUMS | gzip -n > site-bundle.tar.gz
 
-What comes out, unpacked:
+What comes out is `dist/` with the hash list beside it. The names inside are not
+listed here: there is one entry per page the build wrote, so a copy of that list
+in this document goes stale between one page landing and the next, and it has.
+Ask the archive:
 
-    tar -tzf site-bundle.tar.gz
-    dist/
-    dist/.well-known/
-    dist/.well-known/security.txt
-    dist/404.html
-    dist/index.html
-    dist/legal/
-    dist/legal/index.html
-    dist/privacy/
-    dist/privacy/index.html
-    dist/robots.txt
-    dist/sitemap.xml
-    SHA256SUMS
+    tar -tzf site-bundle.tar.gz | grep -c -v '/$'
+    23
+    tar -tzf site-bundle.tar.gz | grep -c '\.html$'
+    18
+    tar -tzf site-bundle.tar.gz | grep -v '/$'
 
-Run 2026-08-16. The contents of `dist/` are what a host serves, and `SHA256SUMS`
-stays outside it so that serving the directory does not also serve the list.
+Run 2026-08-28. Twenty-three entries that are not directories: eighteen pages,
+the icon, the two files a crawler asks for without being sent, the security
+contact, and `SHA256SUMS`. The contents of `dist/` are what a host serves, and
+`SHA256SUMS` stays outside it so that serving the directory does not also serve
+the list.
 
 The bill of materials is attached to the release beside the archive rather than
 packed inside it, as `sbom.cdx.json`. It says which toolchain and which base
@@ -70,13 +68,14 @@ from the site root rather than relative to the page it is on, which is what lets
 a page at any depth resolve the same way:
 
     grep -o -E '(href|src)="[^"]*"' dist/404.html
+    href="https://flowfin.dev/404.html"
+    href="/icon.svg"
     href="#content"
     href="/"
     href="/legal/"
-    href="https://flowfin.dev/404.html"
     href="https://github.com/Flowfin/site/blob/main/NOTICE.md"
 
-Run 2026-08-16. That is also the reason opening a page from a file path does not
+Run 2026-08-28. That is also the reason opening a page from a file path does not
 work the way it looks like it should. A reference beginning with `/` resolves
 against the root of the filesystem there, not against the directory the file is
 in, so the links inside the site go nowhere. Point a local server at `dist/`
@@ -108,18 +107,19 @@ read both the body and the status.
 Three things in the bundle name `https://flowfin.dev` and go on naming it
 wherever the bundle is served:
 
-    grep -o 'https://flowfin.dev[^"<]*' dist/index.html dist/sitemap.xml dist/robots.txt
-    dist/index.html:https://flowfin.dev/
-    dist/index.html:https://flowfin.dev/
-    dist/sitemap.xml:https://flowfin.dev/
-    dist/sitemap.xml:https://flowfin.dev/legal/
-    dist/sitemap.xml:https://flowfin.dev/privacy/
-    dist/robots.txt:https://flowfin.dev/sitemap.xml
+    grep -c -o 'https://flowfin.dev' dist/index.html dist/sitemap.xml dist/robots.txt
+    dist/index.html:2
+    dist/sitemap.xml:17
+    dist/robots.txt:1
 
-Run 2026-08-16. Each page states its own address twice, once as the canonical
-link and once as the address a shared card carries, the sitemap lists addresses
-rather than paths, and the robots file names where the sitemap is. Serving the
-bundle under a different name leaves all of them
+Run 2026-08-28. The counts are here and the addresses are not, for the reason
+the archive listing above is not written out either: the sitemap carries one
+line per page it invites a crawler to, and a copy of those lines in this
+document is a copy nothing keeps in step. The landing page is one page of the
+eighteen and states its own address twice, once as the canonical link and once
+as the address a shared card carries; every other page does the same. The
+sitemap lists addresses rather than paths, and the robots file names where the
+sitemap is. Serving the bundle under a different name leaves all of them
 pointing at the original one, which is correct for a mirror and wrong for a
 fork. Nothing in the bundle can be edited to change that without the hashes
 ceasing to match; rebuild from a source tree instead.
@@ -130,15 +130,17 @@ No page fetches anything from another origin, sets a cookie, touches browser
 storage or carries a handler that could do any of it. Those are refused rather
 than promised, and the refusals run over every file a build wrote:
 
-    go run . invariants | grep -E 'page-fetches-no-script|page-touches-no-browser-storage|page-carries-no-inline-handler|output-references-no-domain-outside-the-allowlist'
-      page-fetches-no-script: ok, 4 file(s) of every page the build produced
-      page-touches-no-browser-storage: ok, 4 file(s) of every page the build produced
-      page-carries-no-inline-handler: ok, 4 file(s) of every page the build produced
-      output-references-no-domain-outside-the-allowlist: ok, 7 file(s) of every file the build produced
+    go run . invariants | grep -E '^  (page-fetches-no-script|page-touches-no-browser-storage|page-carries-no-inline-handler|output-references-no-domain-outside-the-allowlist):'
+      page-fetches-no-script: ok, 18 file(s) of every page the build produced
+      page-touches-no-browser-storage: ok, 18 file(s) of every page the build produced
+      page-carries-no-inline-handler: ok, 18 file(s) of every page the build produced
+      output-references-no-domain-outside-the-allowlist: ok, 22 file(s) of every file the build produced
 
-Run 2026-08-16. There is one address off this origin in the pages, and it is a
-link to the notice file rather than something a browser fetches. A reader who
-does not click it makes no request anywhere but to your host.
+Run 2026-08-28, with the pattern anchored so that the line the verb opens with,
+which names every row it holds, is not matched by the names inside it. There is
+one address off this origin in the pages, and it is a link to the notice file
+rather than something a browser fetches. A reader who does not click it makes no
+request anywhere but to your host.
 
 Two bounds on that, because the rows read what a page spells rather than what it
 does. A page reaching an interface through a value none of the names finds is
@@ -164,13 +166,13 @@ produce the same archive byte for byte:
 
     go run . reproduce
     reproduce: two builds of ., compared byte for byte
-      7 file(s), identical in both builds
+      22 file(s), identical in both builds
 
     sha256sum pack-1.tar.gz pack-2.tar.gz
-    9bc535d91135edf585c9b94bfd55fdc0407333fa778278c29c5ea4e1c3973d8f *pack-1.tar.gz
-    9bc535d91135edf585c9b94bfd55fdc0407333fa778278c29c5ea4e1c3973d8f *pack-2.tar.gz
+    c0c27bcd42ef373f774f0d907bd4a1787c192624ac5ead66dc770efba831442b *pack-1.tar.gz
+    c0c27bcd42ef373f774f0d907bd4a1787c192624ac5ead66dc770efba831442b *pack-2.tar.gz
 
-Both runs 2026-08-16, the second over two archives packed one after the other
+Both runs 2026-08-28, the second over two archives packed one after the other
 from the same checkout by the commands at the top of this document. Check out
 the tag, pack it the same way, and compare the digest against the file you
 downloaded.
@@ -197,6 +199,15 @@ No release exists yet, so nothing described above has been downloaded from one:
 Run 2026-08-16. Everything above was measured against an archive packed from a
 checkout by the commands this document quotes, which is the same definition the
 release run calls, and not against a published file.
+
+Nothing in this tree holds this document to the output it describes. Every
+figure above was taken by running the command beside it, and the next page that
+lands moves several of them without reddening anything, which is what happened
+to the readings taken on 2026-08-16 and repaired on 2026-08-28. Where a number
+would have been a list, the command is handed over instead of the answer, so
+the shape that drifts is smaller than it was; the rest are numbers somebody re-
+took and will have to re-take again. Re-run the commands rather than trusting
+the outputs pasted beside them.
 
 The two archives compared above were packed on one machine, so what is measured
 is that the packing does not vary between runs. Whether it also produces the
