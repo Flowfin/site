@@ -799,10 +799,16 @@ func TestTheCitationRowRefusesAnOwedRow(t *testing.T) {
 	if len(owed) == 0 {
 		t.Skip("nothing is owed today, so there is no owed name to cite")
 	}
-	page := []byte(strings.Replace(cleanPage, contentOpen,
-		contentOpen+`<ul><li data-refused-by="`+owed[0].ID+`">A statement.</li></ul>`, 1))
-	if got := decideCitedChecks(page); len(got) == 0 {
-		t.Errorf("the row passed a page citing %s, which this gate does not decide", owed[0].ID)
+	// Every entry rather than the first. The register held one when this
+	// case was written, so reading owed[0] covered all of it and covered
+	// only that one the day a second arrived, which is a case that stops
+	// testing what it says it tests without anybody editing it.
+	for _, o := range owed {
+		page := []byte(strings.Replace(cleanPage, contentOpen,
+			contentOpen+`<ul><li data-refused-by="`+o.ID+`">A statement.</li></ul>`, 1))
+		if got := decideCitedChecks(page); len(got) == 0 {
+			t.Errorf("the row passed a page citing %s, which this gate does not decide", o.ID)
+		}
 	}
 }
 

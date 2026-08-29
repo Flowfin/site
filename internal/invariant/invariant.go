@@ -1090,6 +1090,13 @@ func Owing() []Owed {
 				"The markup side is what is absent now, and it is absent by construction rather than by omission: every page references the mark from its head with a link element, and a link element states no width and no height, so there is nothing on a page for the file to be compared against. " +
 				"This row starts deciding on the day a page states a size for an image, which is an element that carries one rather than a second reference to the same mark",
 		},
+		{
+			ID: "text-token-clears-the-declared-contrast-floor",
+			Waiting: "" + tokens.File + " declaring the contrast floor and the step distance as fields rather than inside a sentence, which is #211. " +
+				"The role of the third ink step in that file states a floor of 4.5 against every surface and a bound of one and a quarter on its distance from the second step, and no route here decides either of them. " +
+				"A number inside an English sentence cannot be read out of prose without guessing, and a floor written into this package instead would be a second copy of a value that file already states, which is the defect the row would exist to prevent one file further in. " +
+				"The repair is not this repository's to make. " + tokens.File + " is a pinned copy of a file published elsewhere, which is decisions/0007-where-the-design-tokens-live.md, so the fields are declared where the values are authored and arrive here with the next re-pin",
+		},
 	}
 }
 
