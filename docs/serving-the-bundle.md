@@ -168,14 +168,17 @@ produce the same archive byte for byte:
     reproduce: two builds of ., compared byte for byte
       22 file(s), identical in both builds
 
-    sha256sum pack-1.tar.gz pack-2.tar.gz
-    c0c27bcd42ef373f774f0d907bd4a1787c192624ac5ead66dc770efba831442b *pack-1.tar.gz
-    c0c27bcd42ef373f774f0d907bd4a1787c192624ac5ead66dc770efba831442b *pack-2.tar.gz
+    sha256sum pack-1.tar.gz pack-2.tar.gz | cut -d' ' -f1 | sort -u | wc -l
+    1
 
-Both runs 2026-08-28, the second over two archives packed one after the other
-from the same checkout by the commands at the top of this document. Check out
-the tag, pack it the same way, and compare the digest against the file you
-downloaded.
+Both runs 2026-08-29, the second over two archives packed one after the other
+from the same checkout by the commands at the top of this document. One digest
+across the two is the property, and the digest itself is not written here: it is
+decided by the compressor as well as by the bytes, so a value pasted here would
+be a fact about the machine that packed it rather than about the bundle, and it
+would not reproduce for you. The last section measures that. Check out the tag,
+pack it the same way, and compare your own digest against the file you
+downloaded rather than against anything written down here.
 
 ## What you are not getting
 
@@ -206,11 +209,30 @@ lands moves several of them without reddening anything, which is what happened
 to the readings taken on 2026-08-16 and repaired on 2026-08-28. Where a number
 would have been a list, the command is handed over instead of the answer, so
 the shape that drifts is smaller than it was; the rest are numbers somebody re-
-took and will have to re-take again. Re-run the commands rather than trusting
-the outputs pasted beside them.
+took and will have to re-take again. One of them was not a number re-taking
+could fix and has been replaced by the property it was there to show, which is
+the archive digest under `## Checking what you downloaded`. Re-run the commands
+rather than trusting the outputs pasted beside them.
 
 The two archives compared above were packed on one machine, so what is measured
 is that the packing does not vary between runs. Whether it also produces the
-same bytes under a different `tar` or a different `gzip` was not measured, and
-the reproducibility check compares the built files rather than the archive
-around them.
+same bytes under a different `tar` is still not measured. What is measured is
+that the compressor decides part of the answer, which is why the digest of an
+archive is not a figure of this tree the way every other number above is. One
+tar stream, three compression levels, three digests, and the middle one is what
+`gzip` produces when nobody names a level:
+
+    T() { tar --sort=name --owner=0 --group=0 --numeric-owner \
+              --mtime='UTC 1970-01-01' --format=gnu -cf - dist SHA256SUMS; }
+    for level in -1 -6 -9; do
+      printf '%s %s\n' "$level" "$(T | gzip -n $level | sha256sum | cut -d' ' -f1)"
+    done
+    -1 09903694fbaa1b5a231b0b321e51667bf7687836d400f0ac2b8b9a9ee9a36905
+    -6 3d51fd9a68f94a9603cfa8a004e3464ab988787d0107f5bc80a073df74501428
+    -9 f280bc92eaee1e091fa32c29d3e44eeedba7981c647859abc7637778a8f6203d
+
+Run 2026-08-29. So no re-take can make a pasted archive digest reproduce for a
+reader whose compressor differs, which is what separates that one figure from
+the rest of them and why the section above hands over the comparison instead of
+the value. The reproducibility check compares the built files rather than the
+archive around them, and it is the half of this that is a property of the tree.
