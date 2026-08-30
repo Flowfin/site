@@ -94,9 +94,11 @@ bypass actors:
 
     gh api repos/Flowfin/site/rulesets/20572614 \
       --jq '{enforcement, bypass: .bypass_actors, required: [.rules[].type]}'
-    {"bypass":[],"enforcement":"active","required":["deletion","non_fast_forward","pull_request"]}
+    {"bypass":[],"enforcement":"active","required":["deletion","non_fast_forward","pull_request","required_signatures"]}
 
-Run 2026-08-09.
+Run 2026-08-30. The last rule in that list is why a commit reaching `main` here
+has to be signed as well as signed off: the trailer below is the assertion, and
+the signature is what the branch refuses a merge without.
 
 Nothing refuses a pull request that closes no issue, and nothing checks that the
 number in a commit subject belongs to an issue that exists. The rule is held by
