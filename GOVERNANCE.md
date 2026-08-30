@@ -36,9 +36,9 @@ Every change starts as an issue and lands as a pull request. Direct pushes to
     20572614
     gh api repos/Flowfin/site/rulesets/20572614 \
       --jq '{enforcement, bypass: .bypass_actors, required: [.rules[].type]}'
-    {"bypass":[],"enforcement":"active","required":["deletion","non_fast_forward","pull_request"]}
+    {"bypass":[],"enforcement":"active","required":["deletion","non_fast_forward","pull_request","required_signatures"]}
 
-Run 2026-08-08. Two things that output does not carry are worth naming rather
+Run 2026-08-30. Two things that output does not carry are worth naming rather
 than leaving a reader to notice.
 
 The ruleset requires no approving review, so a pull request here is merged by

@@ -19,9 +19,9 @@ Run 2026-08-08.
 ## Where this repository stands
 
     gh api repos/Flowfin/site/rulesets/20572614 --jq '[.rules[].type]'
-    ["deletion","non_fast_forward","pull_request"]
+    ["deletion","non_fast_forward","pull_request","required_signatures"]
 
-Run 2026-08-08. No status check is required here at all, so the gap is the whole
+Run 2026-08-30. No status check is required here at all, so the gap is the whole
 list. Every row below says what the check becomes; none of them says that
 anything is required yet.
 
@@ -200,16 +200,25 @@ left on with a reason recorded here, is not a change to this tree either.
 ## What this repository requires that the target does not
 
 Nothing, today, and the sentence is written this way round because the plan
-expected the opposite. Verified signatures on the default branch would be an
-addition rather than parity, and neither ruleset carries the rule:
+expected the opposite. Verified signatures on the default branch would have been
+an addition rather than parity, and both rulesets carry the rule:
 
     gh api repos/Flowfin/jellyfin-plugin-sso/rulesets/18802863 --jq '[.rules[].type]'
-    ["deletion","non_fast_forward","required_status_checks","pull_request"]
+    ["deletion","non_fast_forward","required_status_checks","pull_request","required_signatures"]
     gh api repos/Flowfin/site/rulesets/20572614 --jq '[.rules[].type]'
-    ["deletion","non_fast_forward","pull_request"]
+    ["deletion","non_fast_forward","pull_request","required_signatures"]
 
-Run 2026-08-08. Commits reaching this repository are signed in practice, and
-nothing at either branch refuses one that is not.
+Run 2026-08-30. The answer above is unchanged and what holds it up is not. It
+held because neither branch carried the rule; it holds because both do, so the
+difference this section would have recorded never became one. Each branch now
+refuses an unsigned commit rather than leaving it to the practice of whoever
+pushes, and the readings that said otherwise were taken three weeks before this
+repository's ruleset was last written:
+
+    gh api repos/Flowfin/site/rulesets/20572614 --jq '.updated_at'
+    "2026-08-28T14:22:58.455+02:00"
+
+Run 2026-08-30.
 
 ## What this repository adds, because it serves pages rather than shipping a plugin
 
