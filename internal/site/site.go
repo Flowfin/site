@@ -28,9 +28,17 @@ import (
 )
 
 // The directories the build reads and the one it writes.
+//
+// DataDir is where the values a page states are read from, as against the words
+// a page is written in, which are in ContentDir. It is a directory rather than a
+// list of the files in it because every tracked file under it is read to render
+// a page, and a list here would have to be widened by hand on the day a page
+// gains a value - which is how the population that judges these files came to
+// leave every one of them out.
 const (
 	TemplatesDir = "templates"
 	ContentDir   = "content"
+	DataDir      = "data"
 	AssetsDir    = "assets"
 	OutputDir    = "dist"
 )

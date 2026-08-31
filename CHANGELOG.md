@@ -105,3 +105,12 @@ there is no earlier bundle to compare it against.
   counted and said, so a page listing the generations some of the releases state
   is not read as one listing all of them. The record refuses a plugin recorded
   as shipping with nothing saying which server it is for.
+- The gate refuses a server generation, a token value or a client limit written
+  into the files the build reads values out of, which it did not before. Those
+  files sat outside all three rows: each of them was sorted into the population
+  asking whether it is present at all, and being sorted there ended its walk
+  before it could be counted as something the build reads, so the three rows
+  judged the frame and the prose and nothing else. A generation typed into the
+  roster passed the whole gate. Each row now reads every file the build reads
+  except the one file that row is the authority for, so the file declaring a
+  value is not refused for declaring it.

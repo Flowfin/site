@@ -2238,3 +2238,112 @@ func TestTheLandingImageRowCountsNoOtherLinkElement(t *testing.T) {
 		}
 	}
 }
+
+// The population each build-input row is decided over holds every file the
+// build reads, and the file a row is the authority for is out of that row's
+// population and out of no other.
+//
+// This is the case the rest of the suite could not make. Every other proof of
+// these three rows hands bytes straight to the decider, so the decider is
+// judged and the selection that chooses which files it ever meets is judged by
+// nothing. The selection was cutting one population for all three rows and
+// removing every authority file from it, and a file sorted into a population of
+// its own left the walk before it could be counted as a build input at all, so
+// the roster, the clients file, the token copy and the security contact were
+// outside all three rows while the subject of those rows said they were in.
+// A generation typed into the roster passed the whole gate.
+func TestEachBuildInputRowSeesEveryFileTheBuildReadsExceptItsOwnSource(t *testing.T) {
+	root := tree(t, goodTemplate)
+	found, err := gather(root)
+	if err != nil {
+		t.Fatalf("gathering the populations: %v", err)
+	}
+
+	holds := func(subject, name string) bool {
+		for _, f := range found[subject] {
+			if f.name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, c := range []struct {
+		subject string
+		name    string
+		want    bool
+		why     string
+	}{
+		{BuildInputs, site.RosterFile, true,
+			"the roster is what every plugin row and every plugin page is rendered from"},
+		{BuildInputs, site.ClientsFile, true,
+			"the claim about the clients is a sentence on the landing page"},
+		{BuildInputs, tokens.File, true,
+			"the token copy is what the design system page renders"},
+		{BuildInputs, security.File, true,
+			"the reporting route is written into what the build produces"},
+		{BuildInputs, releases.File, true,
+			"the recorded releases decide the word each plugin row carries"},
+		{BuildInputs, "templates/page.html.tmpl", true,
+			"the frame is the file every page is rendered through"},
+
+		{BuildInputsOutsideTheTokenFile, tokens.File, false,
+			"the row over this population refuses a second copy of a token value, and the first copy is not a second one"},
+		{BuildInputsOutsideTheTokenFile, site.RosterFile, true,
+			"the roster is not the authority for a token value, so a colour typed into it is a second copy"},
+		{BuildInputsOutsideTheTokenFile, site.ClientsFile, true,
+			"the clients file is not the authority for a token value either"},
+
+		{BuildInputsOutsideTheClientsFile, site.ClientsFile, false,
+			"the row over this population refuses a second copy of a client limit, and the first copy is not a second one"},
+		{BuildInputsOutsideTheClientsFile, site.RosterFile, true,
+			"the roster is not the authority for a client limit"},
+		{BuildInputsOutsideTheClientsFile, tokens.File, true,
+			"the token copy is where the client limits are declared, and this row reads the copy rather than being the copy"},
+	} {
+		if got := holds(c.subject, c.name); got != c.want {
+			t.Errorf("%s in %q is %v, want %v: %s", c.name, c.subject, got, c.want, c.why)
+		}
+	}
+}
+
+// The end of the same case, over a run rather than over a population. A server
+// generation typed into the roster reds the gate and the refusal names the
+// file, the line and the number, which is what issue #91's last condition asks
+// for and what a green run reported instead.
+func TestRunRefusesAServerGenerationTypedIntoTheRoster(t *testing.T) {
+	root := tree(t, goodTemplate)
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(site.RosterFile)),
+		[]byte(`[{"id":"alpha","repository":"Flowfin/jellyfin-plugin-alpha",`+
+			`"summary":"What alpha does on Jellyfin 10.11","state":"build-up"}]`), 0o644); err != nil {
+		t.Fatalf("rewriting the roster: %v", err)
+	}
+	git(t, root, "add", "-A")
+
+	var log bytes.Buffer
+	if err := Run(root, &log); err == nil {
+		t.Fatalf("Run accepted a roster stating a server generation:\n%s", log.String())
+	}
+	for _, want := range []string{
+		"build-input-carries-no-server-generation: REFUSED, 1 violation(s)",
+		site.RosterFile + ": line 1",
+		"states the server generation 10.11",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the run does not say %q; it said:\n%s", want, log.String())
+		}
+	}
+}
+
+// The same tree with the generation taken back out. Without this the case above
+// would pass over a run that refuses every roster, which proves the opposite of
+// what it is for.
+func TestRunAcceptsARosterThatStatesNoGeneration(t *testing.T) {
+	var log bytes.Buffer
+	if err := Run(tree(t, goodTemplate), &log); err != nil {
+		t.Fatalf("Run refused a roster stating no generation: %v\n%s", err, log.String())
+	}
+	if !strings.Contains(log.String(), "build-input-carries-no-server-generation: ok") {
+		t.Errorf("the run did not report the row as examined; it said:\n%s", log.String())
+	}
+}
