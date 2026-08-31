@@ -61,7 +61,7 @@ remove, and it is the same failure record 0007 refuses for the design tokens.
 
 Have this build write the profile table directly. The cost is a credential that
 reaches another repository, held by a job here, plus commits landing in that
-tree from a source its own maintainer is not reading.
+tree from a source I am not reading when I edit it by hand.
 
 ## When this is worth revisiting
 

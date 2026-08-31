@@ -75,9 +75,9 @@ invisible.
 
 ## What this record does not decide
 
-Whether the domain moves at all is the maintainer's call, as entry 3 of issue #7.
-Nothing here decides it, and what this record states has to hold on whichever
-answer comes back.
+Whether the domain moves at all is my call, as entry 3 of issue #7. Nothing
+here decides it, and what this record states has to hold on whichever answer
+comes back.
 
 ## When this is worth revisiting
 
