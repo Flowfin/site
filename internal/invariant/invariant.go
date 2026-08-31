@@ -89,6 +89,20 @@ const (
 	// file is a copy of output rather than a source of it. Only what the
 	// build reads can put a wrong value on a page.
 	BuildInputs = "every tracked file the build reads to render a page"
+	// BuildInputsOutsideTheTokenFile and BuildInputsOutsideTheClientsFile are
+	// the same population with one file removed, and the file removed is the
+	// one the row using it is the authority for. A row refusing a second copy
+	// of a value cannot read the first copy as a second one, so each of those
+	// two rows needs the build inputs minus its own source rather than the
+	// build inputs minus every source there is.
+	//
+	// Cutting one population for all three was what put the roster, the
+	// clients file, the token copy and the security contact outside every one
+	// of them: a file sorted into a population of its own left the walk before
+	// it could be counted here as well, so the rows judged the templates and
+	// the prose and nothing the build reads a value out of.
+	BuildInputsOutsideTheTokenFile   = "every tracked file the build reads to render a page, outside the file that holds the token values"
+	BuildInputsOutsideTheClientsFile = "every tracked file the build reads to render a page, outside the file that holds the client claim"
 )
 
 // vocabularyFile is the path excluded from TrackedText, and it is derived from
@@ -531,14 +545,14 @@ func Rules(numbers []tokens.Number) []Rule {
 		},
 		{
 			ID:      "design-tokens-live-in-exactly-one-file",
-			Subject: BuildInputs,
+			Subject: BuildInputsOutsideTheTokenFile,
 			Reason:  "a value typed into a template is a second definition of a value published somewhere else, and the day the published one moves the page goes on rendering the old one perfectly, so nobody sees it; the file carries lengths, weights and font stacks beside the colours, and a wrong length is the harder one to see because a wrong colour at least looks wrong",
 			Refuses: "a colour, a length, a font family or a font weight written into what the build reads, outside a fragment reference",
 			decide:  decideTypedTokenValue,
 		},
 		{
 			ID:      "client-budget-numbers-live-in-exactly-one-file",
-			Subject: BuildInputs,
+			Subject: BuildInputsOutsideTheClientsFile,
 			Reason:  "a number a client is held to is the same class of fact as a spacing step, and it is the harder one to see when it goes stale: a wrong colour looks wrong on the page and a wrong millisecond looks like every other millisecond, so a second copy of one is a conformance target somebody meets while the published one says something else",
 			Refuses: "a limit a client is held to, written into what the build reads, in either the words the page states it in or the number and its unit alone",
 			decide:  decideTypedBudgetNumber(numbers),
@@ -1300,6 +1314,8 @@ func gather(root string) (map[string][]file, error) {
 		SourceFiles:                          tracked.sources,
 		Workflows:                            tracked.workflows,
 		BuildInputs:                          tracked.buildInputs,
+		BuildInputsOutsideTheTokenFile:       tracked.outsideTokens,
+		BuildInputsOutsideTheClientsFile:     tracked.outsideClients,
 		TrackedTextOutsideTheVersionRegister: tracked.outsideVersion,
 	}, nil
 }
@@ -1314,6 +1330,8 @@ type tracked struct {
 	sources         []file
 	workflows       []file
 	buildInputs     []file
+	outsideTokens   []file
+	outsideClients  []file
 	tokenCopies     []file
 	securitySources []file
 	clientClaims    []file
@@ -1369,24 +1387,34 @@ func trackedText(root string) (tracked, error) {
 		if !versionRegister(name) {
 			found.outsideVersion = append(found.outsideVersion, f)
 		}
+		// These four sort a file into the population that asks whether it
+		// is there at all. None of them ends the file's walk: a file that
+		// is one of these is also something the build reads, and returning
+		// here is what took every one of them out of the populations below
+		// while the subject of those populations went on saying it held
+		// them.
 		if name == tokens.File {
 			found.tokenCopies = append(found.tokenCopies, f)
-			continue
 		}
 		if name == security.File {
 			found.securitySources = append(found.securitySources, f)
-			continue
 		}
 		if name == site.ClientsFile {
 			found.clientClaims = append(found.clientClaims, f)
-			continue
 		}
 		if name == site.RosterFile {
 			found.rosterCopies = append(found.rosterCopies, f)
-			continue
 		}
-		if strings.HasPrefix(name, site.TemplatesDir+"/") || strings.HasPrefix(name, site.ContentDir+"/") {
+		if strings.HasPrefix(name, site.TemplatesDir+"/") ||
+			strings.HasPrefix(name, site.ContentDir+"/") ||
+			strings.HasPrefix(name, site.DataDir+"/") {
 			found.buildInputs = append(found.buildInputs, f)
+			if name != tokens.File {
+				found.outsideTokens = append(found.outsideTokens, f)
+			}
+			if name != site.ClientsFile {
+				found.outsideClients = append(found.outsideClients, f)
+			}
 		}
 	}
 	return found, nil
