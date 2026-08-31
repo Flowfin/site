@@ -96,9 +96,9 @@ which is the kind this project cannot see and cannot repair.
 
 ## What this record does not decide
 
-Where the addresses are served from is entry 3 of issue #7 and is the maintainer's
-call. The catalogue address is held by record 0006 and is fixed by a commitment
-rather than by this scheme.
+Where the addresses are served from is entry 3 of issue #7 and is my call. The
+catalogue address is held by record 0006 and is fixed by a commitment rather
+than by this scheme.
 
 The scheme above is written for a site published in one language. Entry 2 of issue
 #7 has an option that publishes two, and on that answer every address here gains a
