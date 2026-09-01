@@ -55,6 +55,13 @@ jobs:
           cache: false
 
       - name: Compare every recorded repository against its release list
+        # The token is what an anonymous caller does not have, and twelve
+        # repositories from a shared address exhaust the anonymous rate: a run
+        # taken that way answered 403 for the fifth repository it asked about.
+        # A run that could not ask says nothing about the record rather than
+        # reading it and finding it current, and the scope below is read-only.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: go run . releases check
 
       - name: Prove the run wrote nothing

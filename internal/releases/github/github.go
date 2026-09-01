@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -53,6 +54,7 @@ func Fetch(repository string) (releases.Repository, error) {
 		return releases.Repository{}, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
+	authorise(req)
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
@@ -242,4 +244,36 @@ func escapeRepository(repository string) string {
 		return url.PathEscape(repository)
 	}
 	return url.PathEscape(owner) + "/" + url.PathEscape(name)
+}
+
+// TokenVariable is the environment variable a token is read from. It is the
+// name a workflow already puts a token under, so a run inside one asks with it
+// by having it in the environment rather than by being told to.
+const TokenVariable = "GITHUB_TOKEN"
+
+// authorise puts a token on the request where the environment holds one.
+//
+// Without it the request is anonymous, and an anonymous caller is held to a
+// rate the twelve repositories here exhaust: a scheduled run from a shared
+// address answered 403 for the fifth repository it asked about on 2026-09-01,
+// which is a run that says nothing about the record rather than one that read
+// it and found it current.
+//
+// It is optional rather than required, because a contributor asking about
+// twelve repositories once is inside the anonymous rate and should not have to
+// hold a credential to run a verb. A token that is not there is not an error
+// and the run says nothing about it: what it would report is the state of
+// somebody's environment, and the refusal that matters is the one the request
+// itself answers with.
+//
+// Only this request carries it. The metadata beside a release is fetched from
+// wherever the release list says, which is not this interface and is not a host
+// this repository chose, and a credential sent there is a credential handed to
+// a third party.
+func authorise(req *http.Request) {
+	token := strings.TrimSpace(os.Getenv(TokenVariable))
+	if token == "" {
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
 }
