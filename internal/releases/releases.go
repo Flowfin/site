@@ -231,36 +231,83 @@ func Run(root string, repositories []string, taken, command string, fetch Fetche
 		return fmt.Errorf("writing %s: %w", File, err)
 	}
 
-	moved := 0
-	names := make([]string, 0, len(rec.Repositories))
-	for n := range rec.Repositories {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	for _, n := range names {
-		now := rec.Repositories[n]
-		was, had := before.Repositories[n]
-		switch {
-		case !had:
-			moved++
-			fmt.Fprintf(out, "  %s: NEW, %s\n", n, said(now))
-		case !same(was, now):
-			moved++
-			fmt.Fprintf(out, "  %s: MOVED, was %s, now %s\n", n, said(was), said(now))
-		default:
-			fmt.Fprintf(out, "  %s: unchanged, %s\n", n, said(now))
-		}
-	}
-	for n := range before.Repositories {
-		if _, still := rec.Repositories[n]; !still {
-			moved++
-			fmt.Fprintf(out, "  %s: GONE, the roster no longer names it and this run did not ask about it\n", n)
-		}
-	}
+	moved := report(before, rec, out)
 
 	fmt.Fprintf(out, "releases: %d repository(s) recorded as taken on %s, %d entry(s) moved, written to %s\n",
 		len(rec.Repositories), rec.Taken, moved, File)
 	return nil
+}
+
+// Check asks the same question Run asks and writes nothing, refusing while the
+// record no longer says what the release lists say.
+//
+// It is the route a schedule takes. Nothing else re-takes the record, so
+// without one the file ages in silence while the landing page states the day it
+// was taken as though a reader could rely on it, and a repository that publishes
+// its first finished release goes on being rendered as a shell.
+//
+// It refuses on a record it could not read, which is the opposite of what Run
+// does with the same failure and is the same reason in both directions. Run is
+// about to replace the file, so an unreadable one is a state it may report and
+// carry on from; this one has nothing to compare against, and a run that
+// reported no difference because it read no record would be the green mark over
+// something that did not happen.
+func Check(root string, repositories []string, fetch Fetcher, out io.Writer) error {
+	before, err := Load(root)
+	if err != nil {
+		return fmt.Errorf("releases: %w", err)
+	}
+
+	// The moment and the command are carried over from the record rather
+	// than taken again, because what this compares is the counts and a
+	// fresh date on one side would be a difference in every run.
+	now, err := Refresh(repositories, before.Taken, before.Command, fetch)
+	if err != nil {
+		return fmt.Errorf("releases: %w", err)
+	}
+
+	moved := report(before, now, out)
+
+	fmt.Fprintf(out, "releases: %d repository(s) compared against %s, taken on %s, %d entry(s) moved, nothing written\n",
+		len(now.Repositories), File, before.Taken, moved)
+	if moved > 0 {
+		return fmt.Errorf("releases: %d entry(s) in %s no longer say what the release lists say, and the pages render that file; re-take it with `go run . releases`", moved, File)
+	}
+	return nil
+}
+
+// report names every repository the two records disagree about and answers with
+// how many they were. It is shared by the two verbs above so that a schedule and
+// a refresh describe the same difference in the same words, rather than a reader
+// meeting one vocabulary in a red run and another in the change that repairs it.
+func report(before, now Record, out io.Writer) int {
+	moved := 0
+	names := make([]string, 0, len(now.Repositories))
+	for n := range now.Repositories {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		current := now.Repositories[n]
+		was, had := before.Repositories[n]
+		switch {
+		case !had:
+			moved++
+			fmt.Fprintf(out, "  %s: NEW, %s\n", n, said(current))
+		case !same(was, current):
+			moved++
+			fmt.Fprintf(out, "  %s: MOVED, was %s, now %s\n", n, said(was), said(current))
+		default:
+			fmt.Fprintf(out, "  %s: unchanged, %s\n", n, said(current))
+		}
+	}
+	for n := range before.Repositories {
+		if _, still := now.Repositories[n]; !still {
+			moved++
+			fmt.Fprintf(out, "  %s: GONE, the roster no longer names it and this run did not ask about it\n", n)
+		}
+	}
+	return moved
 }
 
 // said is one repository's entry in the words the run reports it in. The

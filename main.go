@@ -116,9 +116,19 @@ func run(args []string, out, errOut io.Writer) error {
 		// every run.
 		return freshness.Run(".", freshness.Publisher, out)
 	case "releases":
-		if len(args) != 1 {
+		// The one argument this verb takes chooses between writing the
+		// answer and comparing against it. They are one verb rather than
+		// two because they ask the same question of the same repositories
+		// and differ only in what they do with what came back, and a second
+		// verb name would let the two drift apart.
+		compare := false
+		switch {
+		case len(args) == 1:
+		case len(args) == 2 && args[1] == "check":
+			compare = true
+		default:
 			usage(errOut)
-			return errors.New("releases takes no argument")
+			return errors.New("releases takes no argument, or the argument check")
 		}
 		// Deliberately not a leg of the gate, for the reason the pins and
 		// tokens verbs are not: what it reads is somebody else's release
@@ -134,6 +144,9 @@ func run(args []string, out, errOut io.Writer) error {
 		named, err := roster.Named(body)
 		if err != nil {
 			return err
+		}
+		if compare {
+			return releases.Check(root, named, github.Fetch, out)
 		}
 		return releases.Run(root, named, time.Now().UTC().Format(time.DateOnly), github.Command, github.Fetch, out)
 	case "version":
@@ -198,10 +211,12 @@ func usage(w io.Writer) {
   go run . roster  compare the pinned roster against the published one, naming
                    every row that differs, and report OFF rather than green
                    where nothing is published to compare against
-  go run . releases
+  go run . releases [check]
                    ask each repository the roster names what it has published
                    and write `+releases.File+`, which is what the shipping state
-                   and the roster's repositories are read from
+                   and the roster's repositories are read from; with check, ask
+                   the same question and report what has moved since that file
+                   was taken, writing nothing
   go run . version print the version this repository releases under, alone on
                    one line, which is what the release run builds its tag from
   go run . changelog

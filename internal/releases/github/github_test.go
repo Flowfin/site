@@ -163,3 +163,58 @@ func TestMetadataThatCouldNotBeReadIsAFailureRatherThanTheThirdState(t *testing.
 		}
 	}
 }
+
+// The token reaches the request that asks this interface and nothing else. A
+// credential put on the request for the metadata beside a release would be
+// handed to whichever host that release names, which is not this interface and
+// is not a host this repository chose.
+func TestTheTokenReachesTheReleaseListAndNothingElse(t *testing.T) {
+	t.Setenv(TokenVariable, "  a-token  ")
+
+	req, err := http.NewRequest(http.MethodGet, API+"a/b/releases?per_page=100", nil)
+	if err != nil {
+		t.Fatalf("building the request: %v", err)
+	}
+	authorise(req)
+	if got := req.Header.Get("Authorization"); got != "Bearer a-token" {
+		t.Errorf("the request carries the authorisation %q", got)
+	}
+
+	// The metadata is reached through the getter below, and a case that
+	// sees a header on it is a case that has caught the leak.
+	asked := ""
+	_, _, err = generationsOf(func(address string) (*http.Response, error) {
+		asked = address
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader(`{"targetAbi":"10.11.0.0"}`)),
+		}, nil
+	}, []release{{Tag: "1.0", Assets: []struct {
+		Name string `json:"name"`
+		URL  string `json:"browser_download_url"`
+	}{{Name: "a" + metadataSuffix, URL: "https://elsewhere.example/a.meta.json"}}}})
+	if err != nil {
+		t.Fatalf("reading the generation: %v", err)
+	}
+	if asked != "https://elsewhere.example/a.meta.json" {
+		t.Errorf("the metadata was read from %q", asked)
+	}
+}
+
+// No token in the environment is not an error, and the request goes anonymous
+// rather than carrying an empty credential. A contributor asking about twelve
+// repositories once is inside the anonymous rate and should not have to hold
+// one.
+func TestNoTokenLeavesTheRequestAnonymous(t *testing.T) {
+	t.Setenv(TokenVariable, "   ")
+
+	req, err := http.NewRequest(http.MethodGet, API+"a/b/releases?per_page=100", nil)
+	if err != nil {
+		t.Fatalf("building the request: %v", err)
+	}
+	authorise(req)
+	if _, carried := req.Header["Authorization"]; carried {
+		t.Errorf("the request carries an authorisation header with no token behind it: %q", req.Header.Get("Authorization"))
+	}
+}

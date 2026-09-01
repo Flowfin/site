@@ -1,0 +1,77 @@
+# The comparison between what data/releases.json records about published
+# releases and what the release lists say today.
+#
+# It runs on a schedule rather than on a pull request, for the reason the pins,
+# token and roster comparisons beside it do: what it reads is what somebody else
+# has published, so its verdict moves when they publish rather than when this
+# tree changes, and a merge blocked by that is a gate punishing the wrong
+# change. The half that needs no network is the build, which reads the record on
+# every run of the gate.
+#
+# The record it judges is unlike the copies those three compare. Those hold a
+# file with an authority somewhere else and a difference is evidence about that
+# file; this one is the answer itself, taken once and committed, so nothing
+# published anywhere can be read to find out whether it has gone stale. Until
+# this ran, nothing did: the file aged in silence while the landing page stated
+# the day it was taken as though a reader could rely on it, and a repository
+# publishing its first finished release went on being rendered as a shell.
+#
+# It reports and does not write. The verb this asks for has a mode that would
+# rewrite the record, and a run that took it would destroy the difference that
+# is the evidence for the change somebody makes, on the one file here where a
+# machine could write the answer instead of reporting it. The last step is what
+# holds it to that.
+name: Release record
+
+on:
+  schedule:
+    # Weekly, on the cadence the other comparisons against something published
+    # elsewhere use, so the whole set is looked at on one rhythm rather than on
+    # several nobody can hold in their head. A day later than the roster it
+    # reads its repository names from.
+    - cron: "51 5 * * 3"
+  workflow_dispatch:
+
+# Deny everything at the top level; the job below grants the one scope it needs.
+permissions: {}
+
+jobs:
+  releases:
+    name: Compare the release record against what is published
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only; nothing here writes
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain go.mod pins
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Compare every recorded repository against its release list
+        # The token is what an anonymous caller does not have, and twelve
+        # repositories from a shared address exhaust the anonymous rate: a run
+        # taken that way answered 403 for the fifth repository it asked about.
+        # A run that could not ask says nothing about the record rather than
+        # reading it and finding it current, and the scope below is read-only.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: go run . releases check
+
+      - name: Prove the run wrote nothing
+        # After the comparison whether it passed or failed, because the verb
+        # this asks for can write that file and a run that rewrote it on its way
+        # to a red verdict is exactly the failure that would be missed.
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain=v1
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
