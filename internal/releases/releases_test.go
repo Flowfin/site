@@ -337,3 +337,111 @@ func TestTheVerbOverATreeWithNoRecordSaysThereWasNothingThere(t *testing.T) {
 		t.Errorf("the run does not report the repository as new; it said:\n%s", log.String())
 	}
 }
+
+// The comparison over a record that still says what the release lists say, and
+// the same record with one count edited. It is one case rather than two so that
+// the green half and the red half are the same bytes apart from the edit that
+// is supposed to decide them: a comparison proved only against a record it
+// refuses says nothing about whether it ever passes, and one proved only
+// against a record it accepts says nothing about whether it ever bites.
+func TestTheComparisonBitesOnAnEditAndPassesWithoutIt(t *testing.T) {
+	const current = `{"taken":"2026-01-02","command":"a command","repositories":{
+		"a/b":{"finished":1,"prereleases":2,"generations":["10.11"]},
+		"c/d":{"finished":0,"prereleases":0}}}`
+	const edited = `{"taken":"2026-01-02","command":"a command","repositories":{
+		"a/b":{"finished":1,"prereleases":2,"generations":["10.11"]},
+		"c/d":{"finished":3,"prereleases":0,"generations":["12.0"]}}}`
+
+	published := func(repository string) (Repository, error) {
+		if repository == "a/b" {
+			return Repository{Finished: 1, Prereleases: 2, Generations: []string{"10.11"}}, nil
+		}
+		return Repository{}, nil
+	}
+
+	root, name := treeHolding(t, current)
+	before := bytesOf(t, name)
+	var log strings.Builder
+	if err := Check(root, []string{"a/b", "c/d"}, published, &log); err != nil {
+		t.Fatalf("the comparison refused a record that still says what was published: %v", err)
+	}
+	for _, want := range []string{
+		"a/b: unchanged, 1 finished, 2 prerelease(s), for 10.11",
+		"c/d: unchanged, 0 finished, 0 prerelease(s)",
+		"2 repository(s) compared against " + File,
+		"0 entry(s) moved, nothing written",
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Errorf("the passing run does not say %q; it said:\n%s", want, log.String())
+		}
+	}
+	if got := bytesOf(t, name); got != before {
+		t.Error("the passing run rewrote the record it was asked to compare against")
+	}
+
+	root, name = treeHolding(t, edited)
+	before = bytesOf(t, name)
+	log.Reset()
+	err := Check(root, []string{"a/b", "c/d"}, published, &log)
+	if err == nil {
+		t.Fatal("the comparison passed a record that no longer says what was published")
+	}
+	if !strings.Contains(err.Error(), File) || !strings.Contains(err.Error(), "go run . releases") {
+		t.Errorf("the refusal reads %q, which does not name the file or what re-takes it", err)
+	}
+	if want := "c/d: MOVED, was 3 finished, 0 prerelease(s), for 12.0, now 0 finished, 0 prerelease(s)"; !strings.Contains(log.String(), want) {
+		t.Errorf("the refusing run does not say %q; it said:\n%s", want, log.String())
+	}
+	if !strings.Contains(log.String(), "1 entry(s) moved, nothing written") {
+		t.Errorf("the refusing run does not count what moved; it said:\n%s", log.String())
+	}
+	if got := bytesOf(t, name); got != before {
+		t.Error("the refusing run rewrote the record on its way to a red verdict")
+	}
+}
+
+// A tree with no record is refused rather than compared against nothing. Run
+// reports the same state and carries on, because it is about to write the file;
+// this one would be reporting no difference having read no record, which is the
+// green mark over something that did not happen.
+func TestTheComparisonOverATreeWithNoRecordIsRefused(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, filepath.Dir(filepath.FromSlash(File))), 0o755); err != nil {
+		t.Fatalf("preparing the tree: %v", err)
+	}
+	var log strings.Builder
+	err := Check(root, []string{"a/b"},
+		func(string) (Repository, error) { return Repository{}, nil }, &log)
+	if err == nil {
+		t.Fatal("the comparison passed a tree holding no record")
+	}
+	if strings.Contains(log.String(), "unchanged") {
+		t.Errorf("the run reported an entry as unchanged with nothing to compare against; it said:\n%s", log.String())
+	}
+}
+
+// treeHolding is a tree carrying one record, which both halves of the case
+// above need and neither may share with the other.
+func treeHolding(t *testing.T, record string) (root, name string) {
+	t.Helper()
+	root = t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, filepath.Dir(filepath.FromSlash(File))), 0o755); err != nil {
+		t.Fatalf("preparing the tree: %v", err)
+	}
+	name = filepath.Join(root, filepath.FromSlash(File))
+	if err := os.WriteFile(name, []byte(record), 0o644); err != nil {
+		t.Fatalf("writing the record: %v", err)
+	}
+	return root, name
+}
+
+// bytesOf is what the file holds, read as a string so that a case can say the
+// run left it alone.
+func bytesOf(t *testing.T, name string) string {
+	t.Helper()
+	body, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatalf("reading %s: %v", name, err)
+	}
+	return string(body)
+}
