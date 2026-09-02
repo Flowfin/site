@@ -73,7 +73,7 @@ jobs:
     # A caller grants every permission the callable file declares, and no more.
     permissions:
       contents: read
-    uses: ./.github/workflows/package.yml
+    uses: $/.github/workflows/package.yml
 
   publish:
     name: Publish the release
