@@ -25,6 +25,24 @@
 // hold is unresolved, which is a failure and never a pass. A run that resolved
 // nothing and reported agreement is what this exists to prevent.
 //
+// There is a third reading, and it is the one an issue passes through both
+// questions untouched. Neither of them asks whether the issue an issue waits
+// for is waiting back. A set in which every member waits on another member of
+// the same set is a set nothing outside it can end, and every member of it
+// reads as ordinarily blocked, is subtracted from the count of available work
+// by its label, and is walked past by every reader for as long as nobody
+// notices. Eight of this board's own issues were in one such set when this was
+// measured, and the run's last line called them clean.
+//
+// That reading is REPORTED and refuses nothing, which is the one place this
+// package prints a state in capitals without failing on it. The repair is an
+// edit to an issue somebody has to decide on, the same repair the two
+// questions above ask for, but unlike them it cannot be made by the issue's own
+// author alone: which member of the set gives way is a reading of what those
+// issues are for. Refusing here would put a red gate on a condition that stands
+// until that reading is taken. Whether it should refuse anyway is the open half
+// of #234 and is not decided here.
+//
 // The reading is the whole tracker rather than one query per issue. A body
 // names a number that has closed more often than one that has not, and a
 // closed issue is absent from the listing an open-issue query answers with, so
@@ -211,8 +229,13 @@ func Run(read Reader, out io.Writer) error {
 		}
 	}
 
-	fmt.Fprintf(out, "%d issue(s) read, %d naming no issue, %d no longer blocked, %d unresolved.\n",
-		len(blocked), nameless, cleared, unresolved)
+	sets := reciprocal(blocked)
+	for _, set := range sets {
+		fmt.Fprintf(out, "  WAITING ON ITSELF: %s each wait on another issue in this set, so nothing closing outside it makes any of them available\n", numbers(set))
+	}
+
+	fmt.Fprintf(out, "%d issue(s) read, %d naming no issue, %d no longer blocked, %d unresolved, %d set(s) waiting on themselves.\n",
+		len(blocked), nameless, cleared, unresolved, len(sets))
 
 	var wrong []string
 	if nameless > 0 {
@@ -228,6 +251,95 @@ func Run(read Reader, out io.Writer) error {
 		return fmt.Errorf("blockers: %s", strings.Join(wrong, ", "))
 	}
 	return nil
+}
+
+// reciprocal returns every set of the issues given in which each member waits
+// on another member of the same set, each set sorted and the sets ordered by
+// their lowest member.
+//
+// Only an issue carrying the label is a member. An issue that does not carry
+// it is claiming to wait for nothing, so a reference into it is not a wait and
+// no path runs through it, however many blocked issues name it. That is what
+// keeps a popular open issue out of a set it is merely mentioned by.
+//
+// The edges are the references the two questions above already resolve, so
+// this reading inherits their bound: a body naming a number in passing is read
+// as a wait. What makes the inherited over-reading survivable here is that a
+// set needs the reference to run in both directions, so both bodies have to be
+// describing something other than a wait, in opposite directions, at once. A
+// one-sided mention produces no set.
+//
+// The walk is a reachability closure per member rather than a linear
+// component algorithm. The population is the issues one board has under one
+// label, which is tens rather than thousands, and the cost of the closure is
+// paid once per run against a reading that took a paged fetch of the whole
+// tracker to produce.
+func reciprocal(blocked []Issue) [][]int {
+	member := map[int]bool{}
+	for _, i := range blocked {
+		member[i.Number] = true
+	}
+
+	waits := map[int][]int{}
+	for _, i := range blocked {
+		for _, n := range References(i.Body) {
+			if n == i.Number || !member[n] {
+				continue
+			}
+			waits[i.Number] = append(waits[i.Number], n)
+		}
+	}
+
+	// reach[n] is every member a wait from n arrives at, following waits as
+	// far as they go. n is in its own set when it arrives back at itself,
+	// which is a path of at least one edge and never the empty one.
+	reach := map[int]map[int]bool{}
+	for _, i := range blocked {
+		seen := map[int]bool{}
+		stack := append([]int(nil), waits[i.Number]...)
+		for len(stack) > 0 {
+			n := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if seen[n] {
+				continue
+			}
+			seen[n] = true
+			stack = append(stack, waits[n]...)
+		}
+		reach[i.Number] = seen
+	}
+
+	taken := map[int]bool{}
+	var sets [][]int
+	for _, i := range blocked {
+		n := i.Number
+		if taken[n] || !reach[n][n] {
+			continue
+		}
+		set := []int{n}
+		taken[n] = true
+		for _, j := range blocked {
+			m := j.Number
+			if taken[m] || !reach[n][m] || !reach[m][n] {
+				continue
+			}
+			set = append(set, m)
+			taken[m] = true
+		}
+		sort.Ints(set)
+		sets = append(sets, set)
+	}
+	return sets
+}
+
+// numbers writes a set the way the rest of this run writes a reference, so a
+// reader can take a number out of either line and put it into the same query.
+func numbers(set []int) string {
+	out := make([]string, 0, len(set))
+	for _, n := range set {
+		out = append(out, "#"+strconv.Itoa(n))
+	}
+	return strings.Join(out, ", ")
 }
 
 // describe names a reference the way a reader has to see it, because a body
