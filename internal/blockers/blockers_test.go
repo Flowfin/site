@@ -85,7 +85,7 @@ func TestRunPassesWhenEveryBlockedIssueNamesSomethingStillOpen(t *testing.T) {
 	if !strings.Contains(out, "#36: blocked, waiting on #35 (open issue)") {
 		t.Fatalf("the run should say what #36 waits on, got:\n%s", out)
 	}
-	if !strings.Contains(out, "1 issue(s) read, 0 naming no issue, 0 no longer blocked, 0 unresolved.") {
+	if !strings.Contains(out, "1 issue(s) read, 0 naming no issue, 0 no longer blocked, 0 unresolved, 0 set(s) waiting on themselves.") {
 		t.Fatalf("the run should count what it read, got:\n%s", out)
 	}
 }
@@ -228,7 +228,7 @@ func TestRunPassesABoardOnWhichNothingIsBlocked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a board where nothing carries the label is a real zero, got %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "0 issue(s) read, 0 naming no issue, 0 no longer blocked, 0 unresolved.") {
+	if !strings.Contains(out, "0 issue(s) read, 0 naming no issue, 0 no longer blocked, 0 unresolved, 0 set(s) waiting on themselves.") {
 		t.Fatalf("the run should say it read nothing, got:\n%s", out)
 	}
 }
@@ -275,12 +275,139 @@ func TestRunCountsEveryStateSeparatelyOnOneBoard(t *testing.T) {
 	if err == nil {
 		t.Fatalf("three of these four are wrong and the run should be red, got:\n%s", out)
 	}
-	if !strings.Contains(out, "4 issue(s) read, 1 naming no issue, 1 no longer blocked, 1 unresolved.") {
+	if !strings.Contains(out, "4 issue(s) read, 1 naming no issue, 1 no longer blocked, 1 unresolved, 0 set(s) waiting on themselves.") {
 		t.Fatalf("the run should count the three states apart, got:\n%s", out)
 	}
 	for _, want := range []string{"1 name no issue by number", "1 are no longer blocked and still say they are", "1 name a number this board does not hold"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("the error should carry %q, got %v", want, err)
 		}
+	}
+}
+
+func TestRunNamesTwoIssuesThatWaitOnEachOther(t *testing.T) {
+	// Neither of these is reported by any of the states above: both name a
+	// number, both name one that is open, and both resolve. What no reading
+	// before this one asked is whether the issue each waits for is waiting
+	// back, and nothing closing anywhere else ends either of them.
+	out, err := run(t, board(
+		blockedIssue(35, "Depends on #63, which pins the browser this leg loads the built output in."),
+		blockedIssue(63, "The second condition needs one browser-backed leg in the same change, which is #35."),
+		blockedIssue(58, "Depends on #53, the release workflow."),
+		openIssue(53),
+	))
+	if err != nil {
+		t.Fatalf("a reciprocal wait is reported and refuses nothing, got %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "WAITING ON ITSELF: #35, #63 each wait on another issue in this set") {
+		t.Fatalf("the run should name the set, got:\n%s", out)
+	}
+	if strings.Contains(out, "#58,") || strings.Contains(out, ", #58") {
+		t.Fatalf("#58 waits on something outside any set and does not belong in one, got:\n%s", out)
+	}
+	if !strings.Contains(out, "3 issue(s) read, 0 naming no issue, 0 no longer blocked, 0 unresolved, 1 set(s) waiting on themselves.") {
+		t.Fatalf("the run should count the set, got:\n%s", out)
+	}
+}
+
+func TestRunNamesASetLongerThanAPair(t *testing.T) {
+	// The near miss for the row above, and the reason the walk follows waits
+	// as far as they go rather than comparing two bodies. No two of these
+	// three name each other, so a reading that only compared pairs would
+	// report nothing here and the set would stand.
+	out, err := run(t, board(
+		blockedIssue(35, "Depends on #63."),
+		blockedIssue(63, "Depends on #71."),
+		blockedIssue(71, "Depends on #35."),
+	))
+	if err != nil {
+		t.Fatalf("a reciprocal wait is reported and refuses nothing, got %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "WAITING ON ITSELF: #35, #63, #71 each wait on another issue in this set") {
+		t.Fatalf("the run should name all three, got:\n%s", out)
+	}
+}
+
+func TestRunNamesEachSetSeparatelyRatherThanMergingThem(t *testing.T) {
+	// Two sets with no path between them are two repairs, and one line
+	// carrying five numbers would send a reader looking for a wait that is
+	// not there.
+	out, err := run(t, board(
+		blockedIssue(35, "Depends on #63."),
+		blockedIssue(63, "Depends on #35."),
+		blockedIssue(71, "Depends on #87."),
+		blockedIssue(87, "Depends on #71."),
+	))
+	if err != nil {
+		t.Fatalf("a reciprocal wait is reported and refuses nothing, got %v\n%s", err, out)
+	}
+	for _, want := range []string{"WAITING ON ITSELF: #35, #63 each", "WAITING ON ITSELF: #71, #87 each"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("the run should carry %q, got:\n%s", want, out)
+		}
+	}
+	if !strings.Contains(out, "0 unresolved, 2 set(s) waiting on themselves.") {
+		t.Fatalf("the run should count two sets, got:\n%s", out)
+	}
+}
+
+func TestRunReadsNoWaitBackFromAnIssueThatIsNotBlocked(t *testing.T) {
+	// An issue carrying no label is claiming to wait for nothing, so a number
+	// in its body is a mention and not an edge. Reading it as one turns every
+	// blocked issue named by the thing it depends on into a set, which is the
+	// false positive this row exists against.
+	out, err := run(t, board(
+		blockedIssue(35, "Depends on #63, which pins the browser."),
+		Issue{Number: 63, Title: "the browser pin", State: "open", Body: "The legs that need this are #35 and #36."},
+	))
+	if err != nil {
+		t.Fatalf("one blocked issue and one open one is an ordinary board, got %v\n%s", err, out)
+	}
+	if strings.Contains(out, "WAITING ON ITSELF") {
+		t.Fatalf("#63 carries no label and waits for nothing, so there is no set, got:\n%s", out)
+	}
+	if !strings.Contains(out, "#35: blocked, waiting on #63 (open issue)") {
+		t.Fatalf("#35 is still ordinarily blocked, got:\n%s", out)
+	}
+}
+
+func TestRunReadsNoWaitBackFromAClosedIssue(t *testing.T) {
+	// The other half of the row above. A closed issue is not judged by this
+	// run at all, so its body's numbers are not edges either, and a set built
+	// through one would be a set nobody is waiting in.
+	out, err := run(t, board(
+		blockedIssue(35, "Depends on #63 and on #90, which is still open."),
+		Issue{Number: 63, Title: "done", State: "closed", Body: "Waits on #35.", Labels: []string{Label}},
+		openIssue(90),
+	))
+	if err != nil {
+		t.Fatalf("one open dependency keeps #35 blocked, got %v\n%s", err, out)
+	}
+	if strings.Contains(out, "WAITING ON ITSELF") {
+		t.Fatalf("#63 has closed and waits for nothing, so there is no set, got:\n%s", out)
+	}
+}
+
+func TestRunReportsASetWithoutMovingTheVerdictItWouldOtherwiseReach(t *testing.T) {
+	// The bound this reading is delivered under, in the direction that would
+	// hide something: a set is printed beside a failure rather than instead of
+	// one, and the failure still carries every state that refuses.
+	out, err := run(t, board(
+		blockedIssue(35, "Depends on #63."),
+		blockedIssue(63, "Depends on #35."),
+		blockedIssue(50, "Depends on #48."),
+		closedIssue(48),
+	))
+	if err == nil {
+		t.Fatalf("#50 is no longer blocked and should still red the run, got:\n%s", out)
+	}
+	if !strings.Contains(err.Error(), "1 are no longer blocked and still say they are") {
+		t.Fatalf("the error should carry the state that refuses, got %v", err)
+	}
+	if strings.Contains(err.Error(), "waiting on themselves") {
+		t.Fatalf("a set refuses nothing and does not belong in the error, got %v", err)
+	}
+	if !strings.Contains(out, "WAITING ON ITSELF: #35, #63 each") {
+		t.Fatalf("the set should be printed beside the failure, got:\n%s", out)
 	}
 }
