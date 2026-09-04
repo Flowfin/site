@@ -1,5 +1,5 @@
 {
-  "taken": "2026-09-01",
+  "taken": "2026-09-04",
   "command": "go run . releases, which reads https://api.github.com/repos/OWNER/NAME/releases?per_page=100 for each repository the roster names, and the .meta.json asset of each finished release for the server generation it targets",
   "repositories": {
     "Flowfin/jellyfin-plugin-discover": {
@@ -11,19 +11,26 @@
       "prereleases": 0
     },
     "Flowfin/jellyfin-plugin-metadata-sync": {
-      "finished": 0,
-      "prereleases": 0
-    },
-    "Flowfin/jellyfin-plugin-requests": {
-      "finished": 2,
+      "finished": 1,
       "prereleases": 0,
       "generations": [
         "10.11"
       ]
     },
+    "Flowfin/jellyfin-plugin-requests": {
+      "finished": 4,
+      "prereleases": 0,
+      "generations": [
+        "10.11",
+        "12.0"
+      ]
+    },
     "Flowfin/jellyfin-plugin-server-pairing": {
-      "finished": 0,
-      "prereleases": 0
+      "finished": 1,
+      "prereleases": 0,
+      "generations": [
+        "10.11"
+      ]
     },
     "Flowfin/jellyfin-plugin-share-links": {
       "finished": 0,
@@ -34,12 +41,12 @@
       "prereleases": 0
     },
     "Flowfin/jellyfin-plugin-sso": {
-      "finished": 37,
-      "prereleases": 61,
+      "finished": 38,
+      "prereleases": 62,
       "generations": [
         "10.11"
       ],
-      "generations-unstated": 4
+      "generations-unstated": 2
     },
     "Flowfin/jellyfin-plugin-stats": {
       "finished": 1,
@@ -53,8 +60,11 @@
       "prereleases": 0
     },
     "Flowfin/jellyfin-plugin-watchlist": {
-      "finished": 0,
-      "prereleases": 0
+      "finished": 1,
+      "prereleases": 0,
+      "generations": [
+        "10.11"
+      ]
     },
     "Flowfin/jellyfin-plugin-whisper-subtitles": {
       "finished": 0,
